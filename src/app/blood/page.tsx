@@ -1,4 +1,5 @@
 import BloodSearch from '@/components/BloodSearch';
+import BloodDonorForm from '@/components/BloodDonorForm';
 
 export default function Page() {
   return (
@@ -6,6 +7,7 @@ export default function Page() {
       <h1 className="text-2xl font-bold tracking-tight">Blood</h1>
       <p className="text-slate-600">Check current blood-unit availability by group.</p>
       <BloodSearch />
+      <BloodDonorForm />
     </main>
   );
 }

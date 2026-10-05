@@ -3,7 +3,17 @@ import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 import SignOutButton from '@/components/SignOutButton';
 
-const sections = ['Appointments', 'Medical Records', 'Doctors', 'Facilities', 'Emergency', 'Blood', 'Donor Services', 'Notifications', 'Profile'];
+const sections = [
+  { label: 'Appointments', href: '/appointments' },
+  { label: 'Medical Records', href: '#' },
+  { label: 'Doctors', href: '/doctors' },
+  { label: 'Facilities', href: '/hospitals' },
+  { label: 'Emergency', href: '/emergency' },
+  { label: 'Blood', href: '/blood' },
+  { label: 'Donor Services', href: '/organ-donation' },
+  { label: 'Notifications', href: '/notifications' },
+  { label: 'Profile', href: '#' },
+];
 
 export default async function Page() {
   const session = await getSession();
@@ -20,9 +30,9 @@ export default async function Page() {
       </p>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {sections.map((s) => (
-          <li key={s}>
-            <Link href="#" className="block rounded-md bg-white p-4 text-sm font-medium text-slate-800 ring-1 ring-slate-200">
-              {s}
+          <li key={s.label}>
+            <Link href={s.href} className="block rounded-md bg-white p-4 text-sm font-medium text-slate-800 ring-1 ring-slate-200">
+              {s.label}
             </Link>
           </li>
         ))}
