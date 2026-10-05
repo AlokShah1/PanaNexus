@@ -1,0 +1,324 @@
+// use prisma-8
+// Prisma 8 data contract — PSL authoring.
+// Run `npx prisma contract emit` after editing, then `npx prisma db init` to sync.
+
+enum Role {
+  PATIENT
+  DOCTOR
+  FACILITY_STAFF
+  AMBULANCE_OPERATOR
+  BLOOD_DONOR
+  ORGAN_DONOR
+  ADMIN
+}
+
+enum FacilityType {
+  HOSPITAL
+  HEALTH_POST
+}
+
+enum AppointmentStatus {
+  REQUESTED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  name         String
+  role         Role        @default(PATIENT)
+  passwordHash String
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+  auditLogs    AuditLog[]
+  patient      Patient?
+  doctor       Doctor?
+  ambulances   Ambulance[]
+  bloodDonor   BloodDonor?
+  organDonor   OrganDonor?
+  bloodRequests BloodRequest[]
+  notifications Notification[]
+  feedback      Feedback[]
+}
+
+model AuditLog {
+  id        String      @id @default(uuid())
+  action    String
+  entity    String?
+  entityId  String?
+  actor     User?       @relation(fields: [actorId], references: [id])
+  actorId   String?
+  metadata  String?
+  createdAt TimestamptzString @default(now())
+
+  @@index([actorId])
+  @@index([entity, entityId])
+}
+
+model Patient {
+  id             String          @id @default(uuid())
+  user           User            @relation(fields: [userId], references: [id])
+  userId         String          @unique
+  phone          String?
+  dateOfBirth    TimestamptzString?
+  bloodGroup     String?
+  address        String?
+  createdAt      TimestamptzString @default(now())
+  updatedAt      temporal.updatedAtString()
+  appointments   Appointment[]
+  medicalRecords MedicalRecord[]
+  emergencyRequests EmergencyRequest[]
+}
+
+model Doctor {
+  id             String             @id @default(uuid())
+  user           User               @relation(fields: [userId], references: [id])
+  userId         String             @unique
+  specialization String?
+  licenseNumber  String?            @unique
+  bio            String?
+  facility       HealthcareFacility? @relation(fields: [facilityId], references: [id])
+  facilityId     String?
+  createdAt      TimestamptzString  @default(now())
+  updatedAt      temporal.updatedAtString()
+  appointments   Appointment[]
+  medicalRecords MedicalRecord[]
+
+  @@index([facilityId])
+}
+
+model HealthcareFacility {
+  id             String         @id @default(uuid())
+  name           String
+  type           FacilityType
+  address        String
+  phone          String?
+  operatingHours String?
+  createdAt      TimestamptzString @default(now())
+  updatedAt      temporal.updatedAtString()
+  doctors        Doctor[]
+  appointments   Appointment[]
+  emergencyRequests EmergencyRequest[]
+  bloodUnits     BloodUnit[]
+  bloodRequests  BloodRequest[]
+  feedback      Feedback[]
+}
+
+model Appointment {
+  id         String             @id @default(uuid())
+  patient    Patient            @relation(fields: [patientId], references: [id])
+  patientId  String
+  doctor     Doctor             @relation(fields: [doctorId], references: [id])
+  doctorId   String
+  facility   HealthcareFacility? @relation(fields: [facilityId], references: [id])
+  facilityId String?
+  startsAt   TimestamptzString
+  status     AppointmentStatus  @default(REQUESTED)
+  notes      String?
+  createdAt  TimestamptzString  @default(now())
+  updatedAt  temporal.updatedAtString()
+
+  @@index([doctorId, startsAt])
+  @@index([patientId, startsAt])
+}
+
+model MedicalRecord {
+  id        String   @id @default(uuid())
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  patientId String
+  doctor    Doctor?  @relation(fields: [doctorId], references: [id])
+  doctorId  String?
+  diagnosis String?
+  treatment String?
+  notes     String?
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  @@index([patientId])
+}
+
+enum AmbulanceType {
+  BASIC
+  ADVANCED
+  ICU
+}
+
+enum AmbulanceStatus {
+  AVAILABLE
+  ASSIGNED
+  EN_ROUTE
+  ARRIVED
+  TRANSPORTING
+  COMPLETED
+  OFFLINE
+}
+
+enum EmergencyCategory {
+  ACCIDENT
+  CARDIAC
+  GENERAL
+  OTHER
+}
+
+enum EmergencyPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum EmergencyStatus {
+  PENDING
+  MATCHED
+  ASSIGNED
+  EN_ROUTE
+  ARRIVED
+  TRANSPORTING
+  COMPLETED
+  CANCELLED
+}
+
+enum TripStatus {
+  EN_ROUTE
+  ARRIVED
+  TRANSPORTING
+  COMPLETED
+  CANCELLED
+}
+
+model Ambulance {
+  id                String          @id @default(uuid())
+  registrationNumber String         @unique
+  type              AmbulanceType
+  status            AmbulanceStatus @default(OFFLINE)
+  operator          User?           @relation(fields: [operatorId], references: [id])
+  operatorId        String?
+  latitude          Float?
+  longitude         Float?
+  createdAt         TimestamptzString @default(now())
+  updatedAt         temporal.updatedAtString()
+  trips             Trip[]
+}
+
+model EmergencyRequest {
+  id           String            @id @default(uuid())
+  requester    User              @relation(fields: [requesterId], references: [id])
+  requesterId  String
+  patient      Patient?          @relation(fields: [patientId], references: [id])
+  patientId    String?
+  destination  HealthcareFacility? @relation(fields: [destinationFacilityId], references: [id])
+  destinationFacilityId String?
+  pickupLatitude Float
+  pickupLongitude Float
+  category     EmergencyCategory
+  priority     EmergencyPriority
+  status       EmergencyStatus   @default(PENDING)
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+  trip         Trip?
+}
+
+model Trip {
+  id                String   @id @default(uuid())
+  emergencyRequest  EmergencyRequest @relation(fields: [emergencyRequestId], references: [id])
+  emergencyRequestId String  @unique
+  ambulance         Ambulance @relation(fields: [ambulanceId], references: [id])
+  ambulanceId       String
+  status           TripStatus @default(EN_ROUTE)
+  startedAt        TimestamptzString @default(now())
+  endedAt          TimestamptzString?
+}
+
+enum BloodRequestStatus {
+  PENDING
+  FULFILLED
+  PARTIALLY_FULFILLED
+  CANCELLED
+}
+
+enum OrganDonorStatus {
+  PLEDGED
+  VERIFIED
+  INACTIVE
+}
+
+model BloodDonor {
+  id            String   @id @default(uuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String   @unique
+  bloodGroup    String
+  isAvailable   Boolean  @default(true)
+  lastDonationDate TimestamptzString?
+  createdAt     TimestamptzString @default(now())
+  updatedAt     temporal.updatedAtString()
+}
+
+model BloodUnit {
+  id        String   @id @default(uuid())
+  facility  HealthcareFacility @relation(fields: [facilityId], references: [id])
+  facilityId String
+  bloodGroup String
+  units     Int
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  @@index([bloodGroup])
+  @@index([facilityId])
+}
+
+model BloodRequest {
+  id        String   @id @default(uuid())
+  requester User     @relation(fields: [requesterId], references: [id])
+  requesterId String
+  facility  HealthcareFacility? @relation(fields: [facilityId], references: [id])
+  facilityId String?
+  bloodGroup String
+  units     Int
+  status    BloodRequestStatus @default(PENDING)
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  @@index([bloodGroup])
+  @@index([status])
+}
+
+model OrganDonor {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @unique
+  organs    String[]
+  consent   Boolean  @default(false)
+  status    OrganDonorStatus @default(PLEDGED)
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  type      String
+  title     String
+  body      String?
+  read      Boolean  @default(false)
+  createdAt TimestamptzString @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
+
+model Feedback {
+  id        String   @id @default(uuid())
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+  facility  HealthcareFacility? @relation(fields: [facilityId], references: [id])
+  facilityId String?
+  rating    Int
+  comment   String?
+  createdAt TimestamptzString @default(now())
+
+  @@index([facilityId])
+}
