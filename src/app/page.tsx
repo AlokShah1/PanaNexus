@@ -19,7 +19,7 @@ export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-5 py-10">
       <header className="flex items-center justify-between border-b border-slate-200 pb-5">
-        <p className="text-lg font-semibold tracking-tight">Healthcare Ecosystem</p>
+        <p className="text-lg font-semibold tracking-tight">PanaNexus</p>
         <nav className="flex gap-4 text-sm font-medium text-slate-600">
           <Link href="/login">Login</Link>
           <Link href="/register" className="rounded-md bg-slate-900 px-3 py-1.5 text-white">Register</Link>

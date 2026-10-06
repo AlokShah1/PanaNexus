@@ -1,4 +1,4 @@
-# Integrated Digital Healthcare Ecosystem
+# PanaNexus — Integrated Digital Healthcare Ecosystem
 
 One lightweight platform connecting patients, doctors, hospitals, health posts, blood/organ donors, and emergency services.
 

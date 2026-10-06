@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Integrated Healthcare Ecosystem",
+  title: "PanaNexus",
   description: "Connected healthcare. Faster access. Better coordination.",
 };
 
