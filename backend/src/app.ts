@@ -3,8 +3,8 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import { env } from './config/env';
-import apiRouter from './routes/index';
+import { env } from './config/env.js';
+import apiRouter from './routes/index.js';
 
 const app = express();
 app.set('trust proxy', 1);

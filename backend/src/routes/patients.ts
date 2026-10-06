@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { db } from '../../prisma/db';
-import { fail, ok } from '../lib/api';
-import { getSession } from '../lib/auth';
-import { patientProfileSchema } from '../validations/healthcare';
+import { db } from '../../prisma/db.js';
+import { fail, ok } from '../lib/api.js';
+import { getSession } from '../lib/auth.js';
+import { patientProfileSchema } from '../validations/healthcare.js';
 
 const router = Router();
 

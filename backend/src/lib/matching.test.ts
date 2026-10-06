@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rankAmbulances } from './matching';
+import { rankAmbulances } from './matching.js';
 
 const ambs = [
   { id: 'a1', latitude: 27.7, longitude: 85.3, type: 'BASIC' as const, status: 'AVAILABLE' },

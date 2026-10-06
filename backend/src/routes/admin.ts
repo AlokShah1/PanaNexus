@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { fail, ok } from '../lib/api';
-import { getSession } from '../lib/auth';
-import { getAnalytics } from '../lib/analytics';
+import { fail, ok } from '../lib/api.js';
+import { getSession } from '../lib/auth.js';
+import { getAnalytics } from '../lib/analytics.js';
 
 const router = Router();
 

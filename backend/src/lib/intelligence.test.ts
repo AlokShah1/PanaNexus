@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allocateAmbulances, forecastBloodDemand, predictEtaMinutes } from './intelligence';
+import { allocateAmbulances, forecastBloodDemand, predictEtaMinutes } from './intelligence.js';
 
 describe('predictEtaMinutes', () => {
   it('returns a positive integer estimate', () => {

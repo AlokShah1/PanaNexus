@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { db } from '../../prisma/db';
-import { fail, ok } from '../lib/api';
-import { getSession } from '../lib/auth';
-import { compatibleDonorGroups, matchScore } from '../lib/blood';
-import { bloodRequestSchema } from '../validations/donors';
+import { db } from '../../prisma/db.js';
+import { fail, ok } from '../lib/api.js';
+import { getSession } from '../lib/auth.js';
+import { compatibleDonorGroups, matchScore } from '../lib/blood.js';
+import { bloodRequestSchema } from '../validations/donors.js';
 
 const router = Router();
 

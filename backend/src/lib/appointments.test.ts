@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { slotTaken } from './appointments';
-import { createAppointmentSchema, facilitySchema, medicalRecordSchema } from '../validations/healthcare';
+import { slotTaken } from './appointments.js';
+import { createAppointmentSchema, facilitySchema, medicalRecordSchema } from '../validations/healthcare.js';
 
 describe('slotTaken', () => {
   it('detects a direct conflict with the same instant', () => {

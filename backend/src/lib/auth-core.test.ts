@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createSessionToken, hashPassword, verifyPassword, verifySessionToken } from './auth-core';
+import { createSessionToken, hashPassword, verifyPassword, verifySessionToken } from './auth-core.js';
 
 beforeAll(() => {
   process.env.AUTH_SECRET = 'test-secret-key-that-is-long-enough';

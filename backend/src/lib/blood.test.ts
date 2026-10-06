@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canDonateTo, compatibleDonorGroups, matchScore } from './blood';
+import { canDonateTo, compatibleDonorGroups, matchScore } from './blood.js';
 
 describe('blood compatibility', () => {
   it('AB+ accepts every group', () => {

@@ -1,4 +1,4 @@
-import { db } from '../../prisma/db';
+import { db } from '../../prisma/db.js';
 
 export async function getAnalytics() {
   const [users, appointments, emergencies, ambulances, bloodUnits, bloodRequests, bloodDonors, feedbacks, auditLogs, doctors, facilities, patients] = await Promise.all([

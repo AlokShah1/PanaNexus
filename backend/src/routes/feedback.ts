@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { db } from '../../prisma/db';
-import { fail, ok } from '../lib/api';
-import { getSession } from '../lib/auth';
-import { feedbackSchema } from '../validations/feedback';
+import { db } from '../../prisma/db.js';
+import { fail, ok } from '../lib/api.js';
+import { getSession } from '../lib/auth.js';
+import { feedbackSchema } from '../validations/feedback.js';
 
 const router = Router();
 

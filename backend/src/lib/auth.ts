@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import { createSessionToken, hashPassword, verifyPassword, verifySessionToken } from './auth-core';
-import type { Role, SessionPayload } from './auth-core';
+import { createSessionToken, hashPassword, verifyPassword, verifySessionToken } from './auth-core.js';
+import type { Role, SessionPayload } from './auth-core.js';
 
 const SESSION_COOKIE = 'hc_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
