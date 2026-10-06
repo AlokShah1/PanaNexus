@@ -61,3 +61,4 @@ cd frontend && npm run typecheck && npm run lint && npm run build
 Sessions are signed HttpOnly cookies set by the backend. Every protected API validates the session and role server-side; the frontend never touches the database.
 
 
+
