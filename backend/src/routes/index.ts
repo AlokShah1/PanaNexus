@@ -1,0 +1,33 @@
+import { Router } from 'express';
+import auth from './auth';
+import doctors from './doctors';
+import patients from './patients';
+import facilities from './facilities';
+import appointments from './appointments';
+import medicalRecords from './medicalRecords';
+import ambulances from './ambulances';
+import emergency from './emergency';
+import donors from './donors';
+import blood from './blood';
+import notifications from './notifications';
+import feedback from './feedback';
+import admin from './admin';
+import analytics from './analytics';
+
+const router = Router();
+router.use('/auth', auth);
+router.use('/doctors', doctors);
+router.use('/patients', patients);
+router.use('/facilities', facilities);
+router.use('/appointments', appointments);
+router.use('/medical-records', medicalRecords);
+router.use('/ambulances', ambulances);
+router.use('/emergency', emergency);
+router.use('/donors', donors);
+router.use('/blood', blood);
+router.use('/notifications', notifications);
+router.use('/feedback', feedback);
+router.use('/admin', admin);
+router.use('/analytics', analytics);
+
+export default router;

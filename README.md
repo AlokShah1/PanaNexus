@@ -1,46 +1,61 @@
 # PanaNexus — Integrated Digital Healthcare Ecosystem
 
-One lightweight platform connecting patients, doctors, hospitals, health posts, blood/organ donors, and emergency services.
+A lightweight platform connecting patients, doctors, hospitals, health posts, blood/organ donors, and emergency services. Built as two independently deployable apps:
 
-## Stack
-- Next.js 16 (App Router, Turbopack) + React 19 + TypeScript (strict)
-- Tailwind CSS v4
-- Prisma 8 ORM (`@prisma/orm-postgres`) + Neon PostgreSQL
-- Vitest for unit tests
+- **frontend** — Next.js + React + TypeScript + Tailwind CSS
+- **backend** — Node.js + Express + Prisma 8 ORM + Neon PostgreSQL
 
-## Setup
-1. Copy `.env.example` to `.env` and set `DATABASE_URL`, `DIRECT_URL` (Neon), and `AUTH_SECRET`.
-2. Install dependencies: `npm install`
-3. Emit the data contract: `npx prisma contract emit`
-4. Sync the database schema: `npx prisma db init` (uses `DIRECT_URL`)
-5. Start the dev server: `npm run dev`
+## Directory
 
-## Scripts
-- `npm run dev` — start the dev server
-- `npm run build` / `npm start` — production build/serve
-- `npm run lint` — ESLint
-- `npm run typecheck` — `tsc --noEmit`
-- `npm test` — Vitest unit tests
-- `npm run contract:emit` — regenerate `contract.json` / `contract.d.ts`
+```
+frontend/   Next.js app (UI)
+  src/app/        pages + layouts (client components call the API via rewrites)
+  src/components/ UI components
+backend/  Express API + Prisma
+  src/config/    env validation
+  src/lib/       auth, matching, blood logic, intelligence, analytics
+  src/middleware/ (not yet abstracted)
+  src/routes/    REST controllers grouped by resource
+  src/validations/ zod schemas
+  prisma/        contract.prisma (Prisma 8), db.ts, emitted contract.json/contract.d.ts
+shared/types|constants|schemas   safe contracts (no Prisma/secrets)
+```
 
-## Deployment (Render)
-Set these environment variables in your Render service:
-- `DATABASE_URL` — Neon pooled connection string
-- `DIRECT_URL` — Neon direct connection string (for Prisma CLI ops)
-- `AUTH_SECRET` — long random secret
+## Environment
 
-Build command: `npm install && npm run build`
-Start command: `npm start`
+**backend/.env**
+```
+DATABASE_URL=<neon pooled url>
+DIRECT_URL=<neon direct url>
+AUTH_SECRET=<long random secret>
+PORT=4000
+FRONTEND_URL=http://localhost:3000
+```
 
-Once the env vars are set, initialize the database schema once:
-`npx prisma db update` (quick dev sync) or `npx prisma migration plan && npx prisma db migrate` (migration history).
+**frontend/.env.local**
+```
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
 
-## Structure
-- `src/app` — routes (public site, auth, dashboard, APIs)
-- `src/components` — shared UI
-- `src/lib` — auth/session, API helpers
-- `src/validations` — Zod schemas
-- `src/prisma` — Prisma 8 data contract + client
+## Development
+```bash
+# backend
+cd backend
+npm install
+npx prisma contract emit
+npm run dev
 
-## Authorization model
-Role-based access control enforced on the server. Sessions are signed HttpOnly cookies (`AUTH_SECRET`). Every protected operation must validate the session server-side. Medical records are never exposed publicly.
+# frontend
+cd frontend
+npm install
+npm run dev
+```
+
+## Checks
+```bash
+cd backend && npm run typecheck && npm run lint && npm test && npm run build
+cd frontend && npm run typecheck && npm run lint && npm run build
+```
+
+## Security note
+Sessions are signed HttpOnly cookies set by the backend. Every protected API validates the session and role server-side; the frontend never touches the database.
