@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./*"],
+      "@/backend/*": ["./Backend/*"],
+      "@/frontend/*": ["./Frontend/*"]
     },
     "types": [
       "node"

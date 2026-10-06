@@ -12,7 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    "src/prisma/contract.d.ts",
+    "Backend/prisma/contract.d.ts",
   ]),
 ]);
 
