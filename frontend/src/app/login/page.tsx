@@ -1,9 +1,10 @@
+import AuthShell from '@/components/AuthShell';
 import AuthForm from '@/components/AuthForm';
 
 export default function Page() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col items-center px-5 py-16">
+    <AuthShell title="Welcome back" subtitle="Sign in to access your care, appointments and records.">
       <AuthForm mode="login" />
-    </main>
+    </AuthShell>
   );
 }
