@@ -36,23 +36,12 @@
   --warning: #d97706;
   --danger: #e11d48;
   --danger-soft: #fff1f4;
-
-  /* shape */
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
-
-  /* elevation */
-  --shadow-soft: 0 1px 2px rgba(10, 26, 51, 0.04), 0 8px 24px -12px rgba(10, 26, 51, 0.12);
-  --shadow-lift: 0 2px 4px rgba(10, 26, 51, 0.04), 0 18px 40px -16px rgba(10, 26, 51, 0.22);
-  --shadow-glow: 0 0 0 1px rgba(51, 102, 255, 0.08), 0 20px 60px -24px rgba(51, 102, 255, 0.45);
 }
 
 @theme inline {
   --color-background: var(--surface);
   --color-foreground: var(--ink);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: var(--font-inter, ui-sans-serif), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
@@ -81,14 +70,14 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
 
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
 
-  --shadow-soft: var(--shadow-soft);
-  --shadow-lift: var(--shadow-lift);
-  --shadow-glow: var(--shadow-glow);
+  --shadow-soft: 0 1px 2px rgba(10, 26, 51, 0.04), 0 8px 24px -12px rgba(10, 26, 51, 0.12);
+  --shadow-lift: 0 2px 4px rgba(10, 26, 51, 0.04), 0 18px 40px -16px rgba(10, 26, 51, 0.22);
+  --shadow-glow: 0 0 0 1px rgba(51, 102, 255, 0.08), 0 20px 60px -24px rgba(51, 102, 255, 0.45);
 
   --animate-float: float 7s ease-in-out infinite;
   --animate-float-slow: float 11s ease-in-out infinite;
@@ -126,16 +115,53 @@
 }
 
 /* ============================================================
-   base
+   base (layered so Tailwind utilities always win over these)
    ============================================================ */
-* { -webkit-tap-highlight-color: transparent; }
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 
-body {
-  background: var(--surface);
-  color: var(--ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--surface);
+    color: var(--ink);
+    font-family: var(--font-inter, ui-sans-serif), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+      sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* safety net: no page may ever scroll horizontally (propagates to viewport,
+       body itself stays `visible` so position:sticky keeps working) */
+    overflow-x: clip;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: -0.018em;
+    text-wrap: balance;
+  }
+
+  /* decorations must never outgrow their container */
+  svg {
+    max-width: 100%;
+  }
+
+  ::selection {
+    background: var(--brand-100);
+    color: var(--brand-900);
+  }
+
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--brand-500);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
 }
 
 /* dotted grid backdrop used behind hero / section panels */
@@ -164,13 +190,6 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-}
-
-/* focus visibility for keyboard users */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--brand-500);
-  outline-offset: 2px;
-  border-radius: 8px;
 }
 
 /* hide scrollbars in horizontal filter rails */

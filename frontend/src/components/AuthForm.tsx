@@ -62,7 +62,9 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       setPending(false);
       return;
     }
-    router.push('/dashboard');
+    const nextParam = new URLSearchParams(window.location.search).get('next');
+    const next = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/dashboard';
+    router.push(next);
     router.refresh();
   }
 

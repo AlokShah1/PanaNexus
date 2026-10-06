@@ -1,4 +1,5 @@
 import { apiGet } from '@/lib/api';
+import { isOpenNow } from '@/lib/hours';
 import { Badge, Blob, StatusDot } from '@/components/ui';
 import { IconClock, IconHospital, IconPhone, IconPin, IconRefresh, IconSearch } from '@/components/icons';
 
@@ -19,15 +20,24 @@ const FILTERS = [
   { label: 'Health Posts', value: 'HEALTH_POST' },
 ];
 
-export default async function HospitalsPage({ searchParams }: { searchParams: Promise<{ type?: string; q?: string }> }) {
-  const { type, q } = await searchParams;
+function filterHref(base: string, next: Record<string, string | undefined>) {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(next)) if (v) params.set(k, v);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+export default async function HospitalsPage({ searchParams }: { searchParams: Promise<{ type?: string; q?: string; open?: string }> }) {
+  const { type, q, open } = await searchParams;
   const query = type ? `/facilities?type=${encodeURIComponent(type)}` : '/facilities';
   const res = await apiGet<Facility[]>(query);
 
   const term = (q ?? '').trim().toLowerCase();
-  const facilities = (res.ok ? res.data : []).filter((f) =>
-    term ? `${f.name} ${f.address}`.toLowerCase().includes(term) : true,
-  );
+  const facilities = (res.ok ? res.data : []).filter((f) => {
+    if (term && !`${f.name} ${f.address}`.toLowerCase().includes(term)) return false;
+    if (open === '1' && isOpenNow(f.operatingHours) !== true) return false;
+    return true;
+  });
 
   return (
     <main className="relative overflow-hidden">
@@ -67,7 +77,7 @@ export default async function HospitalsPage({ searchParams }: { searchParams: Pr
           <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto">
             {FILTERS.map((f) => {
               const active = (type ?? '') === f.value;
-              const href = f.value ? `/hospitals?type=${f.value}${term ? `&q=${encodeURIComponent(term)}` : ''}` : `/hospitals${term ? `?q=${encodeURIComponent(term)}` : ''}`;
+              const href = filterHref('/hospitals', { type: f.value, q, open });
               return (
                 <a
                   key={f.label}
@@ -82,12 +92,17 @@ export default async function HospitalsPage({ searchParams }: { searchParams: Pr
                 </a>
               );
             })}
-            <span className="shrink-0 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-ink-subtle ring-1 ring-slate-200">
-              Emergency services
-            </span>
-            <span className="shrink-0 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-ink-subtle ring-1 ring-slate-200">
+            <a
+              href={filterHref('/hospitals', { type, q, open: open === '1' ? undefined : '1' })}
+              aria-current={open === '1' ? 'true' : undefined}
+              className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold transition-all ${
+                open === '1'
+                  ? 'bg-success text-white shadow-[0_10px_22px_-12px_rgba(16,185,129,0.7)]'
+                  : 'bg-white text-ink-muted ring-1 ring-slate-200 hover:ring-success/60 hover:text-success'
+              }`}
+            >
               Open now
-            </span>
+            </a>
           </div>
         </div>
       </header>
@@ -111,13 +126,17 @@ export default async function HospitalsPage({ searchParams }: { searchParams: Pr
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-600">
               <IconHospital size={22} />
             </span>
-            <p className="mt-4 text-sm font-semibold text-ink">No facilities found{term ? ` for “${q}”` : ' yet'}</p>
+            <p className="mt-4 text-sm font-semibold text-ink">
+              No facilities found{term ? ` for “${q}”` : ''}{open === '1' ? ' open right now' : ''}
+            </p>
             <p className="mt-1 text-[13px] text-ink-muted">Try a different search or clear the filter.</p>
           </div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {facilities.map((f) => (
+          {facilities.map((f) => {
+            const open = isOpenNow(f.operatingHours);
+            return (
             <article
               key={f.id}
               className="group flex flex-col overflow-hidden rounded-3xl bg-white shadow-soft ring-1 ring-slate-200/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift"
@@ -127,7 +146,14 @@ export default async function HospitalsPage({ searchParams }: { searchParams: Pr
                 <span className="absolute left-5 top-5 grid h-12 w-12 place-items-center rounded-2xl bg-white/95 text-brand-700 shadow-soft">
                   <IconHospital size={22} />
                 </span>
-                <span className="absolute right-4 top-5">
+                <span className="absolute right-4 top-5 flex gap-2">
+                  {open === true && (
+                    <Badge tone="success">
+                      <StatusDot tone="success" />
+                      Open now
+                    </Badge>
+                  )}
+                  {open === false && <Badge tone="neutral">Closed</Badge>}
                   <Badge tone={f.type === 'HOSPITAL' ? 'brand' : 'teal'}>
                     {f.type === 'HOSPITAL' ? 'Hospital' : 'Health post'}
                   </Badge>
@@ -150,7 +176,6 @@ export default async function HospitalsPage({ searchParams }: { searchParams: Pr
                   ) : (
                     <Badge tone="neutral">Hours not listed</Badge>
                   )}
-                  <Badge tone="neutral">Distance —</Badge>
                 </div>
 
                 <div className="mt-4 flex items-center gap-2 pt-1">
@@ -175,7 +200,8 @@ export default async function HospitalsPage({ searchParams }: { searchParams: Pr
                 </div>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       </div>
     </main>

@@ -1,8 +1,12 @@
+import './globals.css';
+import { Inter } from 'next/font/google';
 import SiteHeader from '@/components/SiteHeader';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`h-full antialiased ${inter.variable}`}>
       <body className="flex min-h-full flex-col bg-surface text-ink">
         <SiteHeader />
         <main className="flex-1">{children}</main>

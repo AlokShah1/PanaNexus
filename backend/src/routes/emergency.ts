@@ -20,7 +20,12 @@ router.post('/', async (req, res) => {
     requesterId: session.sub, destinationFacilityId: parsed.data.destinationFacilityId ?? null, pickupLatitude: parsed.data.pickupLatitude, pickupLongitude: parsed.data.pickupLongitude, category: parsed.data.category, priority: parsed.data.priority, status: 'PENDING',
   });
   const available = await db.orm.public.Ambulance.where({ status: 'AVAILABLE' }).all();
-  const matches = rankAmbulances(available, { pickupLatitude: parsed.data.pickupLatitude, pickupLongitude: parsed.data.pickupLongitude, priority: parsed.data.priority, category: parsed.data.category }).slice(0, 5);
+  const ranked = rankAmbulances(available, { pickupLatitude: parsed.data.pickupLatitude, pickupLongitude: parsed.data.pickupLongitude, priority: parsed.data.priority, category: parsed.data.category }).slice(0, 5);
+  const byId = new Map(available.map((a) => [a.id, a]));
+  const matches = ranked.map((m) => {
+    const a = byId.get(m.id);
+    return { ...m, registrationNumber: a?.registrationNumber ?? null, type: a?.type ?? null };
+  });
   await db.orm.public.EmergencyRequest.where({ id: reqRow.id }).update({ status: matches.length ? 'MATCHED' : 'PENDING' });
   await db.orm.public.AuditLog.create({ action: 'EMERGENCY_REQUEST_CREATED', entity: 'EmergencyRequest', entityId: reqRow.id, actorId: session.sub }).catch(() => undefined);
   return ok(res, { request: { id: reqRow.id, status: matches.length ? 'MATCHED' : 'PENDING', category: reqRow.category, priority: reqRow.priority }, matches }, 201);
@@ -34,7 +39,19 @@ router.get('/:id', async (req, res) => {
   if (!reqRow) return fail(res, 'NOT_FOUND', 'Request not found.', 404);
   if (reqRow.requesterId !== session.sub && session.role !== 'ADMIN' && session.role !== 'AMBULANCE_OPERATOR') return fail(res, 'FORBIDDEN', 'Cannot view this request.', 403);
   const trip = await db.orm.public.Trip.where({ emergencyRequestId: id }).first();
-  return ok(res, { request: { id: reqRow.id, status: reqRow.status, category: reqRow.category, priority: reqRow.priority, pickupLatitude: reqRow.pickupLatitude, pickupLongitude: reqRow.pickupLongitude }, trip: trip ? { id: trip.id, status: trip.status, ambulanceId: trip.ambulanceId, startedAt: trip.startedAt, endedAt: trip.endedAt } : null });
+  let ambulance: { id: string; registrationNumber: string; type: string; driver: string | null } | null = null;
+  if (trip) {
+    const a = await db.orm.public.Ambulance.where({ id: trip.ambulanceId }).first();
+    if (a) {
+      const operator = a.operatorId ? await db.orm.public.User.where({ id: a.operatorId }).first() : null;
+      ambulance = { id: a.id, registrationNumber: a.registrationNumber, type: a.type, driver: operator?.name ?? null };
+    }
+  }
+  return ok(res, {
+    request: { id: reqRow.id, status: reqRow.status, category: reqRow.category, priority: reqRow.priority, pickupLatitude: reqRow.pickupLatitude, pickupLongitude: reqRow.pickupLongitude },
+    trip: trip ? { id: trip.id, status: trip.status, ambulanceId: trip.ambulanceId, startedAt: trip.startedAt, endedAt: trip.endedAt } : null,
+    ambulance,
+  });
 });
 
 export default router;
