@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { apiPost } from '@/lib/api';
+import { roleLabel } from '@/lib/format';
 
 const ROLES = ['PATIENT', 'DOCTOR', 'FACILITY_STAFF', 'AMBULANCE_OPERATOR', 'BLOOD_DONOR', 'ORGAN_DONOR', 'ADMIN'] as const;
 
@@ -20,25 +22,22 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     if (mode === 'register') {
       payload.name = String(form.get('name') ?? '');
       payload.role = String(form.get('role') ?? 'PATIENT');
-    }
-    try {
-      const res = await fetch(`/api/auth/${mode}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json?.error?.message ?? 'Something went wrong.');
+      const confirm = String(form.get('confirm') ?? '');
+      if (confirm !== payload.password) {
+        setError('Passwords do not match.');
+        setPending(false);
         return;
       }
-      router.push('/dashboard');
-      router.refresh();
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setPending(false);
     }
+    const res = await apiPost<{ id: string; role: string }>(`/auth/${mode}`, payload);
+    if (!res.ok) {
+      setError(res.message);
+      setPending(false);
+      return;
+    }
+    router.push('/dashboard');
+    router.refresh();
+    setPending(false);
   }
 
   return (
@@ -60,10 +59,16 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
       </label>
       {mode === 'register' && (
         <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Confirm password</span>
+          <input name="confirm" type="password" required minLength={8} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+        </label>
+      )}
+      {mode === 'register' && (
+        <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Role</span>
           <select name="role" className="rounded-md border border-slate-300 px-3 py-2 text-sm">
             {ROLES.map((r) => (
-              <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>
+              <option key={r} value={r}>{roleLabel(r)}</option>
             ))}
           </select>
         </label>

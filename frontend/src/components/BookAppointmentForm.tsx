@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { apiGet, apiPost } from '@/lib/api';
 
 type Doctor = { id: string; name: string | null; specialization: string | null; facility?: { name: string } | null };
 
@@ -14,9 +15,7 @@ export default function BookAppointmentForm() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    fetch('/api/doctors').then((r) => r.json()).then((j) => {
-      if (j?.success) setDoctors(j.data);
-    }).catch(() => setError('Could not load doctors.'));
+    apiGet<Doctor[]>('/doctors').then((r) => { if (r.ok) setDoctors(r.data); }).catch(() => setError('Could not load doctors.'));
   }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -24,9 +23,8 @@ export default function BookAppointmentForm() {
     setMsg(null); setError(null); setPending(true);
     try {
       const payload = { doctorId, startsAt: startsAt ? new Date(startsAt).toISOString() : '', notes: notes || undefined };
-      const res = await fetch('/api/appointments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const j = await res.json();
-      if (!res.ok) { setError(j?.error?.message ?? 'Booking failed.'); return; }
+      const res = await apiPost<{ id: string }>('/appointments', payload);
+      if (!res.ok) { setError(res.message); return; }
       setMsg('Appointment requested.');
       setStartsAt(''); setNotes('');
     } catch { setError('Network error.'); } finally { setPending(false); }

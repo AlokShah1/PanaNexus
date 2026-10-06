@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiPost } from '@/lib/api';
 
 export default function BloodDonorForm() {
   const [bloodGroup, setBloodGroup] = useState('');
@@ -13,15 +14,10 @@ export default function BloodDonorForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null); setMsg(null); setPending(true);
-    try {
-      const res = await fetch('/api/donors/blood', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bloodGroup, isAvailable, lastDonationDate: lastDonationDate || undefined }),
-      });
-      const j = await res.json();
-      if (!res.ok) { setError(j?.error?.message ?? 'Failed.'); return; }
-      setMsg('Blood donor profile saved.');
-    } catch { setError('Network error.'); } finally { setPending(false); }
+    const res = await apiPost<{ id: string }>('/donors/blood', { bloodGroup, isAvailable, lastDonationDate: lastDonationDate || undefined });
+    if (!res.ok) { setError(res.message); setPending(false); return; }
+    setMsg('Blood donor profile saved.');
+    setPending(false);
   }
 
   return (

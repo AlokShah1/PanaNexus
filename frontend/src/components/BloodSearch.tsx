@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiGet } from '@/lib/api';
 
 type Availability = { id: string; bloodGroup: string; units: number; facility: { id: string; name: string } | null };
 
@@ -13,13 +14,11 @@ export default function BloodSearch() {
   async function search(e: React.FormEvent) {
     e.preventDefault();
     setError(null); setRows([]); setLoading(true);
-    try {
-      const qs = bloodGroup ? `?bloodGroup=${encodeURIComponent(bloodGroup)}` : '';
-      const res = await fetch(`/api/blood/availability${qs}`);
-      const j = await res.json();
-      if (!res.ok) { setError(j?.error?.message ?? 'Search failed.'); return; }
-      setRows(j.data ?? []);
-    } catch { setError('Network error.'); } finally { setLoading(false); }
+    const qs = bloodGroup ? `?bloodGroup=${encodeURIComponent(bloodGroup)}` : '';
+    const res = await apiGet<Availability[]>(`/blood/availability${qs}`);
+    setLoading(false);
+    if (!res.ok) { setError(res.message); return; }
+    setRows(res.data);
   }
 
   return (

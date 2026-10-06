@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SignOutButton from '@/components/SignOutButton';
+import { apiGet } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
 
 const sections = [
@@ -21,13 +22,7 @@ export default function Page() {
   const [me, setMe] = useState<{ id: string; role: string } | null | 'loading'>('loading');
 
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j?.success) setMe(j.data);
-        else setMe(null);
-      })
-      .catch(() => setMe(null));
+    apiGet<{ id: string; role: string }>('/auth/me').then((r) => { if (r.ok) setMe(r.data); else setMe(null); }).catch(() => setMe(null));
   }, []);
 
   if (me === 'loading') return <main className="mx-auto max-w-5xl px-5 py-10 text-slate-600">Loading…</main>;

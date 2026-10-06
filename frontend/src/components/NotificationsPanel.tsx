@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { apiGet, apiPost } from '@/lib/api';
 
 type Notification = { id: string; type: string; title: string; body: string | null; read: boolean; createdAt: string };
 
@@ -10,16 +11,13 @@ export default function NotificationsPanel() {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/notifications')
-      .then((r) => r.json())
-      .then((j) => { if (active) { if (!j?.success) setError(j?.error?.message ?? 'Failed.'); else setItems(j.data ?? []); } })
-      .catch(() => { if (active) setError('Network error.'); });
+    apiGet<Notification[]>('/notifications').then((r) => { if (active) { if (!r.ok) setError(r.message); else setItems(r.data); } }).catch(() => { if (active) setError('Something went wrong while loading.'); });
     return () => { active = false; };
   }, []);
 
   async function markRead(id: string) {
     try {
-      await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+      await apiPost<{ id: string }>(`/notifications/${id}/read`, {});
       setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     } catch { /* ignore */ }
   }

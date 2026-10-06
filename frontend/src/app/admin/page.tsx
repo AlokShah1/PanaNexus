@@ -2,26 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { apiGet } from '@/lib/api';
+
+type AdminStats = {
+  users: { total: number }; patients: number; doctors: number; facilities: number;
+  appointments: { total: number }; emergency: { active: number };
+  ambulances: { available: number }; blood: { totalUnits: number; pendingRequests: number; availableDonors: number };
+  feedback: { averageRating: number | null }; auditLogs: number;
+};
 
 export default function Page() {
   const [state, setState] = useState<'loading' | 'forbidden' | 'unauth' | 'ok'>('loading');
-  type Stats = {
-    users: { total: number }; patients: number; doctors: number; facilities: number;
-    appointments: { total: number }; emergency: { active: number };
-    ambulances: { available: number }; blood: { totalUnits: number; pendingRequests: number; availableDonors: number };
-    feedback: { averageRating: number | null }; auditLogs: number;
-  };
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<AdminStats | null>(null);
 
   useEffect(() => {
-    fetch('/api/admin/analytics')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j?.success) { setState('ok'); setStats(j.data); }
-        else if (j?.error?.code === 'FORBIDDEN') setState('forbidden');
-        else setState('unauth');
-      })
-      .catch(() => setState('unauth'));
+    apiGet<AdminStats>('/admin/analytics').then((r) => {
+      if (r.ok) { setState('ok'); setStats(r.data); }
+      else if (r.code === 'FORBIDDEN') setState('forbidden');
+      else setState('unauth');
+    }).catch(() => setState('unauth'));
   }, []);
 
   if (state !== 'ok' || !stats) {

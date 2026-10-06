@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiPost } from '@/lib/api';
 
 export default function OrganDonorForm() {
   const [organs, setOrgans] = useState('');
@@ -13,15 +14,10 @@ export default function OrganDonorForm() {
     e.preventDefault();
     setError(null); setMsg(null); setPending(true);
     const organsArr = organs.split(',').map((s) => s.trim()).filter(Boolean);
-    try {
-      const res = await fetch('/api/donors/organ', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ organs: organsArr, consent }),
-      });
-      const j = await res.json();
-      if (!res.ok) { setError(j?.error?.message ?? 'Failed.'); return; }
-      setMsg('Organ donor registration saved.');
-    } catch { setError('Network error.'); } finally { setPending(false); }
+    const res = await apiPost<{ id: string }>('/donors/organ', { organs: organsArr, consent });
+    if (!res.ok) { setError(res.message); setPending(false); return; }
+    setMsg('Organ donor registration saved.');
+    setPending(false);
   }
 
   return (
