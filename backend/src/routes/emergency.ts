@@ -32,6 +32,8 @@ interface RequestRow {
   priority: string;
   pickupLatitude: number;
   pickupLongitude: number;
+  pickupAccuracy: number | null;
+  pickupObtainedAt: string | null;
   pickupAddress: string | null;
   destinationAddress: string | null;
   notes: string | null;
@@ -48,6 +50,10 @@ function publicRequest(r: RequestRow, extra: Record<string, unknown> = {}) {
     state: stateOf(r.status),
     category: r.category,
     priority: r.priority,
+    pickupLatitude: r.pickupLatitude,
+    pickupLongitude: r.pickupLongitude,
+    pickupAccuracy: r.pickupAccuracy,
+    pickupObtainedAt: r.pickupObtainedAt,
     pickupAddress: r.pickupAddress,
     destinationAddress: r.destinationAddress,
     notes: r.notes,
@@ -72,6 +78,8 @@ router.post('/', requireAuth, async (req, res) => {
     destinationAddress: data.destinationAddress ?? null,
     pickupLatitude: data.pickupLatitude,
     pickupLongitude: data.pickupLongitude,
+    pickupAccuracy: data.pickupAccuracy ?? null,
+    pickupObtainedAt: data.pickupObtainedAt ? new Date(data.pickupObtainedAt).toISOString() : null,
     pickupAddress: data.pickupAddress ?? null,
     notes: data.notes ?? null,
     category: data.category,
@@ -230,12 +238,10 @@ router.get('/:id', requireAuth, async (req, res) => {
 
   return ok(res, {
     request: publicRequest(reqRow, {
-      pickupLatitude: reqRow.pickupLatitude,
-      pickupLongitude: reqRow.pickupLongitude,
       destination: destination ? { id: destination.id, name: destination.name, address: destination.address } : null,
     }),
     trip: trip
-      ? { id: trip.id, status: trip.status, state: stateOf(trip.status), ambulanceId: trip.ambulanceId, startedAt: trip.startedAt, arrivedAt: trip.arrivedAt, completedAt: trip.completedAt, endedAt: trip.endedAt }
+      ? { id: trip.id, status: trip.status, state: stateOf(trip.status), ambulanceId: trip.ambulanceId, startedAt: trip.startedAt, arrivedAt: trip.arrivedAt, completedAt: trip.completedAt, endedAt: trip.endedAt, isSimulation: trip.isSimulation }
       : null,
     ambulance,
     locations,

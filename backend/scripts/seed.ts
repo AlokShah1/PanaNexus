@@ -1,5 +1,5 @@
 import { db } from '../prisma/db.js';
-import { hashPassword } from '../src/lib/auth-core.js';
+import { seedDemoData } from '../src/lib/demoData.js';
 
 const DEMO = process.argv.includes('--demo');
 
@@ -104,81 +104,21 @@ async function ensureFacility(f: (typeof FACILITIES)[number]) {
 }
 
 async function main() {
-  let cityGeneral: any = null;
   for (const f of FACILITIES) {
-    const row = await ensureFacility(f);
-    if (row.name === 'City General Hospital') cityGeneral = row;
+    await ensureFacility(f);
   }
 
   if (!DEMO) {
-    console.log('Facilities ready. Run with --demo to add demo accounts + ambulance + blood stock.');
+    console.log('Facilities ready. Run with --demo to add the full synthetic demo dataset.');
     return;
   }
 
-  const pass = process.env.SEED_PASSWORD ?? 'TestPass!123';
-  const hash = await hashPassword(pass);
-  const emailOp = 'operator@pananexus.local';
-  const op = await db.orm.public.User.where({ email: emailOp }).first();
-  if (!op) {
-    const u = await db.orm.public.User.create({
-      email: emailOp,
-      name: 'Rajesh Sharma',
-      role: 'AMBULANCE_OPERATOR',
-      verificationStatus: 'VERIFIED',
-      passwordHash: hash,
-      phone: '9822001100',
-    });
-    const amb = await db.orm.public.Ambulance.where({ registrationNumber: 'MP04-AB-1103' }).first();
-    if (!amb) {
-      await db.orm.public.Ambulance.create({
-        registrationNumber: 'MP04-AB-1103',
-        type: 'ICU',
-        status: 'AVAILABLE',
-        operatorId: u.id,
-        latitude: 23.2325,
-        longitude: 77.4105,
-        driverName: 'Suresh Patil',
-        driverPhone: '9822001101',
-      });
-      console.log('demo operator + ambulance: operator@pananexus.local');
-    }
-  }
-
-  const drEmail = 'dr.khan@pananexus.local';
-  if (!(await db.orm.public.User.where({ email: drEmail }).first())) {
-    const u = await db.orm.public.User.create({
-      email: drEmail,
-      name: 'Dr. Ayesha Khan',
-      role: 'DOCTOR',
-      verificationStatus: 'VERIFIED',
-      passwordHash: hash,
-      phone: '9822334455',
-      facilityId: cityGeneral?.id ?? null,
-    });
-    await db.orm.public.Doctor.create({
-      userId: u.id,
-      specialization: 'Cardiology',
-      licenseNumber: 'MH-MC-2024-7812',
-      bio: 'Consultant cardiologist with 12 years of experience in acute and preventive cardiac care.',
-      facilityId: cityGeneral?.id ?? null,
-    });
-    console.log('demo doctor: dr.khan@pananexus.local');
-  }
-
-  if (cityGeneral) {
-    {
-      const stock = { 'O+': 14, 'A+': 10, 'B+': 12, 'AB+': 6, 'O-': 4, 'A-': 2 };
-      const existing = await db.orm.public.BloodUnit.where({ facilityId: cityGeneral.id }).first();
-      if (!existing) {
-        for (const [group, units] of Object.entries(stock)) {
-          await db.orm.public.BloodUnit.create({ facilityId: cityGeneral.id as never, bloodGroup: group, units });
-        }
-        console.log('blood stock seeded at City General Hospital');
-      }
-    }
-  }
-
-  console.log('Seed complete.');
+  const result = await seedDemoData();
+  console.log('Demo data seeded (synthetic).');
+  console.log(`Demo password: ${result.password}`);
+  console.log('Demo logins:', result.credentials);
+  console.log('Created:', result.created);
+  console.log(result.note);
 }
 
 main()

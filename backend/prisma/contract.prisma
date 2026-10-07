@@ -307,6 +307,8 @@ model EmergencyRequest {
   destinationAddress String?
   pickupLatitude Float
   pickupLongitude Float
+  pickupAccuracy Float?
+  pickupObtainedAt TimestamptzString?
   pickupAddress String?
   notes        String?
   cancelReason String?
@@ -332,6 +334,7 @@ model Trip {
   arrivedAt         TimestamptzString?
   completedAt      TimestamptzString?
   endedAt          TimestamptzString?
+  isSimulation     Boolean @default(false)
   locationUpdates  LocationUpdate[]
 
   @@index([ambulanceId])
@@ -343,6 +346,7 @@ model LocationUpdate {
   tripId     String
   latitude   Float
   longitude  Float
+  accuracy   Float?
   recordedAt TimestamptzString @default(now())
 
   @@index([tripId, recordedAt])

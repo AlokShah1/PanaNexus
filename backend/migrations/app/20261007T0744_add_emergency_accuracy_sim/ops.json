@@ -1,0 +1,170 @@
+[
+  {
+    "id": "column.public.EmergencyRequest.pickupAccuracy",
+    "label": "Add column \"pickupAccuracy\" to \"EmergencyRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "pickupAccuracy",
+        "table": "EmergencyRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"pickupAccuracy\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "EmergencyRequest",
+          "pickupAccuracy"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"pickupAccuracy\"",
+        "sql": "ALTER TABLE \"public\".\"EmergencyRequest\" ADD COLUMN \"pickupAccuracy\" float8"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"pickupAccuracy\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "EmergencyRequest",
+          "pickupAccuracy"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.EmergencyRequest.pickupObtainedAt",
+    "label": "Add column \"pickupObtainedAt\" to \"EmergencyRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "pickupObtainedAt",
+        "table": "EmergencyRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"pickupObtainedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "EmergencyRequest",
+          "pickupObtainedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"pickupObtainedAt\"",
+        "sql": "ALTER TABLE \"public\".\"EmergencyRequest\" ADD COLUMN \"pickupObtainedAt\" timestamptz"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"pickupObtainedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "EmergencyRequest",
+          "pickupObtainedAt"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.LocationUpdate.accuracy",
+    "label": "Add column \"accuracy\" to \"LocationUpdate\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "accuracy",
+        "table": "LocationUpdate"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"accuracy\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "LocationUpdate",
+          "accuracy"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"accuracy\"",
+        "sql": "ALTER TABLE \"public\".\"LocationUpdate\" ADD COLUMN \"accuracy\" float8"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"accuracy\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "LocationUpdate",
+          "accuracy"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Trip.isSimulation",
+    "label": "Add column \"isSimulation\" to \"Trip\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "isSimulation",
+        "table": "Trip"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"isSimulation\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Trip",
+          "isSimulation"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"isSimulation\"",
+        "sql": "ALTER TABLE \"public\".\"Trip\" ADD COLUMN \"isSimulation\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"isSimulation\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Trip",
+          "isSimulation"
+        ]
+      }
+    ]
+  }
+]

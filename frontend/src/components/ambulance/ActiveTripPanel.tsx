@@ -30,6 +30,7 @@ type TripDetail = {
     status: string;
     state: string;
     ambulanceId: string;
+    isSimulation?: boolean;
     startedAt: string | null;
     arrivedAt: string | null;
     completedAt: string | null;
@@ -57,6 +58,7 @@ type TripCard = {
   pickup: string;
   destination: string | null;
   notes: string | null;
+  simulated: boolean;
   createdLabel: string;
   arrivedLabel: string | null;
   startedLabel: string | null;
@@ -134,6 +136,7 @@ export default function ActiveTripPanel({
           pickup: d.request.pickupAddress ?? d.request.notes ?? 'Pickup',
           destination: d.request.destinationAddress,
           notes: d.request.notes,
+          simulated: d.trip.isSimulation === true,
           createdLabel: fmtDateTime(d.request.createdAt),
           startedLabel: fmtLabel(d.trip.startedAt ?? null),
           arrivedLabel: fmtLabel(d.trip.arrivedAt ?? null),
@@ -223,6 +226,7 @@ export default function ActiveTripPanel({
                           <Badge tone={STATE_TONE[row.state] ?? 'brand'}>{row.state.replace(/_/g, ' ')}</Badge>
                           <Badge tone="warning">{row.priority}</Badge>
                           <Badge tone="brand">{row.category.replace(/_/g, ' ').toLowerCase()}</Badge>
+                          {row.simulated && <Badge tone="warning">Demo tracking</Badge>}
                           <span className="text-[12px] text-ink-subtle">{row.createdLabel}</span>
                         </div>
                         <p className="mt-2 text-sm font-semibold text-ink">{row.reg}</p>

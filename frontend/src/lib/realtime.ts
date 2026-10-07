@@ -27,6 +27,7 @@ export type TripStatusEvent = {
   emergencyRequestId: string;
   status: string;
   state: string;
+  isSimulation?: boolean;
   ambulance?: {
     id: string;
     registrationNumber: string;
@@ -42,4 +43,7 @@ export type TripLocationEvent = {
   latitude: number;
   longitude: number;
   recordedAt: string;
+  accuracy?: number | null;
+  isSimulation?: boolean;
+  etaMinutes?: number | null;
 };

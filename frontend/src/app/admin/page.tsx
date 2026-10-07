@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useSession } from '@/lib/session';
 import { roleLabel } from '@/lib/format';
 import { Badge, StatusDot } from '@/components/ui';
-import { IconBolt, IconChart, IconClipboard, IconShield, IconStar, IconUsers } from '@/components/icons';
+import { IconBolt, IconChart, IconClipboard, IconShield, IconSpark, IconStar, IconUsers } from '@/components/icons';
 import { Guest, PageSkeleton, WrongRole } from '@/components/admin/ui';
 import VerificationQueue from '@/components/admin/VerificationQueue';
 import UsersPanel from '@/components/admin/UsersPanel';
@@ -12,6 +12,7 @@ import FeedbackPanel from '@/components/admin/FeedbackPanel';
 import AuditPanel from '@/components/admin/AuditPanel';
 import SettingsPanel from '@/components/admin/SettingsPanel';
 import AnalyticsPanel from '@/components/admin/AnalyticsPanel';
+import DemoPanel from '@/components/admin/DemoPanel';
 
 const TABS = [
   { id: 'verifications', label: 'Verifications', Icon: IconShield },
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'audit', label: 'Audit log', Icon: IconClipboard },
   { id: 'settings', label: 'Settings', Icon: IconBolt },
   { id: 'analytics', label: 'Analytics', Icon: IconChart },
+  { id: 'demo', label: 'Demo', Icon: IconSpark },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -74,6 +76,7 @@ export default function AdminPage() {
         {tab === 'audit' && <AuditPanel />}
         {tab === 'settings' && <SettingsPanel />}
         {tab === 'analytics' && <AnalyticsPanel />}
+        {tab === 'demo' && <DemoPanel />}
       </div>
     </main>
   );

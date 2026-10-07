@@ -10,6 +10,7 @@ const schema = z.object({
   RATE_LIMIT: z.coerce.number().int().positive().default(900),
   AUTH_RATE_LIMIT: z.coerce.number().int().positive().default(30),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  DEMO_MODE: z.enum(['true', 'false']).default('false'),
   ADMIN_EMAIL: z.string().email().default('pananexusadmin@gmail.com'),
   ADMIN_PASSWORD: z.string().min(8).optional(),
   UPLOAD_DIR: z.string().default('uploads'),
@@ -34,6 +35,11 @@ if (env.NODE_ENV === 'production') {
         'It is the CORS origin for browser requests (e.g. https://pananexus.vercel.app).',
     );
   }
+  if (env.DEMO_MODE === 'true') {
+    throw new Error('Backend env validation failed: DEMO_MODE must be false when NODE_ENV=production.');
+  }
 }
+
+export const demoMode = env.DEMO_MODE === 'true';
 
 export { env };

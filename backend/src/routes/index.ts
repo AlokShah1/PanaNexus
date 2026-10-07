@@ -14,6 +14,7 @@ import notifications from './notifications.js';
 import feedback from './feedback.js';
 import admin from './admin.js';
 import analytics from './analytics.js';
+import demo from './demo.js';
 
 const router = Router();
 router.use('/auth', auth);
@@ -29,6 +30,7 @@ router.use('/donors', donors);
 router.use('/blood', blood);
 router.use('/notifications', notifications);
 router.use('/feedback', feedback);
+router.use('/admin/demo', demo);
 router.use('/admin', admin);
 router.use('/analytics', analytics);
 

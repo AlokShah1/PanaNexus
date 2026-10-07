@@ -1539,6 +1539,13 @@
                   "kind": "scalar"
                 }
               },
+              "pickupAccuracy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
               "pickupAddress": {
                 "nullable": true,
                 "type": {
@@ -1557,6 +1564,13 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "pickupObtainedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
               },
@@ -1693,6 +1707,9 @@
                 "patientId": {
                   "column": "patientId"
                 },
+                "pickupAccuracy": {
+                  "column": "pickupAccuracy"
+                },
                 "pickupAddress": {
                   "column": "pickupAddress"
                 },
@@ -1701,6 +1718,9 @@
                 },
                 "pickupLongitude": {
                   "column": "pickupLongitude"
+                },
+                "pickupObtainedAt": {
+                  "column": "pickupObtainedAt"
                 },
                 "priority": {
                   "column": "priority"
@@ -2095,6 +2115,13 @@
           },
           "LocationUpdate": {
             "fields": {
+              "accuracy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -2151,6 +2178,9 @@
             },
             "storage": {
               "fields": {
+                "accuracy": {
+                  "column": "accuracy"
+                },
                 "id": {
                   "column": "id"
                 },
@@ -2810,6 +2840,13 @@
                   "kind": "scalar"
                 }
               },
+              "isSimulation": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "startedAt": {
                 "nullable": false,
                 "type": {
@@ -2899,6 +2936,9 @@
                 },
                 "id": {
                   "column": "id"
+                },
+                "isSimulation": {
+                  "column": "isSimulation"
                 },
                 "startedAt": {
                   "column": "startedAt"
@@ -4369,6 +4409,11 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "pickupAccuracy": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": true
+                },
                 "pickupAddress": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -4383,6 +4428,11 @@
                   "codecId": "pg/float8@1",
                   "nativeType": "float8",
                   "nullable": false
+                },
+                "pickupObtainedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
                 },
                 "priority": {
                   "codecId": "pg/text@1",
@@ -4753,6 +4803,11 @@
             },
             "LocationUpdate": {
               "columns": {
+                "accuracy": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": true
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -5346,6 +5401,15 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "isSimulation": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
                 "startedAt": {
                   "codecId": "pg/timestamptz-string@1",
                   "default": {
@@ -5898,7 +5962,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "8fd0bad7ee315247283e69995f4225b0f50fd69d29ceadb0ecc4b05110a82828"
+    "storageHash": "33be4fa4f8f05e08578d5fa5dadcd5199e4db4938fc4adbdcddcf3916927abd1"
   },
   "execution": {
     "executionHash": "09a18f0394de8f22baeb1769251e09a1d31d43e44c29c98c0f45071e456a6dab",

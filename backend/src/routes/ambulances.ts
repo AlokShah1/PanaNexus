@@ -6,6 +6,7 @@ import { emitToRoom, emitToUser, tripRoom } from '../lib/realtime.js';
 import { getUser, requireAuth, requireRole, requireVerified, type SessionUser } from '../middleware/auth.js';
 import { haversineKm } from '../lib/matching.js';
 import { acceptAmbulanceSchema, ambulanceLocationSchema, ambulanceStatusSchema } from '../validations/emergency.js';
+import { isDemoMode } from '../lib/demoSimulation.js';
 
 const router = Router();
 
@@ -72,7 +73,7 @@ router.get('/me', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), async
     user.role === 'ADMIN'
       ? await db.orm.public.Ambulance.all()
       : await db.orm.public.Ambulance.where({ operatorId: user.id }).all();
-  return ok(res, { items: rows.map((r) => fleetView(r as AmbRow)) });
+  return ok(res, { items: rows.map((r) => fleetView(r as AmbRow)), demoMode: isDemoMode() });
 });
 
 router.post('/me', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), requireVerified, async (req, res) => {
@@ -180,7 +181,7 @@ router.post('/:id/accept', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN
     body: `${owned.row.registrationNumber} is on the way to you.`,
     link: '/emergency',
   });
-  const payload = { tripId: trip.id, emergencyRequestId: reqRow.id, status: trip.status, state: 'EN_ROUTE', ambulance: fleetView(owned.row) };
+  const payload = { tripId: trip.id, emergencyRequestId: reqRow.id, status: trip.status, state: 'EN_ROUTE', ambulance: fleetView(owned.row), isSimulation: false };
   emitToUser(reqRow.requesterId, 'trip:status', payload);
   emitToRoom(tripRoom(trip.id), 'trip:status', payload);
   return ok(res, { trip: { id: trip.id, status: trip.status, state: 'EN_ROUTE' } }, 201);
@@ -236,7 +237,28 @@ router.patch('/:id/status', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMI
   return ok(res, { id: owned.row.id, status: (await findAmbulance(owned.row.id))?.status ?? nextAmb });
 });
 
-const lastLocationAt = new Map<string, number>();
+interface LocThrottleState {
+  atMs: number;
+  lat: number;
+  lng: number;
+}
+const lastLocationAt = new Map<string, LocThrottleState>();
+
+/** Only publish a GPS point every ~2.5s AND when it moves meaningfully (>15 m). */
+function shouldPublish(id: string, lat: number, lng: number): boolean {
+  const now = Date.now();
+  const prev = lastLocationAt.get(id);
+  if (!prev) {
+    lastLocationAt.set(id, { atMs: now, lat, lng });
+    return true;
+  }
+  const timeOk = now - prev.atMs >= 2500;
+  const moved = prev.lat === lat && prev.lng === lng ? 0 : haversineKm(prev.lat, prev.lng, lat, lng);
+  if (!timeOk) return false;
+  if (moved < 0.015) return false; // <15 m, skip
+  lastLocationAt.set(id, { atMs: now, lat, lng });
+  return true;
+}
 
 router.post('/:id/location', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), requireVerified, async (req, res) => {
   const user = getUser(req);
@@ -244,10 +266,9 @@ router.post('/:id/location', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADM
   if (!parsed.success) return fail(res, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.', 422);
   const owned = await ownAmbulance(req.params.id, user);
   if ('code' in owned) return fail(res, owned.code, owned.message, owned.status);
-  const now = Date.now();
-  const last = lastLocationAt.get(owned.row.id) ?? 0;
-  if (now - last < 2000) return ok(res, { accepted: true, throttled: true });
-  lastLocationAt.set(owned.row.id, now);
+  if (!shouldPublish(owned.row.id, parsed.data.latitude, parsed.data.longitude)) {
+    return ok(res, { accepted: true, throttled: true });
+  }
   await db.orm.public.Ambulance.where({ id: owned.row.id }).update({
     latitude: parsed.data.latitude,
     longitude: parsed.data.longitude,
@@ -258,21 +279,20 @@ router.post('/:id/location', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADM
       tripId: trip.id,
       latitude: parsed.data.latitude,
       longitude: parsed.data.longitude,
+      accuracy: parsed.data.accuracy ?? null,
     });
-    emitToRoom(tripRoom(trip.id), 'trip:location', {
+    const event = {
       tripId: trip.id,
       latitude: update.latitude,
       longitude: update.longitude,
+      accuracy: update.accuracy ?? null,
       recordedAt: update.recordedAt,
-    });
+      isSimulation: trip.isSimulation,
+    };
+    emitToRoom(tripRoom(trip.id), 'trip:location', event);
     const reqRow = await db.orm.public.EmergencyRequest.where({ id: trip.emergencyRequestId }).first();
     if (reqRow) {
-      emitToUser(reqRow.requesterId, 'trip:location', {
-        tripId: trip.id,
-        latitude: update.latitude,
-        longitude: update.longitude,
-        recordedAt: update.recordedAt,
-      });
+      emitToUser(reqRow.requesterId, 'trip:location', event);
     }
   }
   return ok(res, { accepted: true, throttled: false });
