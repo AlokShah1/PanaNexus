@@ -1,66 +1,83 @@
 # PanaNexus — Integrated Digital Healthcare Ecosystem
 
-A lightweight platform connecting patients, doctors, hospitals, health posts, blood/organ donors, and emergency services. Built as two independently deployable apps:
+A lightweight platform connecting patients, doctors, hospitals, health posts, blood/organ donors, and emergency services in one place. Sessions, verification, matching, and live trip tracking are handled server-side; the frontend is a thin, typed client.
 
-- **frontend** — Next.js + React + TypeScript + Tailwind CSS
-- **backend** — Node.js + Express + Prisma 8 ORM + Neon PostgreSQL
+## Stack
+
+| App | Stack |
+| --- | --- |
+| `frontend/` | Next.js (App Router) · React 19 · TypeScript · Tailwind CSS v4 · socket.io-client |
+| `backend/` | Node.js · Express 5 · Socket.IO · Prisma 8 (`@prisma/orm-postgres`) · zod · PostgreSQL |
+
+## Roles
+
+- **Patient** — emergency requests with live tracking, appointment booking, notifications, blood search, medical records, feedback
+- **Doctor** — verification onboarding, profile + availability, appointment schedule, records
+- **Facility staff** — facility profile, blood stock + requests
+- **Ambulance operator** — fleet board, accept/status/location, realtime broadcast
+- **Admin** — verification approvals, user suspension, audit log, feedback, analytics, settings
 
 ## Directory
 
 ```
-frontend/   Next.js app (UI)
-  src/app/        pages + layouts (client components call the API via rewrites)
-  src/components/ UI components
-backend/  Express API + Prisma
-  src/config/    env validation
-  src/lib/       auth, matching, blood logic, intelligence, analytics
-  src/middleware/ (not yet abstracted)
-  src/routes/    REST controllers grouped by resource
-  src/validations/ zod schemas
-  prisma/        contract.prisma (Prisma 8), db.ts, emitted contract.json/contract.d.ts
-shared/types|constants|schemas   safe contracts (no Prisma/secrets)
-```
-
-## Environment
-
-**backend/.env**
-```
-DATABASE_URL=<neon pooled url>
-DIRECT_URL=<neon direct url>
-AUTH_SECRET=<long random secret>
-PORT=4000
-FRONTEND_URL=http://localhost:3000
-```
-
-**frontend/.env.local**
-```
-NEXT_PUBLIC_API_URL=http://localhost:4000
+frontend/src/app/     pages + layouts (client components call the API via rewrites)
+frontend/src/lib/     API client, session helpers, realtime socket, formatting
+frontend/src/tests/   unit tests (vitest)
+backend/src/routes/   REST controllers grouped by resource
+backend/src/lib/      auth, matching, blood logic, intelligence, analytics
+backend/src/middleware/  auth/role/rate-limit middleware
+backend/src/validations/ zod schemas
+backend/prisma/       contract.prisma (Prisma 8), db.ts, emitted contract.json/d.ts
+backend/scripts/      seed.ts (idempotent facility + demo seeding)
+backend/src/routes/api.integration.test.ts  full HTTP integration suite
+shared/               safe contracts (no Prisma/secrets)
+render.yaml           Render Blueprint (API + Web)
+docs/DEPLOY.md        Render + Neon runbook
+docs/PROJECT_REPORT.md  architecture, security, QA results
 ```
 
 ## Development
-```bash
-# backend
-cd backend
-npm install
-npx prisma contract emit
-npm run dev
 
-# frontend
-cd frontend
+Requirements: Node ≥ 22, local Docker Postgres (or Neon).
+
+```bash
+# 1. database (local dev)
+docker run -d --name pn-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:17
+docker exec -i pn-pg psql -U postgres -c 'create database pananexus'
+
+# 2. backend
+cd backend
+cp .env.example .env            # fill DATABASE_URL/DIRECT_URL/AUTH_SECRET
 npm install
-npm run dev
+npm run seed                    # idempotent: facilities
+npm run seed -- --demo          # + demo accounts, ambulance, blood stock
+npm run dev                     # http://localhost:4000 (health: /health)
+
+# 3. frontend
+cd frontend
+cp .env.example .env.local      # NEXT_PUBLIC_API_URL=http://localhost:4000
+npm install
+npm run dev                     # http://localhost:3000
 ```
+
+Admin auto-bootstraps on first boot from `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Demo accounts (`TestPass!123`): `operator@pananexus.local`, `dr.khan@pananexus.local`.
 
 ## Checks
+
 ```bash
 cd backend && npm run typecheck && npm run lint && npm test && npm run build
-cd frontend && npm run typecheck && npm run lint && npm run build
+cd frontend && npm run typecheck && npm run lint && npm test && npm run build
 ```
 
-## Security note
-Sessions are signed HttpOnly cookies set by the backend. Every protected API validates the session and role server-side; the frontend never touches the database.
+Current: backend **100 tests / 16 files**, frontend **36 tests / 5 files** — all green, plus the live browser QA harness (60 route×viewport loads, full emergency E2E incl. live socket verification; see `docs/PROJECT_REPORT.md` §4).
 
+## Security
 
+- HttpOnly signed session cookies (`hc_session`); scrypt password hashing; per-role route middleware.
+- Doctor licenses and password hashes never serialised; unverified professionals excluded from the public directory.
+- Global + per-route rate limiting; zod validation at every boundary.
+- Sensitive production info lives only in server env vars (see `.env.example` files).
 
+## Deployment
 
-
+See `render.yaml` and `docs/DEPLOY.md`. Production cookies are `SameSite=None; Secure` — both apps must be served over HTTPS (Render does this automatically).

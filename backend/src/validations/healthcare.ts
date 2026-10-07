@@ -34,12 +34,30 @@ export const facilitySchema = z.object({
   type: z.enum(['HOSPITAL', 'HEALTH_POST']),
   address: z.string().min(4).max(200),
   phone: z.string().max(40).optional(),
-  operatingHours: z.string().max(120).optional(),
+  operatingHours: z.string().max(300).optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  services: z.array(z.string().trim().min(1).max(60)).max(30).default([]),
+  emergencyAvailable: z.boolean().default(false),
 });
 
 export const medicalRecordSchema = z.object({
   patientId: z.string().min(1),
+  recordType: z.enum(['CONSULTATION', 'PRESCRIPTION', 'LAB_RESULT', 'IMAGING', 'VACCINATION', 'OTHER']).default('CONSULTATION'),
   diagnosis: z.string().max(500).optional(),
   treatment: z.string().max(500).optional(),
   notes: z.string().max(1000).optional(),
+  prescriptions: z.array(z.string().trim().min(1).max(200)).max(50).default([]),
+  attachments: z.array(z.string().trim().min(1).max(300)).max(50).default([]),
+});
+
+export const availabilitySlotSchema = z.object({
+  weekday: z.number().int().min(0).max(6),
+  startMinute: z.number().int().min(0).max(1439),
+  endMinute: z.number().int().min(1).max(1440),
+  slotMinutes: z.number().int().min(5).max(240).default(30),
+});
+
+export const availabilitySchema = z.object({
+  slots: z.array(availabilitySlotSchema).min(1).max(21),
 });

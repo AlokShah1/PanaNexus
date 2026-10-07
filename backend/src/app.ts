@@ -18,10 +18,20 @@ app.use(
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(
-  rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-7', legacyHeaders: false }),
+  rateLimit({ windowMs: 15 * 60 * 1000, limit: env.RATE_LIMIT, standardHeaders: 'draft-7', legacyHeaders: false }),
 );
 
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: env.AUTH_RATE_LIMIT,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skip: () => env.NODE_ENV === 'test',
+  message: { success: false, error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again later.' } },
+});
+
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.use('/api/v1/auth', authLimiter);
 app.use('/api/v1', apiRouter);
 
 app.use((_req, res) => res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Not found.' } }));

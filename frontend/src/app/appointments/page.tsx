@@ -16,7 +16,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
             <IconCalendar size={13} />
             Appointments
           </Badge>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-ink sm:text-4xl">Book a visit in three steps</h1>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-ink sm:text-4xl">Book a visit</h1>
           <p className="mt-2 max-w-2xl text-[15px] text-ink-muted">
             Choose a doctor, pick a slot and confirm. Double-booking is prevented on the server, so the time you
             see is the time you get.

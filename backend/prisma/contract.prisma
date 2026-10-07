@@ -12,6 +12,25 @@ enum Role {
   ADMIN
 }
 
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum VerificationKind {
+  DOCTOR
+  FACILITY
+  AMBULANCE
+}
+
+enum VerificationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum FacilityType {
   HOSPITAL
   HEALTH_POST
@@ -25,12 +44,25 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+enum MedicalRecordType {
+  CONSULTATION
+  PRESCRIPTION
+  LAB_RESULT
+  IMAGING
+  VACCINATION
+  OTHER
+}
+
 model User {
   id           String      @id @default(uuid())
   email        String      @unique
   name         String
   role         Role        @default(PATIENT)
+  verificationStatus VerificationStatus @default(VERIFIED)
   passwordHash String
+  phone        String?
+  facility      HealthcareFacility? @relation(fields: [facilityId], references: [id])
+  facilityId    String?
   createdAt    TimestamptzString @default(now())
   updatedAt    temporal.updatedAtString()
   auditLogs    AuditLog[]
@@ -42,6 +74,31 @@ model User {
   bloodRequests BloodRequest[]
   notifications Notification[]
   feedback      Feedback[]
+  verificationRequests VerificationRequest[] @relation("UserVerificationRequests")
+  reviewedRequests     VerificationRequest[] @relation("UserReviewedRequests")
+
+  @@index([role])
+  @@index([verificationStatus])
+  @@index([facilityId])
+}
+
+model VerificationRequest {
+  id           String                    @id @default(uuid())
+  user         User                      @relation("UserVerificationRequests", fields: [userId], references: [id])
+  userId       String
+  kind         VerificationKind
+  payload      String?
+  documentUrls String[]
+  status       VerificationRequestStatus @default(PENDING)
+  reason       String?
+  reviewedBy   User?                     @relation("UserReviewedRequests", fields: [reviewedById], references: [id])
+  reviewedById String?
+  reviewedAt   TimestamptzString?
+  createdAt    TimestamptzString         @default(now())
+  updatedAt    temporal.updatedAtString()
+
+  @@index([status])
+  @@index([userId])
 }
 
 model AuditLog {
@@ -86,8 +143,24 @@ model Doctor {
   updatedAt      temporal.updatedAtString()
   appointments   Appointment[]
   medicalRecords MedicalRecord[]
+  availability   DoctorAvailability[]
 
   @@index([facilityId])
+  @@index([specialization])
+}
+
+model DoctorAvailability {
+  id          String  @id @default(uuid())
+  doctor      Doctor  @relation(fields: [doctorId], references: [id])
+  doctorId    String
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+  slotMinutes Int     @default(30)
+  createdAt   TimestamptzString @default(now())
+  updatedAt   temporal.updatedAtString()
+
+  @@index([doctorId, weekday])
 }
 
 model HealthcareFacility {
@@ -97,14 +170,21 @@ model HealthcareFacility {
   address        String
   phone          String?
   operatingHours String?
+  latitude       Float?
+  longitude      Float?
+  services       String[]
+  emergencyAvailable Boolean    @default(false)
   createdAt      TimestamptzString @default(now())
   updatedAt      temporal.updatedAtString()
   doctors        Doctor[]
+  staff          User[]
   appointments   Appointment[]
   emergencyRequests EmergencyRequest[]
   bloodUnits     BloodUnit[]
   bloodRequests  BloodRequest[]
   feedback      Feedback[]
+
+  @@index([type])
 }
 
 model Appointment {
@@ -131,13 +211,19 @@ model MedicalRecord {
   patientId String
   doctor    Doctor?  @relation(fields: [doctorId], references: [id])
   doctorId  String?
+  facility  HealthcareFacility? @relation(fields: [facilityId], references: [id])
+  facilityId String?
+  recordType MedicalRecordType @default(CONSULTATION)
   diagnosis String?
   treatment String?
   notes     String?
+  prescriptions String[]
+  attachments   String[]
   createdAt TimestamptzString @default(now())
   updatedAt temporal.updatedAtString()
 
   @@index([patientId])
+  @@index([facilityId])
 }
 
 enum AmbulanceType {
@@ -157,9 +243,11 @@ enum AmbulanceStatus {
 }
 
 enum EmergencyCategory {
+  MEDICAL
   ACCIDENT
-  CARDIAC
-  GENERAL
+  INJURY
+  PREGNANCY
+  BREATHING
   OTHER
 }
 
@@ -194,6 +282,8 @@ model Ambulance {
   registrationNumber String         @unique
   type              AmbulanceType
   status            AmbulanceStatus @default(OFFLINE)
+  driverName        String?
+  driverPhone       String?
   operator          User?           @relation(fields: [operatorId], references: [id])
   operatorId        String?
   latitude          Float?
@@ -201,6 +291,9 @@ model Ambulance {
   createdAt         TimestamptzString @default(now())
   updatedAt         temporal.updatedAtString()
   trips             Trip[]
+
+  @@index([status])
+  @@index([operatorId])
 }
 
 model EmergencyRequest {
@@ -211,14 +304,21 @@ model EmergencyRequest {
   patientId    String?
   destination  HealthcareFacility? @relation(fields: [destinationFacilityId], references: [id])
   destinationFacilityId String?
+  destinationAddress String?
   pickupLatitude Float
   pickupLongitude Float
+  pickupAddress String?
+  notes        String?
+  cancelReason String?
   category     EmergencyCategory
   priority     EmergencyPriority
   status       EmergencyStatus   @default(PENDING)
   createdAt    TimestamptzString @default(now())
   updatedAt    temporal.updatedAtString()
   trip         Trip?
+
+  @@index([requesterId])
+  @@index([status])
 }
 
 model Trip {
@@ -229,7 +329,23 @@ model Trip {
   ambulanceId       String
   status           TripStatus @default(EN_ROUTE)
   startedAt        TimestamptzString @default(now())
+  arrivedAt         TimestamptzString?
+  completedAt      TimestamptzString?
   endedAt          TimestamptzString?
+  locationUpdates  LocationUpdate[]
+
+  @@index([ambulanceId])
+}
+
+model LocationUpdate {
+  id         String   @id @default(uuid())
+  trip       Trip     @relation(fields: [tripId], references: [id])
+  tripId     String
+  latitude   Float
+  longitude  Float
+  recordedAt TimestamptzString @default(now())
+
+  @@index([tripId, recordedAt])
 }
 
 enum BloodRequestStatus {
@@ -303,11 +419,18 @@ model Notification {
   type      String
   title     String
   body      String?
+  link      String?
   read      Boolean  @default(false)
   createdAt TimestamptzString @default(now())
 
   @@index([userId])
   @@index([read])
+}
+
+enum FeedbackStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model Feedback {
@@ -318,7 +441,16 @@ model Feedback {
   facilityId String?
   rating    Int
   comment   String?
+  status    FeedbackStatus @default(PENDING)
+  moderationReason String?
   createdAt TimestamptzString @default(now())
 
   @@index([facilityId])
+  @@index([status])
+}
+
+model PlatformSetting {
+  key       String   @id
+  value     String
+  updatedAt temporal.updatedAtString()
 }

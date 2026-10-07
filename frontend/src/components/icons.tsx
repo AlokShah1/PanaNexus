@@ -205,4 +205,13 @@ export const IconStar = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="m12 4 2.4 5 5.6.8-4 3.9 1 5.5-5-2.7-5 2.7 1-5.5-4-3.9 5.6-.8L12 4Z" />
   </svg>
+);export const IconFileText = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M14.5 2.5H6a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.5L14.5 2.5z" />
+    <polyline points="14,2 14,9 21,9" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10,9 9,9 8,9" />
+  </svg>
 );
+

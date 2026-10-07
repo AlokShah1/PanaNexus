@@ -1,5 +1,8 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+export const API_ROOT = BASE;
+export const API_BASE = `${BASE}/api/v1`;
+
 const FRIENDLY: Partial<Record<number, string>> = {
   400: 'Something went wrong while loading healthcare facilities.',
   401: 'Please log in to continue.',
@@ -21,7 +24,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
   try {
     res = await fetch(`${BASE}/api/v1${path}`, {
       credentials: 'include',
-      headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: typeof init?.body === 'string' ? { 'Content-Type': 'application/json' } : undefined,
       cache: 'no-store',
       ...init,
     });
@@ -39,7 +42,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
   if (!res.ok) {
     const b = body as { error?: { code?: string; message?: string } } | null;
     const msg =
-      res.status === 422 && b?.error?.message
+      res.status < 500 && b?.error?.message
         ? b.error.message
         : FRIENDLY[res.status] ?? 'Something went wrong while loading healthcare facilities.';
     return { ok: false, status: res.status, code: b?.error?.code, message: msg };
@@ -60,3 +63,14 @@ export function apiPost<T>(path: string, body: unknown, init?: RequestInit) {
 export function apiPatch<T>(path: string, body: unknown, init?: RequestInit) {
   return apiFetch<T>(path, { ...init, method: 'PATCH', body: JSON.stringify(body) });
 }
+
+export function apiDelete<T>(path: string, init?: RequestInit) {
+  return apiFetch<T>(path, { ...init, method: 'DELETE' });
+}
+
+export function apiUpload<T>(path: string, form: FormData, init?: RequestInit) {
+  return apiFetch<T>(path, { ...init, method: 'POST', body: form });
+}
+
+export type PageMeta = { page: number; limit: number; total: number; totalPages: number };
+export type Paginated<T> = { items: T[]; meta: PageMeta };

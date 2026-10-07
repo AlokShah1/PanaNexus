@@ -11,4 +11,5 @@ export const notificationCreateSchema = z.object({
   type: z.string().min(1).max(50),
   title: z.string().min(1).max(120),
   body: z.string().max(500).optional(),
+  link: z.string().max(500).optional(),
 });

@@ -32,6 +32,10 @@
       "model": "Doctor",
       "namespace": "public"
     },
+    "DoctorAvailability": {
+      "model": "DoctorAvailability",
+      "namespace": "public"
+    },
     "EmergencyRequest": {
       "model": "EmergencyRequest",
       "namespace": "public"
@@ -42,6 +46,10 @@
     },
     "HealthcareFacility": {
       "model": "HealthcareFacility",
+      "namespace": "public"
+    },
+    "LocationUpdate": {
+      "model": "LocationUpdate",
       "namespace": "public"
     },
     "MedicalRecord": {
@@ -60,12 +68,20 @@
       "model": "Patient",
       "namespace": "public"
     },
+    "PlatformSetting": {
+      "model": "PlatformSetting",
+      "namespace": "public"
+    },
     "Trip": {
       "model": "Trip",
       "namespace": "public"
     },
     "User": {
       "model": "User",
+      "namespace": "public"
+    },
+    "VerificationRequest": {
+      "model": "VerificationRequest",
       "namespace": "public"
     }
   },
@@ -173,16 +189,24 @@
             "codecId": "pg/text@1",
             "members": [
               {
+                "name": "MEDICAL",
+                "value": "MEDICAL"
+              },
+              {
                 "name": "ACCIDENT",
                 "value": "ACCIDENT"
               },
               {
-                "name": "CARDIAC",
-                "value": "CARDIAC"
+                "name": "INJURY",
+                "value": "INJURY"
               },
               {
-                "name": "GENERAL",
-                "value": "GENERAL"
+                "name": "PREGNANCY",
+                "value": "PREGNANCY"
+              },
+              {
+                "name": "BREATHING",
+                "value": "BREATHING"
               },
               {
                 "name": "OTHER",
@@ -261,6 +285,52 @@
               }
             ]
           },
+          "FeedbackStatus": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "PENDING",
+                "value": "PENDING"
+              },
+              {
+                "name": "APPROVED",
+                "value": "APPROVED"
+              },
+              {
+                "name": "REJECTED",
+                "value": "REJECTED"
+              }
+            ]
+          },
+          "MedicalRecordType": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "CONSULTATION",
+                "value": "CONSULTATION"
+              },
+              {
+                "name": "PRESCRIPTION",
+                "value": "PRESCRIPTION"
+              },
+              {
+                "name": "LAB_RESULT",
+                "value": "LAB_RESULT"
+              },
+              {
+                "name": "IMAGING",
+                "value": "IMAGING"
+              },
+              {
+                "name": "VACCINATION",
+                "value": "VACCINATION"
+              },
+              {
+                "name": "OTHER",
+                "value": "OTHER"
+              }
+            ]
+          },
           "OrganDonorStatus": {
             "codecId": "pg/text@1",
             "members": [
@@ -335,6 +405,61 @@
                 "value": "CANCELLED"
               }
             ]
+          },
+          "VerificationKind": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "DOCTOR",
+                "value": "DOCTOR"
+              },
+              {
+                "name": "FACILITY",
+                "value": "FACILITY"
+              },
+              {
+                "name": "AMBULANCE",
+                "value": "AMBULANCE"
+              }
+            ]
+          },
+          "VerificationRequestStatus": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "PENDING",
+                "value": "PENDING"
+              },
+              {
+                "name": "APPROVED",
+                "value": "APPROVED"
+              },
+              {
+                "name": "REJECTED",
+                "value": "REJECTED"
+              }
+            ]
+          },
+          "VerificationStatus": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "PENDING",
+                "value": "PENDING"
+              },
+              {
+                "name": "VERIFIED",
+                "value": "VERIFIED"
+              },
+              {
+                "name": "REJECTED",
+                "value": "REJECTED"
+              },
+              {
+                "name": "SUSPENDED",
+                "value": "SUSPENDED"
+              }
+            ]
           }
         },
         "models": {
@@ -344,6 +469,20 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "driverName": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "driverPhone": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -453,6 +592,12 @@
               "fields": {
                 "createdAt": {
                   "column": "createdAt"
+                },
+                "driverName": {
+                  "column": "driverName"
+                },
+                "driverPhone": {
+                  "column": "driverPhone"
                 },
                 "id": {
                   "column": "id"
@@ -1128,6 +1273,21 @@
                   "namespace": "public"
                 }
               },
+              "availability": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "doctorId"
+                  ]
+                },
+                "to": {
+                  "model": "DoctorAvailability",
+                  "namespace": "public"
+                }
+              },
               "facility": {
                 "cardinality": "N:1",
                 "nullable": true,
@@ -1207,8 +1367,123 @@
               "table": "Doctor"
             }
           },
+          "DoctorAvailability": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "doctorId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "endMinute": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "slotMinutes": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "startMinute": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "weekday": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "doctor": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "doctorId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Doctor",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "doctorId": {
+                  "column": "doctorId"
+                },
+                "endMinute": {
+                  "column": "endMinute"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "slotMinutes": {
+                  "column": "slotMinutes"
+                },
+                "startMinute": {
+                  "column": "startMinute"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "weekday": {
+                  "column": "weekday"
+                }
+              },
+              "namespaceId": "public",
+              "table": "DoctorAvailability"
+            }
+          },
           "EmergencyRequest": {
             "fields": {
+              "cancelReason": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "category": {
                 "nullable": false,
                 "type": {
@@ -1229,6 +1504,13 @@
                   "kind": "scalar"
                 }
               },
+              "destinationAddress": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "destinationFacilityId": {
                 "nullable": true,
                 "type": {
@@ -1243,7 +1525,21 @@
                   "kind": "scalar"
                 }
               },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "patientId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "pickupAddress": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
@@ -1373,11 +1669,17 @@
             },
             "storage": {
               "fields": {
+                "cancelReason": {
+                  "column": "cancelReason"
+                },
                 "category": {
                   "column": "category"
                 },
                 "createdAt": {
                   "column": "createdAt"
+                },
+                "destinationAddress": {
+                  "column": "destinationAddress"
                 },
                 "destinationFacilityId": {
                   "column": "destinationFacilityId"
@@ -1385,8 +1687,14 @@
                 "id": {
                   "column": "id"
                 },
+                "notes": {
+                  "column": "notes"
+                },
                 "patientId": {
                   "column": "patientId"
+                },
+                "pickupAddress": {
+                  "column": "pickupAddress"
                 },
                 "pickupLatitude": {
                   "column": "pickupLatitude"
@@ -1448,11 +1756,31 @@
                   "kind": "scalar"
                 }
               },
+              "moderationReason": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "rating": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/int4@1",
                   "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "FeedbackStatus",
+                  "namespaceId": "public",
+                  "plane": "domain"
                 }
               }
             },
@@ -1507,8 +1835,14 @@
                 "id": {
                   "column": "id"
                 },
+                "moderationReason": {
+                  "column": "moderationReason"
+                },
                 "rating": {
                   "column": "rating"
+                },
+                "status": {
+                  "column": "status"
                 }
               },
               "namespaceId": "public",
@@ -1531,10 +1865,31 @@
                   "kind": "scalar"
                 }
               },
+              "emergencyAvailable": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "latitude": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "longitude": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
                   "kind": "scalar"
                 }
               },
@@ -1554,6 +1909,14 @@
               },
               "phone": {
                 "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "services": {
+                "many": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -1670,6 +2033,21 @@
                   "model": "Feedback",
                   "namespace": "public"
                 }
+              },
+              "staff": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "facilityId"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -1680,8 +2058,17 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "emergencyAvailable": {
+                  "column": "emergencyAvailable"
+                },
                 "id": {
                   "column": "id"
+                },
+                "latitude": {
+                  "column": "latitude"
+                },
+                "longitude": {
+                  "column": "longitude"
                 },
                 "name": {
                   "column": "name"
@@ -1691,6 +2078,9 @@
                 },
                 "phone": {
                   "column": "phone"
+                },
+                "services": {
+                  "column": "services"
                 },
                 "type": {
                   "column": "type"
@@ -1703,8 +2093,94 @@
               "table": "HealthcareFacility"
             }
           },
+          "LocationUpdate": {
+            "fields": {
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "latitude": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "longitude": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "recordedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "tripId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "trip": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tripId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Trip",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "id": {
+                  "column": "id"
+                },
+                "latitude": {
+                  "column": "latitude"
+                },
+                "longitude": {
+                  "column": "longitude"
+                },
+                "recordedAt": {
+                  "column": "recordedAt"
+                },
+                "tripId": {
+                  "column": "tripId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "LocationUpdate"
+            }
+          },
           "MedicalRecord": {
             "fields": {
+              "attachments": {
+                "many": true,
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
@@ -1720,6 +2196,13 @@
                 }
               },
               "doctorId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "facilityId": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
@@ -1745,6 +2228,27 @@
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
+                }
+              },
+              "prescriptions": {
+                "many": true,
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "recordType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "MedicalRecordType",
+                  "namespaceId": "public",
+                  "plane": "domain"
                 }
               },
               "treatment": {
@@ -1779,6 +2283,22 @@
                   "namespace": "public"
                 }
               },
+              "facility": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "facilityId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "HealthcareFacility",
+                  "namespace": "public"
+                }
+              },
               "patient": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -1798,6 +2318,9 @@
             },
             "storage": {
               "fields": {
+                "attachments": {
+                  "column": "attachments"
+                },
                 "createdAt": {
                   "column": "createdAt"
                 },
@@ -1807,6 +2330,9 @@
                 "doctorId": {
                   "column": "doctorId"
                 },
+                "facilityId": {
+                  "column": "facilityId"
+                },
                 "id": {
                   "column": "id"
                 },
@@ -1815,6 +2341,12 @@
                 },
                 "patientId": {
                   "column": "patientId"
+                },
+                "prescriptions": {
+                  "column": "prescriptions"
+                },
+                "recordType": {
+                  "column": "recordType"
                 },
                 "treatment": {
                   "column": "treatment"
@@ -1845,6 +2377,13 @@
               },
               "id": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "link": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -1907,6 +2446,9 @@
                 },
                 "id": {
                   "column": "id"
+                },
+                "link": {
+                  "column": "link"
                 },
                 "read": {
                   "column": "read"
@@ -2183,12 +2725,67 @@
               "table": "Patient"
             }
           },
+          "PlatformSetting": {
+            "fields": {
+              "key": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "value": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "key": {
+                  "column": "key"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "value": {
+                  "column": "value"
+                }
+              },
+              "namespaceId": "public",
+              "table": "PlatformSetting"
+            }
+          },
           "Trip": {
             "fields": {
               "ambulanceId": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "arrivedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "completedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
               },
@@ -2266,12 +2863,33 @@
                   "model": "EmergencyRequest",
                   "namespace": "public"
                 }
+              },
+              "locationUpdates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tripId"
+                  ]
+                },
+                "to": {
+                  "model": "LocationUpdate",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
               "fields": {
                 "ambulanceId": {
                   "column": "ambulanceId"
+                },
+                "arrivedAt": {
+                  "column": "arrivedAt"
+                },
+                "completedAt": {
+                  "column": "completedAt"
                 },
                 "emergencyRequestId": {
                   "column": "emergencyRequestId"
@@ -2309,6 +2927,13 @@
                   "kind": "scalar"
                 }
               },
+              "facilityId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -2325,6 +2950,13 @@
               },
               "passwordHash": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "phone": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -2348,6 +2980,19 @@
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
+                }
+              },
+              "verificationStatus": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "VerificationStatus",
+                  "namespaceId": "public",
+                  "plane": "domain"
                 }
               }
             },
@@ -2429,6 +3074,22 @@
                   "namespace": "public"
                 }
               },
+              "facility": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "facilityId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "HealthcareFacility",
+                  "namespace": "public"
+                }
+              },
               "feedback": {
                 "cardinality": "1:N",
                 "on": {
@@ -2490,6 +3151,36 @@
                   "model": "Patient",
                   "namespace": "public"
                 }
+              },
+              "reviewedRequests": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "reviewedById"
+                  ]
+                },
+                "to": {
+                  "model": "VerificationRequest",
+                  "namespace": "public"
+                }
+              },
+              "verificationRequests": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "VerificationRequest",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -2500,6 +3191,9 @@
                 "email": {
                   "column": "email"
                 },
+                "facilityId": {
+                  "column": "facilityId"
+                },
                 "id": {
                   "column": "id"
                 },
@@ -2509,15 +3203,188 @@
                 "passwordHash": {
                   "column": "passwordHash"
                 },
+                "phone": {
+                  "column": "phone"
+                },
                 "role": {
                   "column": "role"
                 },
                 "updatedAt": {
                   "column": "updatedAt"
+                },
+                "verificationStatus": {
+                  "column": "verificationStatus"
                 }
               },
               "namespaceId": "public",
               "table": "User"
+            }
+          },
+          "VerificationRequest": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "documentUrls": {
+                "many": true,
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "kind": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "VerificationKind",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "payload": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "reason": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewedById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "VerificationRequestStatus",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "reviewedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "reviewedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "documentUrls": {
+                  "column": "documentUrls"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "kind": {
+                  "column": "kind"
+                },
+                "payload": {
+                  "column": "payload"
+                },
+                "reason": {
+                  "column": "reason"
+                },
+                "reviewedAt": {
+                  "column": "reviewedAt"
+                },
+                "reviewedById": {
+                  "column": "reviewedById"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "VerificationRequest"
             }
           }
         }
@@ -2551,6 +3418,16 @@
                   },
                   "nativeType": "timestamptz",
                   "nullable": false
+                },
+                "driverName": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "driverPhone": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -2634,6 +3511,14 @@
                   ],
                   "name": "Ambulance_operatorId_idx_a95ad064",
                   "prefix": "Ambulance_operatorId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "status"
+                  ],
+                  "name": "Ambulance_status_idx_e98638ab",
+                  "prefix": "Ambulance_status_idx",
                   "unique": false
                 }
               ],
@@ -3292,6 +4177,14 @@
                   "name": "Doctor_facilityId_idx_3710d8c1",
                   "prefix": "Doctor_facilityId_idx",
                   "unique": false
+                },
+                {
+                  "columns": [
+                    "specialization"
+                  ],
+                  "name": "Doctor_specialization_idx_6166aa06",
+                  "prefix": "Doctor_specialization_idx",
+                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -3312,11 +4205,106 @@
                 }
               ]
             },
+            "DoctorAvailability": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "doctorId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "endMinute": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "slotMinutes": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 30
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "startMinute": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "weekday": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "doctorId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "DoctorAvailability"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Doctor"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "doctorId"
+                  ],
+                  "name": "DoctorAvailability_doctorId_idx_04369053",
+                  "prefix": "DoctorAvailability_doctorId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "doctorId",
+                    "weekday"
+                  ],
+                  "name": "DoctorAvailability_doctorId_weekday_idx_d452c51b",
+                  "prefix": "DoctorAvailability_doctorId_weekday_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
             "EmergencyRequest": {
               "checks": [
                 {
-                  "expression": "\"category\" IN ('ACCIDENT', 'CARDIAC', 'GENERAL', 'OTHER')",
-                  "name": "EmergencyRequest_category_check_8b03a42e",
+                  "expression": "\"category\" IN ('MEDICAL', 'ACCIDENT', 'INJURY', 'PREGNANCY', 'BREATHING', 'OTHER')",
+                  "name": "EmergencyRequest_category_check_0afdbf97",
                   "prefix": "EmergencyRequest_category_check"
                 },
                 {
@@ -3331,6 +4319,11 @@
                 }
               ],
               "columns": {
+                "cancelReason": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "category": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -3351,6 +4344,11 @@
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
+                "destinationAddress": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "destinationFacilityId": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -3361,7 +4359,17 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "patientId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "pickupAddress": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": true
@@ -3487,6 +4495,14 @@
                   "name": "EmergencyRequest_requesterId_idx_a5f4af92",
                   "prefix": "EmergencyRequest_requesterId_idx",
                   "unique": false
+                },
+                {
+                  "columns": [
+                    "status"
+                  ],
+                  "name": "EmergencyRequest_status_idx_e98638ab",
+                  "prefix": "EmergencyRequest_status_idx",
+                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -3497,6 +4513,13 @@
               "uniques": []
             },
             "Feedback": {
+              "checks": [
+                {
+                  "expression": "\"status\" IN ('PENDING', 'APPROVED', 'REJECTED')",
+                  "name": "Feedback_status_check_56005a61",
+                  "prefix": "Feedback_status_check"
+                }
+              ],
               "columns": {
                 "authorId": {
                   "codecId": "pg/text@1",
@@ -3527,10 +4550,30 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "moderationReason": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "rating": {
                   "codecId": "pg/int4@1",
                   "nativeType": "int4",
                   "nullable": false
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PENDING"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "FeedbackStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
                 }
               },
               "foreignKeys": [
@@ -3583,6 +4626,14 @@
                   "name": "Feedback_facilityId_idx_3710d8c1",
                   "prefix": "Feedback_facilityId_idx",
                   "unique": false
+                },
+                {
+                  "columns": [
+                    "status"
+                  ],
+                  "name": "Feedback_status_idx_e98638ab",
+                  "prefix": "Feedback_status_idx",
+                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -3594,6 +4645,11 @@
             },
             "HealthcareFacility": {
               "checks": [
+                {
+                  "expression": "array_position(\"services\", NULL) IS NULL",
+                  "name": "HealthcareFacility_services_elem_not_null_4d2c6c0f",
+                  "prefix": "HealthcareFacility_services_elem_not_null"
+                },
                 {
                   "expression": "\"type\" IN ('HOSPITAL', 'HEALTH_POST')",
                   "name": "HealthcareFacility_type_check_07fe5e48",
@@ -3615,10 +4671,29 @@
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
+                "emergencyAvailable": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "latitude": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": true
+                },
+                "longitude": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": true
                 },
                 "name": {
                   "codecId": "pg/text@1",
@@ -3634,6 +4709,12 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": true
+                },
+                "services": {
+                  "codecId": "pg/text@1",
+                  "many": true,
+                  "nativeType": "text",
+                  "nullable": false
                 },
                 "type": {
                   "codecId": "pg/text@1",
@@ -3653,7 +4734,92 @@
                 }
               },
               "foreignKeys": [],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "type"
+                  ],
+                  "name": "HealthcareFacility_type_idx_b6b604ea",
+                  "prefix": "HealthcareFacility_type_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "LocationUpdate": {
+              "columns": {
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "latitude": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": false
+                },
+                "longitude": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": false
+                },
+                "recordedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "tripId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "tripId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "LocationUpdate"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Trip"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "tripId"
+                  ],
+                  "name": "LocationUpdate_tripId_idx_75da6d97",
+                  "prefix": "LocationUpdate_tripId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tripId",
+                    "recordedAt"
+                  ],
+                  "name": "LocationUpdate_tripId_recordedAt_idx_febe46ae",
+                  "prefix": "LocationUpdate_tripId_recordedAt_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -3662,7 +4828,30 @@
               "uniques": []
             },
             "MedicalRecord": {
+              "checks": [
+                {
+                  "expression": "array_position(\"attachments\", NULL) IS NULL",
+                  "name": "MedicalRecord_attachments_elem_not_null_d71f0c0b",
+                  "prefix": "MedicalRecord_attachments_elem_not_null"
+                },
+                {
+                  "expression": "array_position(\"prescriptions\", NULL) IS NULL",
+                  "name": "MedicalRecord_prescriptions_elem_not_null_503c7a44",
+                  "prefix": "MedicalRecord_prescriptions_elem_not_null"
+                },
+                {
+                  "expression": "\"recordType\" IN ('CONSULTATION', 'PRESCRIPTION', 'LAB_RESULT', 'IMAGING', 'VACCINATION', 'OTHER')",
+                  "name": "MedicalRecord_recordType_check_76e4e61b",
+                  "prefix": "MedicalRecord_recordType_check"
+                }
+              ],
               "columns": {
+                "attachments": {
+                  "codecId": "pg/text@1",
+                  "many": true,
+                  "nativeType": "text",
+                  "nullable": false
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
                   "default": {
@@ -3682,6 +4871,11 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "facilityId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -3696,6 +4890,27 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "prescriptions": {
+                  "codecId": "pg/text@1",
+                  "many": true,
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "recordType": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "CONSULTATION"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "MedicalRecordType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
                 },
                 "treatment": {
                   "codecId": "pg/text@1",
@@ -3740,6 +4955,22 @@
                     "namespaceId": "public",
                     "tableName": "Doctor"
                   }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "facilityId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "MedicalRecord"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "HealthcareFacility"
+                  }
                 }
               ],
               "indexes": [
@@ -3749,6 +4980,14 @@
                   ],
                   "name": "MedicalRecord_doctorId_idx_04369053",
                   "prefix": "MedicalRecord_doctorId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "facilityId"
+                  ],
+                  "name": "MedicalRecord_facilityId_idx_3710d8c1",
+                  "prefix": "MedicalRecord_facilityId_idx",
                   "unique": false
                 },
                 {
@@ -3787,6 +5026,11 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "link": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
                 },
                 "read": {
                   "codecId": "pg/bool@1",
@@ -4036,6 +5280,33 @@
                 }
               ]
             },
+            "PlatformSetting": {
+              "columns": {
+                "key": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "value": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "key"
+                ]
+              },
+              "uniques": []
+            },
             "Trip": {
               "checks": [
                 {
@@ -4049,6 +5320,16 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "arrivedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "completedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
                 },
                 "emergencyRequestId": {
                   "codecId": "pg/text@1",
@@ -4153,6 +5434,11 @@
                   "expression": "\"role\" IN ('PATIENT', 'DOCTOR', 'FACILITY_STAFF', 'AMBULANCE_OPERATOR', 'BLOOD_DONOR', 'ORGAN_DONOR', 'ADMIN')",
                   "name": "User_role_check_7ce26ebb",
                   "prefix": "User_role_check"
+                },
+                {
+                  "expression": "\"verificationStatus\" IN ('PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED')",
+                  "name": "User_verificationStatus_check_ca662e8d",
+                  "prefix": "User_verificationStatus_check"
                 }
               ],
               "columns": {
@@ -4170,6 +5456,11 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "facilityId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -4184,6 +5475,11 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "phone": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
                 },
                 "role": {
                   "codecId": "pg/text@1",
@@ -4204,10 +5500,67 @@
                   "codecId": "pg/timestamptz-string@1",
                   "nativeType": "timestamptz",
                   "nullable": false
+                },
+                "verificationStatus": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "VERIFIED"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "VerificationStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
                 }
               },
-              "foreignKeys": [],
-              "indexes": [],
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "facilityId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "HealthcareFacility"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "facilityId"
+                  ],
+                  "name": "User_facilityId_idx_3710d8c1",
+                  "prefix": "User_facilityId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "role"
+                  ],
+                  "name": "User_role_idx_2c1ddf83",
+                  "prefix": "User_role_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "verificationStatus"
+                  ],
+                  "name": "User_verificationStatus_idx_d9c050e0",
+                  "prefix": "User_verificationStatus_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -4220,6 +5573,169 @@
                   ]
                 }
               ]
+            },
+            "VerificationRequest": {
+              "checks": [
+                {
+                  "expression": "array_position(\"documentUrls\", NULL) IS NULL",
+                  "name": "VerificationRequest_documentUrls_elem_not_null_b73c3f87",
+                  "prefix": "VerificationRequest_documentUrls_elem_not_null"
+                },
+                {
+                  "expression": "\"kind\" IN ('DOCTOR', 'FACILITY', 'AMBULANCE')",
+                  "name": "VerificationRequest_kind_check_cc37062a",
+                  "prefix": "VerificationRequest_kind_check"
+                },
+                {
+                  "expression": "\"status\" IN ('PENDING', 'APPROVED', 'REJECTED')",
+                  "name": "VerificationRequest_status_check_56005a61",
+                  "prefix": "VerificationRequest_status_check"
+                }
+              ],
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "documentUrls": {
+                  "codecId": "pg/text@1",
+                  "many": true,
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "kind": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "VerificationKind",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "payload": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "reason": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "reviewedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "reviewedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PENDING"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "VerificationRequestStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "VerificationRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "reviewedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "VerificationRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "reviewedById"
+                  ],
+                  "name": "VerificationRequest_reviewedById_idx_e2835478",
+                  "prefix": "VerificationRequest_reviewedById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "status"
+                  ],
+                  "name": "VerificationRequest_status_idx_e98638ab",
+                  "prefix": "VerificationRequest_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "VerificationRequest_userId_idx_a489d58a",
+                  "prefix": "VerificationRequest_userId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
             }
           },
           "valueSet": {
@@ -4265,9 +5781,11 @@
             "EmergencyCategory": {
               "kind": "valueSet",
               "values": [
+                "MEDICAL",
                 "ACCIDENT",
-                "CARDIAC",
-                "GENERAL",
+                "INJURY",
+                "PREGNANCY",
+                "BREATHING",
                 "OTHER"
               ]
             },
@@ -4300,6 +5818,25 @@
                 "HEALTH_POST"
               ]
             },
+            "FeedbackStatus": {
+              "kind": "valueSet",
+              "values": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+              ]
+            },
+            "MedicalRecordType": {
+              "kind": "valueSet",
+              "values": [
+                "CONSULTATION",
+                "PRESCRIPTION",
+                "LAB_RESULT",
+                "IMAGING",
+                "VACCINATION",
+                "OTHER"
+              ]
+            },
             "OrganDonorStatus": {
               "kind": "valueSet",
               "values": [
@@ -4329,6 +5866,31 @@
                 "COMPLETED",
                 "CANCELLED"
               ]
+            },
+            "VerificationKind": {
+              "kind": "valueSet",
+              "values": [
+                "DOCTOR",
+                "FACILITY",
+                "AMBULANCE"
+              ]
+            },
+            "VerificationRequestStatus": {
+              "kind": "valueSet",
+              "values": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+              ]
+            },
+            "VerificationStatus": {
+              "kind": "valueSet",
+              "values": [
+                "PENDING",
+                "VERIFIED",
+                "REJECTED",
+                "SUSPENDED"
+              ]
             }
           }
         },
@@ -4336,10 +5898,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "1a15112180f96e69a4a153dad813ad273a2c9cd77e7d7f78c8dcbd11b92c0f76"
+    "storageHash": "8fd0bad7ee315247283e69995f4225b0f50fd69d29ceadb0ecc4b05110a82828"
   },
   "execution": {
-    "executionHash": "eee5e8b7c57e498b52fb9e49f7bcab473bd5b547ac60d5135cb07a086b97a32e",
+    "executionHash": "09a18f0394de8f22baeb1769251e09a1d31d43e44c29c98c0f45071e456a6dab",
     "mutations": {
       "defaults": [
         {
@@ -4515,6 +6077,32 @@
             "kind": "generator"
           },
           "ref": {
+            "entry": "DoctorAvailability",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "DoctorAvailability",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
             "entry": "EmergencyRequest",
             "field": "id",
             "namespace": "public"
@@ -4569,6 +6157,17 @@
           "ref": {
             "entry": "HealthcareFacility",
             "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "LocationUpdate",
+            "field": "id",
             "namespace": "public"
           }
         },
@@ -4663,6 +6262,21 @@
         },
         {
           "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "PlatformSetting",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
             "id": "uuidv4",
             "kind": "generator"
           },
@@ -4694,6 +6308,32 @@
           },
           "ref": {
             "entry": "User",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "VerificationRequest",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "VerificationRequest",
             "field": "updatedAt",
             "namespace": "public"
           }

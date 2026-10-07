@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiGet, apiPost } from '@/lib/api';
 import { reverseGeocode, searchPlace } from '@/lib/geo';
+import { getRealtime, type TripLocationEvent, type TripStatusEvent } from '@/lib/realtime';
 import { Badge, StatusDot } from '@/components/ui';
 import {
   IconAlert,
@@ -16,10 +17,12 @@ import {
 } from '@/components/icons';
 
 const CATEGORIES = [
+  { value: 'MEDICAL', label: 'Medical emergency', emoji: '🏥' },
   { value: 'ACCIDENT', label: 'Accident', emoji: '🚗' },
-  { value: 'CARDIAC', label: 'Breathing / heart', emoji: '🫁' },
-  { value: 'GENERAL', label: 'Medical emergency', emoji: '🏥' },
-  { value: 'OTHER', label: 'Other', emoji: '🆘' },
+  { value: 'INJURY', label: 'Injury', emoji: '🩹' },
+  { value: 'PREGNANCY', label: 'Pregnancy', emoji: '🤰' },
+  { value: 'BREATHING', label: 'Breathing difficulty', emoji: '🫁' },
+  { value: 'OTHER', label: 'Something else', emoji: '🆘' },
 ];
 
 const PRIORITIES = [
@@ -88,8 +91,9 @@ export default function EmergencyRequestForm() {
   const watchRef = useRef<number | null>(null);
 
   /* ------------------------------------------------------------ request */
-  const [category, setCategory] = useState('CARDIAC');
+  const [category, setCategory] = useState('MEDICAL');
   const [priority, setPriority] = useState<string>('HIGH');
+  const [notes, setNotes] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authNeeded, setAuthNeeded] = useState(false);
@@ -104,6 +108,9 @@ export default function EmergencyRequestForm() {
   const [etaTotalMs, setEtaTotalMs] = useState<number | null>(null);
   const [nowMs, setNowMs] = useState(0);
   const [pollFails, setPollFails] = useState(0);
+  const [liveLocation, setLiveLocation] = useState<TripLocationEvent | null>(null);
+  const [liveUp, setLiveUp] = useState(false);
+  const [askingCancel, setAskingCancel] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const pickup = origin
@@ -231,6 +238,39 @@ export default function EmergencyRequestForm() {
     [],
   );
 
+  /* ------------------------------------------------------------- realtime */
+  useEffect(() => {
+    if (!requestId) return undefined;
+    const s = getRealtime();
+    if (!s) return undefined;
+    const onStatus = (p: TripStatusEvent) => {
+      if (p.emergencyRequestId !== requestId) return;
+      setLiveUp(true);
+      setBackendStatus(p.status);
+      setStage(p.state as Stage);
+      if (p.ambulance && p.ambulance.id) {
+        setAmbulance({
+          id: p.ambulance.id,
+          registrationNumber: p.ambulance.registrationNumber,
+          type: p.ambulance.type,
+          driver: p.ambulance.driverName,
+        });
+      }
+    };
+    const onLocation = (p: TripLocationEvent) => {
+      setLiveUp(true);
+      setLiveLocation(p);
+    };
+    s.on('trip:status', onStatus);
+    s.on('trip:location', onLocation);
+    s.emit('trip:subscribe', requestId);
+    return () => {
+      s.off('trip:status', onStatus);
+      s.off('trip:location', onLocation);
+      s.emit('trip:unsubscribe', requestId);
+    };
+  }, [requestId, backendStatus]);
+
   /* live tick for ETA countdown + marker glide while a trip is active */
   useEffect(() => {
     if (!requestId) return undefined;
@@ -250,6 +290,8 @@ export default function EmergencyRequestForm() {
     const res = await apiPost<{ request: { id: string; status: string }; matches: Match[] }>('/emergency', {
       pickupLatitude: Number(pickup.lat.toFixed(6)),
       pickupLongitude: Number(pickup.lng.toFixed(6)),
+      pickupAddress: address?.trim() || undefined,
+      notes: notes.trim() || undefined,
       category,
       priority,
     });
@@ -268,13 +310,30 @@ export default function EmergencyRequestForm() {
     setMatches(m ?? []);
     setBackendStatus(request.status);
     const found = (m ?? []).length > 0;
-    setStage(found ? 'ASSIGNED' : 'SEARCHING');
+    setStage('SEARCHING');
     if (found && m[0]) {
       const etaMin = Math.max(2, Math.round((m[0].distanceKm / 32) * 60));
       setEtaTotalMs(etaMin * 60_000);
       setEtaEndMs(Date.now() + etaMin * 60_000);
     }
     startPolling(request.id);
+  }
+
+  async function cancelRequest() {
+    if (!requestId) return;
+    setPending(true);
+    setError(null);
+    const res = await apiPost<{ id: string; status: string; state: string }>(`/emergency/${requestId}/cancel`, {
+      reason: 'Cancelled by requester',
+    });
+    setPending(false);
+    setAskingCancel(false);
+    if (!res.ok) {
+      setError(res.message);
+      return;
+    }
+    setBackendStatus('CANCELLED');
+    setStage('CANCELLED');
   }
 
   /* ----------------------------------------------------------- map drag */
@@ -330,10 +389,16 @@ export default function EmergencyRequestForm() {
     if (stage === 'ASSIGNED') return 0.05;
     return 0;
   })();
-  const ambPos = {
-    x: AMB_START.x + (pin.x - AMB_START.x) * progress,
-    y: AMB_START.y + (pin.y - AMB_START.y) * progress,
-  };
+  const ambPos =
+    liveLocation && pickup
+      ? {
+          x: Math.min(386, Math.max(14, CENTER.x + (liveLocation.longitude - pickup.lng) / DEG_PER_PX)),
+          y: Math.min(246, Math.max(14, CENTER.y - (liveLocation.latitude - pickup.lat) / DEG_PER_PX)),
+        }
+      : {
+          x: AMB_START.x + (pin.x - AMB_START.x) * progress,
+          y: AMB_START.y + (pin.y - AMB_START.y) * progress,
+        };
 
   /* ================================================================ view */
   if (authNeeded) {
@@ -527,6 +592,20 @@ export default function EmergencyRequestForm() {
                   case marked <span className="font-semibold text-danger">{PRIORITIES.find((p) => p.value === priority)?.label.toLowerCase()}</span>.
                 </p>
               )}
+              <div className="mt-4">
+                <label htmlFor="notes" className="mb-1.5 block text-sm font-semibold text-ink">
+                  Notes for dispatch <span className="font-normal text-ink-subtle">(optional)</span>
+                </label>
+                <textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  maxLength={500}
+                  rows={2}
+                  placeholder="Symptoms, landmarks, patient details dispatchers should know…"
+                  className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-ink shadow-sm outline-none placeholder:text-ink-subtle focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10"
+                />
+              </div>
               {error && (
                 <p role="alert" className="mt-4 rounded-xl bg-white px-4 py-3 text-sm font-medium text-danger ring-1 ring-danger/20">
                   {error}
@@ -585,6 +664,12 @@ export default function EmergencyRequestForm() {
                   <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-[12px] font-semibold text-amber-700 ring-1 ring-amber-200">
                     <IconRefresh size={13} /> Live updates interrupted — retrying…
                   </p>
+                )}
+                {liveUp && stage && !['COMPLETED', 'CANCELLED'].includes(stage) && (
+                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-[12px] font-semibold text-success ring-1 ring-success/20">
+                    <StatusDot tone="success" />
+                    Live tracking connected
+                  </span>
                 )}
               </div>
             </div>
@@ -656,6 +741,42 @@ export default function EmergencyRequestForm() {
                 emergency number immediately.
               </p>
             </div>
+
+            {stage !== 'CANCELLED' && stage !== 'COMPLETED' && (
+              <div className="mt-4 rounded-2xl border border-slate-200 px-4 py-3">
+                {askingCancel ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-ink">Cancel this emergency request?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setAskingCancel(false)}
+                        disabled={pending}
+                        className="rounded-full px-4 py-1.5 text-sm font-semibold text-ink-muted ring-1 ring-slate-200 transition-colors hover:bg-slate-50"
+                      >
+                        Keep request
+                      </button>
+                      <button
+                        onClick={() => void cancelRequest()}
+                        disabled={pending}
+                        className="rounded-full bg-danger px-4 py-1.5 text-sm font-bold text-white transition-colors hover:bg-[#c01039] disabled:opacity-60"
+                      >
+                        {pending ? 'Cancelling…' : 'Yes, cancel'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-ink-muted">Ambulance no longer needed?</p>
+                    <button
+                      onClick={() => setAskingCancel(true)}
+                      className="rounded-full px-4 py-1.5 text-sm font-bold text-danger ring-1 ring-danger/40 transition-colors hover:bg-danger-soft"
+                    >
+                      Cancel request
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         )}
       </div>

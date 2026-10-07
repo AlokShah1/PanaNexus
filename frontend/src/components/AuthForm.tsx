@@ -4,8 +4,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiPost } from '@/lib/api';
+import { isProRole, useSession, type SessionProfile } from '@/lib/session';
+import { ButtonLink } from '@/components/ui';
+import { apiErrorMessage } from '@/components/verification/apiError';
+import { Field, REGISTER_FIELDS, inputClass } from '@/components/verification/fields';
 import {
   IconAmbulance,
+  IconCheck,
   IconDroplet,
   IconEye,
   IconEyeOff,
@@ -24,13 +29,26 @@ const ROLE_CARDS = [
   { value: 'ORGAN_DONOR', label: "I want to pledge organs", Icon: IconShield },
 ];
 
+const LOGIN_HOME: Record<string, string> = {
+  ADMIN: '/admin',
+  DOCTOR: '/doctor',
+  AMBULANCE_OPERATOR: '/ambulance',
+  FACILITY_STAFF: '/facility',
+};
+
+function safeNext(value: string | null, fallback: string): string {
+  return value && value.startsWith('/') && !value.startsWith('//') ? value : fallback;
+}
+
 export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const router = useRouter();
+  const { refresh } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<{ field: string; message: string } | null>(null);
   const [pending, setPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState('PATIENT');
+  const [created, setCreated] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -52,24 +70,83 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         setPending(false);
         return;
       }
-      payload.name = String(form.get('name') ?? '').trim();
+      const name = String(form.get('name') ?? '').trim();
+      if (name.length < 2) {
+        setFieldError({ field: 'name', message: 'Enter your full name (at least 2 characters).' });
+        setPending(false);
+        return;
+      }
+      if (password.length < 8) {
+        setFieldError({ field: 'password', message: 'Password must be at least 8 characters.' });
+        setPending(false);
+        return;
+      }
+      const roleFields = REGISTER_FIELDS[role] ?? [];
+      for (const def of roleFields) {
+        const value = String(form.get(def.name) ?? '').trim();
+        if (def.required && value.length < (def.minLength ?? 1)) {
+          setFieldError({ field: def.name, message: `${def.label} is required.` });
+          setPending(false);
+          return;
+        }
+        if (value.length > 0 && def.minLength && value.length < def.minLength) {
+          setFieldError({ field: def.name, message: `${def.label} must be at least ${def.minLength} characters.` });
+          setPending(false);
+          return;
+        }
+      }
+      payload.name = name;
       payload.role = role;
+      for (const def of roleFields) {
+        const value = String(form.get(def.name) ?? '').trim();
+        if (value) payload[def.name] = value;
+      }
     }
 
-    const res = await apiPost<{ id: string; role: string }>(`/auth/${mode}`, payload);
+    const res = await apiPost<{ profile: SessionProfile }>(`/auth/${mode}`, payload);
     if (!res.ok) {
-      setError(res.message);
+      setError(apiErrorMessage(res));
       setPending(false);
       return;
     }
+    await refresh();
     const nextParam = new URLSearchParams(window.location.search).get('next');
-    const next = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/dashboard';
-    router.push(next);
+
+    if (mode === 'register' && isProRole(res.data.profile.role)) {
+      setCreated(true);
+      setPending(false);
+      return;
+    }
+    const fallback = mode === 'register' ? '/dashboard' : LOGIN_HOME[res.data.profile.role] ?? '/dashboard';
+    router.push(safeNext(nextParam, fallback));
     router.refresh();
   }
 
-  const input =
-    'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-ink shadow-sm transition-all placeholder:text-ink-subtle focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10 outline-none';
+  if (created) {
+    return (
+      <div
+        role="status"
+        className="rounded-3xl bg-white p-6 text-center shadow-soft ring-1 ring-slate-200/70 sm:p-8"
+      >
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand-700 ring-1 ring-brand-200">
+          <IconCheck size={22} />
+        </span>
+        <h2 className="mt-4 text-lg font-bold text-ink">Account created — pending verification</h2>
+        <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+          Your professional account is awaiting review by our team. Head to the verification page to
+          upload your credentials so an admin can approve you.
+        </p>
+        <div className="mt-6 flex flex-col gap-2.5">
+          <ButtonLink href="/verification" className="w-full">
+            Continue to verification
+          </ButtonLink>
+          <ButtonLink href="/login" variant="secondary" className="w-full">
+            Go to sign in
+          </ButtonLink>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
@@ -78,7 +155,22 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           <label htmlFor="name" className="mb-1.5 block text-sm font-semibold text-ink">
             Full name
           </label>
-          <input id="name" name="name" required minLength={2} autoComplete="name" placeholder="Your full name" className={input} />
+          <input
+            id="name"
+            name="name"
+            required
+            minLength={2}
+            maxLength={80}
+            autoComplete="name"
+            placeholder="Your full name"
+            className={inputClass}
+            aria-invalid={fieldError?.field === 'name'}
+          />
+          {fieldError?.field === 'name' && (
+            <p role="alert" className="mt-1.5 text-xs font-medium text-danger">
+              {fieldError.message}
+            </p>
+          )}
         </div>
       )}
 
@@ -91,9 +183,10 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           name="email"
           type="email"
           required
+          maxLength={160}
           autoComplete="email"
           placeholder="you@example.com"
-          className={input}
+          className={inputClass}
         />
       </div>
 
@@ -108,9 +201,11 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             type={showPassword ? 'text' : 'password'}
             required
             minLength={mode === 'register' ? 8 : 1}
+            maxLength={128}
             autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
             placeholder={mode === 'register' ? 'At least 8 characters' : '••••••••'}
-            className={`${input} pr-11`}
+            className={`${inputClass} pr-11`}
+            aria-invalid={fieldError?.field === 'password'}
           />
           <button
             type="button"
@@ -121,6 +216,11 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             {showPassword ? <IconEyeOff size={18} /> : <IconEye size={18} />}
           </button>
         </div>
+        {fieldError?.field === 'password' && (
+          <p role="alert" className="mt-1.5 text-xs font-medium text-danger">
+            {fieldError.message}
+          </p>
+        )}
       </div>
 
       {mode === 'register' && (
@@ -134,9 +234,10 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             type={showPassword ? 'text' : 'password'}
             required
             minLength={8}
+            maxLength={128}
             autoComplete="new-password"
             placeholder="Re-enter your password"
-            className={input}
+            className={inputClass}
             aria-invalid={fieldError?.field === 'confirm'}
           />
           {fieldError?.field === 'confirm' && (
@@ -157,7 +258,10 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 <button
                   key={r.value}
                   type="button"
-                  onClick={() => setRole(r.value)}
+                  onClick={() => {
+                    setRole(r.value);
+                    setFieldError(null);
+                  }}
                   aria-pressed={active}
                   className={`flex items-center gap-2.5 rounded-xl border p-3 text-left text-[13px] font-semibold transition-all duration-200 ${
                     active
@@ -176,6 +280,24 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
                 </button>
               );
             })}
+          </div>
+        </fieldset>
+      )}
+
+      {mode === 'register' && REGISTER_FIELDS[role] && (
+        <fieldset className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+          <legend className="px-1 text-sm font-semibold text-ink">Professional details</legend>
+          <p className="text-[13px] leading-relaxed text-ink-muted">
+            These details are reviewed by our team before your professional account is verified.
+          </p>
+          <div className="mt-3 space-y-4" onChange={() => setFieldError(null)}>
+            {REGISTER_FIELDS[role].map((def) => (
+              <Field
+                key={def.name}
+                def={def}
+                error={fieldError?.field === def.name ? fieldError.message : null}
+              />
+            ))}
           </div>
         </fieldset>
       )}

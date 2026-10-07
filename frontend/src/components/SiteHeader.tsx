@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import SignOutButton from '@/components/SignOutButton';
+import { needsVerification, useSession } from '@/lib/session';
+import { roleLabel } from '@/lib/format';
 
 const NAV = [
   { href: '/hospitals', label: 'Find Care' },
@@ -9,6 +12,16 @@ const NAV = [
   { href: '/appointments', label: 'Appointments' },
   { href: '/blood', label: 'Blood' },
 ];
+
+const ROLE_DASHBOARDS: Record<string, string> = {
+  ADMIN: '/admin',
+  DOCTOR: '/doctor',
+  AMBULANCE_OPERATOR: '/ambulance',
+  FACILITY_STAFF: '/facility',
+  PATIENT: '/dashboard',
+  BLOOD_DONOR: '/dashboard',
+  ORGAN_DONOR: '/dashboard',
+};
 
 function Logo() {
   return (
@@ -18,7 +31,7 @@ function Logo() {
           <path d="M9.6 3h4.8v6.6H21v4.8h-6.6V21H9.6v-6.6H3V9.6h6.6V3Z" />
         </svg>
       </span>
-      <span className="text-[17px] font-bold tracking-tight text-ink">
+      <span className="hidden text-[15px] font-bold tracking-tight text-ink min-[400px]:inline">
         Pana<span className="text-brand-600">Nexus</span>
       </span>
     </Link>
@@ -42,6 +55,10 @@ function SosButton({ className = '' }: { className?: string }) {
 
 export default function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const { status, profile } = useSession();
+  const signedIn = status === 'authed' && profile;
+  const dashboardHref = profile ? ROLE_DASHBOARDS[profile.role] ?? '/dashboard' : '/dashboard';
+  const pending = needsVerification(profile);
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
@@ -62,18 +79,44 @@ export default function SiteHeader() {
 
         <div className="ml-auto flex items-center gap-2">
           <SosButton />
-          <Link
-            href="/login"
-            className="hidden rounded-full px-3.5 py-2 text-sm font-semibold text-ink-muted transition-colors hover:text-brand-700 lg:inline-flex"
-          >
-            Login
-          </Link>
-          <Link
-            href="/register"
-            className="hidden rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-800 lg:inline-flex"
-          >
-            Get Started
-          </Link>
+          {signedIn && profile ? (
+            <>
+              {pending && (
+                <Link
+                  href="/verification"
+                  className="hidden rounded-full bg-amber-50 px-3 py-2 text-[13px] font-semibold text-amber-800 ring-1 ring-amber-300 transition-colors hover:bg-amber-100 lg:inline-flex"
+                >
+                  {profile.verificationStatus === 'REJECTED' ? 'Action needed' : 'Verification pending'}
+                </Link>
+              )}
+              <Link
+                href={dashboardHref}
+                className="hidden items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-700 lg:inline-flex"
+              >
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-brand-600 to-teal-500 text-[11px] font-bold text-white">
+                  {profile.name.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="max-w-32 truncate">{profile.name.split(' ')[0]}</span>
+                <span className="text-[11px] font-medium text-ink-subtle">{roleLabel(profile.role)}</span>
+              </Link>
+              <SignOutButton />
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="hidden rounded-full px-3.5 py-2 text-sm font-semibold text-ink-muted transition-colors hover:bg-brand-50 lg:inline-flex"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                className="hidden rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-800 lg:inline-flex"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
 
           <button
             type="button"
@@ -104,20 +147,44 @@ export default function SiteHeader() {
               </Link>
             ))}
             <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
-              <Link
-                href="/login"
-                onClick={() => setOpen(false)}
-                className="rounded-full px-4 py-2.5 text-center text-sm font-semibold text-ink-muted ring-1 ring-slate-200 transition-colors hover:text-brand-700"
-              >
-                Login
-              </Link>
-              <Link
-                href="/register"
-                onClick={() => setOpen(false)}
-                className="rounded-full bg-ink px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-800"
-              >
-                Get Started
-              </Link>
+              {signedIn && profile ? (
+                <>
+                  {pending && (
+                    <Link
+                      href="/verification"
+                      onClick={() => setOpen(false)}
+                      className="col-span-2 rounded-full bg-amber-50 px-4 py-2.5 text-center text-sm font-semibold text-amber-800 ring-1 ring-amber-300"
+                    >
+                      {profile.verificationStatus === 'REJECTED' ? 'Action needed on your verification' : 'Verification pending'}
+                    </Link>
+                  )}
+                  <Link
+                    href={dashboardHref}
+                    onClick={() => setOpen(false)}
+                    className="rounded-full bg-ink px-4 py-2.5 text-center text-sm font-semibold text-white"
+                  >
+                    My dashboard
+                  </Link>
+                  <SignOutButton className="rounded-full px-4 py-2.5 text-center text-sm font-semibold text-ink-muted ring-1 ring-slate-200" />
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    onClick={() => setOpen(false)}
+                    className="rounded-full px-4 py-2.5 text-center text-sm font-semibold text-ink-muted ring-1 ring-slate-200"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setOpen(false)}
+                    className="rounded-full bg-ink px-4 py-2.5 text-center text-sm font-semibold text-white"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
         </div>

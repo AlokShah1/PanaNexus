@@ -1,15 +1,59 @@
 import { Router } from 'express';
 import { db } from '../../prisma/db.js';
 import { fail, ok } from '../lib/api.js';
-import { getSession } from '../lib/auth.js';
+import { notify } from '../lib/notify.js';
+import { emitToRoom, emitToUser, tripRoom } from '../lib/realtime.js';
+import { getUser, requireAuth, requireRole, requireVerified, type SessionUser } from '../middleware/auth.js';
 import { haversineKm } from '../lib/matching.js';
-import { acceptAmbulanceSchema, ambulanceStatusSchema } from '../validations/emergency.js';
+import { acceptAmbulanceSchema, ambulanceLocationSchema, ambulanceStatusSchema } from '../validations/emergency.js';
 
 const router = Router();
 
-router.get('/nearby', async (req, res) => {
-  const session = getSession(req);
-  if (!session) return fail(res, 'UNAUTHORIZED', 'Sign in required.', 401);
+type AmbRow = {
+  id: string;
+  registrationNumber: string;
+  type: string;
+  status: string;
+  driverName: string | null;
+  driverPhone: string | null;
+  operatorId: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+async function findAmbulance(id: string): Promise<AmbRow | null> {
+  return (await db.orm.public.Ambulance.where({ id }).first()) as AmbRow | null;
+}
+
+async function ownAmbulance(id: string, user: SessionUser): Promise<{ row: AmbRow } | { code: string; message: string; status: number }> {
+  const row = await findAmbulance(id);
+  if (!row) return { code: 'NOT_FOUND', message: 'Ambulance not found.', status: 404 };
+  if (user.role !== 'ADMIN' && row.operatorId !== user.id) {
+    return { code: 'FORBIDDEN', message: 'This ambulance does not belong to your fleet.', status: 403 };
+  }
+  return { row };
+}
+
+async function activeTripFor(ambulanceId: string) {
+  const trips = await db.orm.public.Trip.where({ ambulanceId }).all();
+  return [...trips].reverse().find((t) => t.status !== 'COMPLETED' && t.status !== 'CANCELLED') ?? null;
+}
+
+function fleetView(a: AmbRow) {
+  return {
+    id: a.id,
+    registrationNumber: a.registrationNumber,
+    type: a.type,
+    status: a.status,
+    driverName: a.driverName,
+    driverPhone: a.driverPhone,
+    latitude: a.latitude,
+    longitude: a.longitude,
+    online: a.status !== 'OFFLINE',
+  };
+}
+
+router.get('/nearby', requireAuth, async (req, res) => {
   const lat = Number(req.query.lat);
   const lng = Number(req.query.lng);
   if (Number.isNaN(lat) || Number.isNaN(lng)) return fail(res, 'VALIDATION_ERROR', 'lat and lng are required.', 422);
@@ -22,52 +66,216 @@ router.get('/nearby', async (req, res) => {
   return ok(res, out);
 });
 
-const TRIP_BY_AMB: Record<string, string> = { EN_ROUTE: 'EN_ROUTE', ARRIVED: 'ARRIVED', TRANSPORTING: 'TRANSPORTING', COMPLETED: 'COMPLETED', ASSIGNED: 'EN_ROUTE' };
+router.get('/me', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), async (req, res) => {
+  const user = getUser(req);
+  const rows =
+    user.role === 'ADMIN'
+      ? await db.orm.public.Ambulance.all()
+      : await db.orm.public.Ambulance.where({ operatorId: user.id }).all();
+  return ok(res, { items: rows.map((r) => fleetView(r as AmbRow)) });
+});
 
-router.post('/:id/accept', async (req, res) => {
-  const session = getSession(req);
-  if (!session || (session.role !== 'AMBULANCE_OPERATOR' && session.role !== 'ADMIN')) return fail(res, 'FORBIDDEN', 'Only ambulance operators can accept requests.', 403);
-  const { id } = req.params;
-  const parsed = acceptAmbulanceSchema.safeParse(req.body);
+router.post('/me', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), requireVerified, async (req, res) => {
+  const user = getUser(req);
+  const body = req.body ?? {};
+  const registrationNumber = typeof body.registrationNumber === 'string' ? body.registrationNumber.trim() : '';
+  const type = body.type;
+  if (!registrationNumber || registrationNumber.length < 3) return fail(res, 'VALIDATION_ERROR', 'Registration number is required.', 422);
+  if (!['BASIC', 'ADVANCED', 'ICU'].includes(type)) return fail(res, 'VALIDATION_ERROR', 'Ambulance type must be BASIC, ADVANCED or ICU.', 422);
+  const dup = await db.orm.public.Ambulance.where({ registrationNumber }).first();
+  if (dup) return fail(res, 'REGISTRATION_TAKEN', 'An ambulance with this registration number already exists.', 409);
+  const row = await db.orm.public.Ambulance.create({
+    registrationNumber,
+    type: type as 'BASIC' | 'ADVANCED' | 'ICU',
+    status: 'OFFLINE',
+    operatorId: user.role === 'ADMIN' ? null : user.id,
+    driverName: typeof body.driverName === 'string' && body.driverName.trim() ? body.driverName.trim() : null,
+    driverPhone: typeof body.driverPhone === 'string' && body.driverPhone.trim() ? body.driverPhone.trim() : null,
+    latitude: typeof body.latitude === 'number' ? body.latitude : null,
+    longitude: typeof body.longitude === 'number' ? body.longitude : null,
+  });
+  await db.orm.public.AuditLog.create({ action: 'AMBULANCE_ADDED', entity: 'Ambulance', entityId: row.id, actorId: user.id }).catch(() => undefined);
+  return ok(res, { ambulance: fleetView(row as AmbRow) }, 201);
+});
+
+router.patch('/me/:id', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), requireVerified, async (req, res) => {
+  const user = getUser(req);
+  const owned = await ownAmbulance(req.params.id, user);
+  if ('code' in owned) return fail(res, owned.code, owned.message, owned.status);
+  const body = req.body ?? {};
+  const patch: Record<string, unknown> = {};
+  if (typeof body.type === 'string' && ['BASIC', 'ADVANCED', 'ICU'].includes(body.type)) patch.type = body.type;
+  if (typeof body.driverName === 'string') patch.driverName = body.driverName.trim() || null;
+  if (typeof body.driverPhone === 'string') patch.driverPhone = body.driverPhone.trim() || null;
+  if (typeof body.latitude === 'number') patch.latitude = body.latitude;
+  if (typeof body.longitude === 'number') patch.longitude = body.longitude;
+  if (Object.keys(patch).length === 0) return fail(res, 'VALIDATION_ERROR', 'Nothing to update.', 422);
+  await db.orm.public.Ambulance.where({ id: owned.row.id }).update(patch as never);
+  await db.orm.public.AuditLog.create({ action: 'AMBULANCE_UPDATED', entity: 'Ambulance', entityId: owned.row.id, actorId: user.id }).catch(() => undefined);
+  const updated = await findAmbulance(owned.row.id);
+  return ok(res, { ambulance: fleetView(updated as AmbRow) });
+});
+
+router.delete('/me/:id', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), requireVerified, async (req, res) => {
+  const user = getUser(req);
+  const owned = await ownAmbulance(req.params.id, user);
+  if ('code' in owned) return fail(res, owned.code, owned.message, owned.status);
+  const active = await activeTripFor(owned.row.id);
+  if (active) return fail(res, 'ACTIVE_TRIP', 'This ambulance has an active trip and cannot be removed.', 409);
+  const trips = await db.orm.public.Trip.where({ ambulanceId: owned.row.id }).all();
+  if (trips.length > 0) return fail(res, 'HAS_HISTORY', 'This ambulance has trip history and cannot be removed.', 409);
+  await db.orm.public.Ambulance.where({ id: owned.row.id }).delete();
+  await db.orm.public.AuditLog.create({ action: 'AMBULANCE_REMOVED', entity: 'Ambulance', entityId: owned.row.id, actorId: user.id }).catch(() => undefined);
+  return ok(res, { id: owned.row.id, removed: true });
+});
+
+for (const [suffix, target] of [
+  ['online', 'AVAILABLE'],
+  ['offline', 'OFFLINE'],
+] as const) {
+  router.post(`/me/:id/${suffix}`, requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), requireVerified, async (req, res) => {
+    const user = getUser(req);
+    const owned = await ownAmbulance(req.params.id, user);
+    if ('code' in owned) return fail(res, owned.code, owned.message, owned.status);
+    if (target === 'OFFLINE' && ['ASSIGNED', 'EN_ROUTE', 'ARRIVED', 'TRANSPORTING'].includes(owned.row.status)) {
+      return fail(res, 'ACTIVE_TRIP', 'Finish the current trip before going offline.', 409);
+    }
+    await db.orm.public.Ambulance.where({ id: owned.row.id }).update({ status: target });
+    return ok(res, { id: owned.row.id, status: target, online: target !== 'OFFLINE' });
+  });
+}
+
+const TRIP_BY_AMB: Record<string, string> = {
+  ASSIGNED: 'EN_ROUTE',
+  EN_ROUTE: 'EN_ROUTE',
+  ARRIVED: 'ARRIVED',
+  TRANSPORTING: 'TRANSPORTING',
+  COMPLETED: 'COMPLETED',
+};
+
+const REQUESTER_MESSAGES: Record<string, string> = {
+  EN_ROUTE: 'Your ambulance is on the way.',
+  ARRIVED: 'Your ambulance has arrived at the pickup point.',
+  TRANSPORTING: 'Transport to the hospital is in progress.',
+  COMPLETED: 'Your trip is complete. Take care.',
+};
+
+router.post('/:id/accept', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), requireVerified, async (req, res) => {
+  const user = getUser(req);
+  const parsed = acceptAmbulanceSchema.safeParse(req.body ?? {});
   if (!parsed.success) return fail(res, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.', 422);
-  const ambulance = await db.orm.public.Ambulance.where({ id }).first();
-  if (!ambulance) return fail(res, 'NOT_FOUND', 'Ambulance not found.', 404);
-  if (ambulance.status !== 'AVAILABLE') return fail(res, 'NOT_AVAILABLE', 'Ambulance is not available.', 409);
+  const owned = await ownAmbulance(req.params.id, user);
+  if ('code' in owned) return fail(res, owned.code, owned.message, owned.status);
+  if (owned.row.status !== 'AVAILABLE') return fail(res, 'NOT_AVAILABLE', 'Ambulance is not available.', 409);
   const reqRow = await db.orm.public.EmergencyRequest.where({ id: parsed.data.emergencyRequestId }).first();
   if (!reqRow) return fail(res, 'NOT_FOUND', 'Emergency request not found.', 404);
   if (reqRow.status !== 'PENDING' && reqRow.status !== 'MATCHED') return fail(res, 'INVALID_STATE', 'Request cannot be accepted.', 409);
-  await db.orm.public.Ambulance.where({ id }).update({ status: 'ASSIGNED' });
+  await db.orm.public.Ambulance.where({ id: owned.row.id }).update({ status: 'ASSIGNED' });
   await db.orm.public.EmergencyRequest.where({ id: reqRow.id }).update({ status: 'ASSIGNED' });
-  const trip = await db.orm.public.Trip.create({ emergencyRequestId: reqRow.id, ambulanceId: ambulance.id, status: 'EN_ROUTE' });
-  await db.orm.public.AuditLog.create({ action: 'AMBULANCE_ASSIGNED', entity: 'Trip', entityId: trip.id, actorId: session.sub }).catch(() => undefined);
-  return ok(res, { trip: { id: trip.id, status: trip.status } }, 201);
+  const trip = await db.orm.public.Trip.create({ emergencyRequestId: reqRow.id, ambulanceId: owned.row.id, status: 'EN_ROUTE' });
+  await db.orm.public.AuditLog.create({ action: 'AMBULANCE_ASSIGNED', entity: 'Trip', entityId: trip.id, actorId: user.id }).catch(() => undefined);
+  await notify(reqRow.requesterId, {
+    type: 'EMERGENCY',
+    title: 'Ambulance assigned',
+    body: `${owned.row.registrationNumber} is on the way to you.`,
+    link: '/emergency',
+  });
+  const payload = { tripId: trip.id, emergencyRequestId: reqRow.id, status: trip.status, state: 'EN_ROUTE', ambulance: fleetView(owned.row) };
+  emitToUser(reqRow.requesterId, 'trip:status', payload);
+  emitToRoom(tripRoom(trip.id), 'trip:status', payload);
+  return ok(res, { trip: { id: trip.id, status: trip.status, state: 'EN_ROUTE' } }, 201);
 });
 
-router.patch('/:id/status', async (req, res) => {
-  const session = getSession(req);
-  if (!session || (session.role !== 'AMBULANCE_OPERATOR' && session.role !== 'ADMIN')) return fail(res, 'FORBIDDEN', 'Only ambulance operators can update status.', 403);
-  const { id } = req.params;
-  const parsed = ambulanceStatusSchema.safeParse(req.body);
+router.patch('/:id/status', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), requireVerified, async (req, res) => {
+  const user = getUser(req);
+  const parsed = ambulanceStatusSchema.safeParse(req.body ?? {});
   if (!parsed.success) return fail(res, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.', 422);
-  const ambulance = await db.orm.public.Ambulance.where({ id }).first();
-  if (!ambulance) return fail(res, 'NOT_FOUND', 'Ambulance not found.', 404);
-  await db.orm.public.Ambulance.where({ id }).update({ status: parsed.data.status });
-  const trips = await db.orm.public.Trip.where({ ambulanceId: id }).all();
-  const trip = [...trips].reverse().find((t) => t.status !== 'COMPLETED' && t.status !== 'CANCELLED');
+  const owned = await ownAmbulance(req.params.id, user);
+  if ('code' in owned) return fail(res, owned.code, owned.message, owned.status);
+  const nextAmb = parsed.data.status;
+  const patch: Record<string, unknown> = { status: nextAmb };
+  if (nextAmb === 'AVAILABLE' || nextAmb === 'OFFLINE') patch.status = nextAmb;
+  await db.orm.public.Ambulance.where({ id: owned.row.id }).update(patch as never);
+
+  const trip = await activeTripFor(owned.row.id);
   if (trip) {
-    const next = TRIP_BY_AMB[parsed.data.status];
-    if (next) {
-      const patch: Record<string, unknown> = { status: next };
-      if (next === 'COMPLETED') patch.endedAt = new Date().toISOString();
-      await db.orm.public.Trip.where({ id: trip.id }).update(patch as never);
+    const nextTrip = TRIP_BY_AMB[nextAmb];
+    if (nextTrip) {
+      const tripPatch: Record<string, unknown> = { status: nextTrip };
+      const nowIso = new Date().toISOString();
+      if (nextTrip === 'ARRIVED' && !trip.arrivedAt) tripPatch.arrivedAt = nowIso;
+      if (nextTrip === 'COMPLETED') {
+        tripPatch.completedAt = nowIso;
+        tripPatch.endedAt = nowIso;
+      }
+      await db.orm.public.Trip.where({ id: trip.id }).update(tripPatch as never);
       const reqRow = await db.orm.public.EmergencyRequest.where({ id: trip.emergencyRequestId }).first();
       if (reqRow) {
-        await db.orm.public.EmergencyRequest.where({ id: reqRow.id }).update({ status: next === 'COMPLETED' ? 'COMPLETED' : (next as never) });
+        await db.orm.public.EmergencyRequest.where({ id: reqRow.id }).update({ status: nextTrip as never });
+      }
+      if (nextTrip === 'COMPLETED') {
+        await db.orm.public.Ambulance.where({ id: owned.row.id }).update({ status: 'AVAILABLE' });
+      }
+      if (reqRow) {
+        const state = { EN_ROUTE: 'EN_ROUTE', ARRIVED: 'ARRIVED', TRANSPORTING: 'TRANSPORTING', COMPLETED: 'COMPLETED' }[nextTrip];
+        if (state && REQUESTER_MESSAGES[nextTrip]) {
+          await notify(reqRow.requesterId, {
+            type: 'TRIP',
+            title: state === 'COMPLETED' ? 'Trip completed' : 'Ambulance update',
+            body: REQUESTER_MESSAGES[nextTrip],
+            link: '/emergency',
+          });
+        }
+        const payload = { tripId: trip.id, emergencyRequestId: trip.emergencyRequestId, status: nextTrip, state: nextTrip, ambulanceStatus: (await findAmbulance(owned.row.id))?.status ?? nextAmb };
+        emitToUser(reqRow.requesterId, 'trip:status', payload);
+        emitToRoom(tripRoom(trip.id), 'trip:status', payload);
       }
     }
   }
-  await db.orm.public.AuditLog.create({ action: 'AMBULANCE_STATUS_UPDATED', entity: 'Ambulance', entityId: id, actorId: session.sub, metadata: parsed.data.status }).catch(() => undefined);
-  return ok(res, { id, status: parsed.data.status });
+  await db.orm.public.AuditLog.create({ action: 'AMBULANCE_STATUS_UPDATED', entity: 'Ambulance', entityId: owned.row.id, actorId: user.id, metadata: nextAmb }).catch(() => undefined);
+  return ok(res, { id: owned.row.id, status: (await findAmbulance(owned.row.id))?.status ?? nextAmb });
+});
+
+const lastLocationAt = new Map<string, number>();
+
+router.post('/:id/location', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), requireVerified, async (req, res) => {
+  const user = getUser(req);
+  const parsed = ambulanceLocationSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return fail(res, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.', 422);
+  const owned = await ownAmbulance(req.params.id, user);
+  if ('code' in owned) return fail(res, owned.code, owned.message, owned.status);
+  const now = Date.now();
+  const last = lastLocationAt.get(owned.row.id) ?? 0;
+  if (now - last < 2000) return ok(res, { accepted: true, throttled: true });
+  lastLocationAt.set(owned.row.id, now);
+  await db.orm.public.Ambulance.where({ id: owned.row.id }).update({
+    latitude: parsed.data.latitude,
+    longitude: parsed.data.longitude,
+  });
+  const trip = await activeTripFor(owned.row.id);
+  if (trip) {
+    const update = await db.orm.public.LocationUpdate.create({
+      tripId: trip.id,
+      latitude: parsed.data.latitude,
+      longitude: parsed.data.longitude,
+    });
+    emitToRoom(tripRoom(trip.id), 'trip:location', {
+      tripId: trip.id,
+      latitude: update.latitude,
+      longitude: update.longitude,
+      recordedAt: update.recordedAt,
+    });
+    const reqRow = await db.orm.public.EmergencyRequest.where({ id: trip.emergencyRequestId }).first();
+    if (reqRow) {
+      emitToUser(reqRow.requesterId, 'trip:location', {
+        tripId: trip.id,
+        latitude: update.latitude,
+        longitude: update.longitude,
+        recordedAt: update.recordedAt,
+      });
+    }
+  }
+  return ok(res, { accepted: true, throttled: false });
 });
 
 export default router;

@@ -1,24 +1,35 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from '@/lib/session';
 import { apiGet, apiPost } from '@/lib/api';
 import { Badge, StatusDot } from '@/components/ui';
 import { IconCalendar, IconCheck, IconClock, IconStethoscope } from '@/components/icons';
 
-type Doctor = { id: string; name: string | null; specialization: string | null; facility?: { name: string } | null };
+type Doctor = { id: string; name: string | null; specialization: string | null; facility?: { id?: string; name: string } | null };
 
-const SLOTS = ['09:00', '09:30', '10:00', '10:30', '11:00', '14:00', '14:30', '15:00', '16:00', '16:30'];
+type SlotsResponse = {
+  doctorId: string;
+  date: string;
+  slots: Array<{ startsAt: string; endsAt: string }>;
+};
 
-function buildSlots(date: string) {
-  if (!date) return [];
-  return SLOTS.map((t) => `${date}T${t}:00.000Z`);
+function getToday() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export default function BookAppointmentForm({ preselectDoctor }: { preselectDoctor?: string }) {
+  const { status, profile } = useSession();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [doctorId, setDoctorId] = useState(preselectDoctor ?? '');
   const [date, setDate] = useState('');
   const [slot, setSlot] = useState('');
+  const [slots, setSlots] = useState<Array<{ startsAt: string; endsAt: string }>>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [notes, setNotes] = useState('');
   const [stage, setStage] = useState(1);
   const [error, setError] = useState<string | null>(null);
@@ -26,16 +37,39 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    apiGet<Doctor[]>('/doctors').then((r) => { if (r.ok) setDoctors(r.data); }).catch(() => undefined);
+    apiGet<Doctor[]>('/doctors').then((r) => {
+      if (r.ok) setDoctors(r.data);
+    }).catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      if (!doctorId || !date) {
+        setSlots([]);
+        return;
+      }
+      setSlotsLoading(true);
+      setSlot('');
+      const res = await apiGet<SlotsResponse>(
+        `/appointments/slots?doctorId=${encodeURIComponent(doctorId)}&date=${encodeURIComponent(date)}`,
+      );
+      if (!active) return;
+      if (res.ok) setSlots(res.data.slots);
+      else setSlots([]);
+      setSlotsLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [doctorId, date]);
+
   const selected = useMemo(() => doctors.find((d) => d.id === doctorId), [doctors, doctorId]);
-  const today = new Date().toISOString().slice(0, 10);
-  const slots = buildSlots(date);
+  const today = getToday();
 
   async function confirm() {
-    if (!doctorId || !date || !slot) {
-      setError('Choose a doctor, a date and a time slot.');
+    if (!doctorId || !slot) {
+      setError('Choose a doctor and a time slot.');
       return;
     }
     setError(null);
@@ -47,7 +81,13 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
     });
     setPending(false);
     if (!res.ok) {
-      setError(res.message);
+      const msg = res.code === 'VERIFICATION_REQUIRED' ? 'Your account must be verified first' : res.message;
+      setError(msg);
+      if (res.code === 'VERIFICATION_REQUIRED') {
+        setError('Your account must be verified first (link /verification)');
+      } else {
+        setError(msg);
+      }
       return;
     }
     setSuccess(`Appointment ${res.data.status.toLowerCase()} — reference ${res.data.id.slice(0, 8)}`);
@@ -83,39 +123,48 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
       {/* stage 1 doctor */}
       {stage === 1 && (
         <div className="mt-7">
-          <h2 className="text-base font-bold text-ink">Choose a doctor</h2>
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-            {doctors.length === 0 && (
-              <p className="text-sm text-ink-muted">No doctors are registered yet. Check back soon.</p>
-            )}
-            {doctors.map((d) => {
-              const active = doctorId === d.id;
-              return (
-                <button
-                  key={d.id}
-                  onClick={() => setDoctorId(d.id)}
-                  aria-pressed={active}
-                  className={`flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-all ${
-                    active ? 'border-brand-500 bg-brand-50' : 'border-slate-200 hover:border-brand-300 hover:bg-brand-50/40'
-                  }`}
-                >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-600 text-white">
-                    <IconStethoscope size={18} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-ink">{d.name ?? 'Doctor'}</span>
-                    <span className="block truncate text-[13px] text-ink-muted">
-                      {d.specialization ?? 'General'}
-                      {d.facility?.name ? ` · ${d.facility.name}` : ''}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <NextButton disabled={!doctorId} onClick={() => setStage(2)}>
-            Continue
-          </NextButton>
+          {status === 'authed' && profile?.role !== 'PATIENT' ? (
+            <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <p className="text-sm text-ink-muted">Only patients can book appointments.</p>
+            </div>
+          ) : (
+            <>
+              <h2 className="text-base font-bold text-ink">Choose a doctor</h2>
+              <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+                {doctors.length === 0 && (
+                  <p className="text-sm text-ink-muted">No doctors are registered yet. Check back soon.</p>
+                )}
+                {doctors.map((d) => {
+                  const active = doctorId === d.id;
+                  return (
+                    <button
+                      key={d.id}
+                      onClick={() => setDoctorId(d.id)}
+                      aria-pressed={active}
+                      aria-label={`Select doctor ${d.name ?? 'Doctor'}`}
+                      className={`flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-all ${
+                        active ? 'border-brand-500 bg-brand-50' : 'border-slate-200 hover:border-brand-300 hover:bg-brand-50/40'
+                      }`}
+                    >
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-600 text-white">
+                        <IconStethoscope size={18} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-ink">{d.name ?? 'Doctor'}</span>
+                        <span className="block truncate text-[13px] text-ink-muted">
+                          {d.specialization ?? 'General'}
+                          {d.facility?.name ? ` · ${d.facility.name}` : ''}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <NextButton disabled={!doctorId} onClick={() => setStage(2)}>
+                Continue
+              </NextButton>
+            </>
+          )}
         </div>
       )}
 
@@ -150,22 +199,32 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
             <IconClock size={18} className="text-brand-600" />
             Choose a time
           </h2>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {slots.map((s) => (
-              <button
-                key={s}
-                onClick={() => setSlot(s)}
-                aria-pressed={slot === s}
-                className={`rounded-full px-4 py-2 text-[13px] font-semibold transition-all ${
-                  slot === s
-                    ? 'bg-brand-600 text-white shadow-[0_10px_22px_-12px_rgba(31,69,245,0.9)]'
-                    : 'bg-slate-100 text-ink-muted hover:bg-brand-50 hover:text-brand-700'
-                }`}
-              >
-                {s.slice(11, 16)} UTC
-              </button>
-            ))}
-          </div>
+          {slotsLoading && <p className="mt-3 text-sm text-ink-muted">Loading slots...</p>}
+          {!slotsLoading && slots.length === 0 && (
+            <p className="mt-3 text-sm text-ink-muted">No available slots for this date.</p>
+          )}
+          {!slotsLoading && slots.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {slots.map((s) => {
+                const time = new Date(s.startsAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+                return (
+                  <button
+                    key={s.startsAt}
+                    onClick={() => setSlot(s.startsAt)}
+                    aria-pressed={slot === s.startsAt}
+                    aria-label={`Select slot at ${time}`}
+                    className={`rounded-full px-4 py-2 text-[13px] font-semibold transition-all ${
+                      slot === s.startsAt
+                        ? 'bg-brand-600 text-white shadow-[0_10px_22px_-12px_rgba(31,69,245,0.9)]'
+                        : 'bg-slate-100 text-ink-muted hover:bg-brand-50 hover:text-brand-700'
+                    }`}
+                  >
+                    {time}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <label htmlFor="notes" className="mt-5 block text-sm font-semibold text-ink">
             Anything the doctor should know? (optional)

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import auth from './auth.js';
+import verifications from './verifications.js';
 import doctors from './doctors.js';
 import patients from './patients.js';
 import facilities from './facilities.js';
@@ -16,6 +17,7 @@ import analytics from './analytics.js';
 
 const router = Router();
 router.use('/auth', auth);
+router.use('/verifications', verifications);
 router.use('/doctors', doctors);
 router.use('/patients', patients);
 router.use('/facilities', facilities);

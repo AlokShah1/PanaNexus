@@ -17,3 +17,8 @@ export const bloodRequestSchema = z.object({
   units: z.number().int().positive().max(1000),
   facilityId: z.string().min(1).optional(),
 });
+
+export const bloodUnitSchema = z.object({
+  bloodGroup: z.string().min(1).max(5).transform((v) => v.toUpperCase()),
+  units: z.number().int().min(0).max(999),
+});

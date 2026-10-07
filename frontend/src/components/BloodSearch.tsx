@@ -5,12 +5,13 @@ import { apiGet } from '@/lib/api';
 import { Badge, StatusDot } from '@/components/ui';
 import { IconDroplet, IconRefresh } from '@/components/icons';
 
-const GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'] as const;
+const GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 
 type Availability = { id: string; bloodGroup: string; units: number; facility: { id: string; name: string } | null };
 
 export default function BloodSearch() {
   const [group, setGroup] = useState('');
+  const [city, setCity] = useState('');
   const [rows, setRows] = useState<Availability[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +22,10 @@ export default function BloodSearch() {
     setError(null);
     setLoading(true);
     setSearched(true);
-    const qs = group ? `?bloodGroup=${encodeURIComponent(group)}` : '';
+    const params = new URLSearchParams();
+    if (group) params.set('bloodGroup', group);
+    if (city) params.set('city', city);
+    const qs = params.toString() ? `?${params.toString()}` : '';
     const res = await apiGet<Availability[]>(`/blood/availability${qs}`);
     setLoading(false);
     if (!res.ok) {
@@ -53,6 +57,7 @@ export default function BloodSearch() {
                 key={g}
                 onClick={() => setGroup(g)}
                 aria-pressed={active}
+                aria-label={`Select blood group ${g}`}
                 className={`rounded-2xl py-3 text-sm font-bold transition-all duration-200 ${
                   active
                     ? 'bg-gradient-to-br from-danger to-brand-600 text-white shadow-[0_10px_22px_-12px_rgba(225,29,72,0.9)]'
@@ -63,6 +68,17 @@ export default function BloodSearch() {
               </button>
             );
           })}
+        </div>
+
+        <div className="mt-4">
+          <label htmlFor="city" className="text-sm font-medium text-ink">City</label>
+          <input
+            id="city"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="City"
+            className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-4 focus:ring-brand-500/10"
+          />
         </div>
 
         <button

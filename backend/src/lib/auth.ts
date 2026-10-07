@@ -22,17 +22,19 @@ export function getSession(req: Request): SessionPayload | null {
 }
 
 export function setSessionCookie(res: Response, userId: string, role: Role): void {
+  const isProd = process.env.NODE_ENV === 'production';
   res.cookie(SESSION_COOKIE, createSessionToken(userId, role), {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    sameSite: isProd ? 'none' : 'lax',
+    secure: isProd,
     path: '/',
     maxAge: SESSION_TTL_MS / 1000,
   });
 }
 
 export function clearSessionCookie(res: Response): void {
-  res.clearCookie(SESSION_COOKIE, { httpOnly: true, path: '/' });
+  const isProd = process.env.NODE_ENV === 'production';
+  res.clearCookie(SESSION_COOKIE, { httpOnly: true, sameSite: isProd ? 'none' : 'lax', secure: isProd, path: '/' });
 }
 
 export { createSessionToken, hashPassword, verifyPassword, verifySessionToken };

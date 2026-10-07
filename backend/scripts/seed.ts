@@ -1,0 +1,189 @@
+import { db } from '../prisma/db.js';
+import { hashPassword } from '../src/lib/auth-core.js';
+
+const DEMO = process.argv.includes('--demo');
+
+const FACILITIES = [
+  {
+    name: 'City General Hospital',
+    address: '12 MG Road, Bhopal',
+    type: 'HOSPITAL' as const,
+    latitude: 23.2333,
+    longitude: 77.401,
+    emergencyAvailable: true,
+    services: ['Emergency', 'Cardiology', 'Surgery', 'ICU', 'Radiology', 'Pharmacy'],
+    operatingHours: 'Open 24 hours',
+  },
+  {
+    name: 'Green Cross Hospital',
+    address: '22 Arera Colony, Bhopal',
+    type: 'HOSPITAL' as const,
+    latitude: 23.19,
+    longitude: 77.42,
+    emergencyAvailable: true,
+    services: ['General Medicine', 'Surgery', 'Orthopedics', 'Pathology'],
+    operatingHours: 'Mon–Sun 09:00–21:00',
+  },
+  {
+    name: 'Lakeview Children Hospital',
+    address: '7 Kolar Road, Bhopal',
+    type: 'HOSPITAL' as const,
+    latitude: 23.258,
+    longitude: 77.39,
+    emergencyAvailable: true,
+    services: ['Pediatrics', 'Neonatal ICU', 'Vaccination', 'OPD'],
+    operatingHours: 'Open 24 hours',
+  },
+  {
+    name: 'Sunrise Multispeciality Hospital',
+    address: '45 MP Nagar Zone 2, Bhopal',
+    type: 'HOSPITAL' as const,
+    latitude: 23.208,
+    longitude: 77.411,
+    emergencyAvailable: true,
+    services: ['Multispeciality', 'Orthopedics', 'Maternity', 'Pharmacy', 'Pathology'],
+    operatingHours: 'Mon–Sat 08:00–20:00',
+  },
+  {
+    name: 'Barahmanda Health Post',
+    address: 'Barahmanda chowk, Bhopal',
+    type: 'HEALTH_POST' as const,
+    latitude: 23.16,
+    longitude: 77.39,
+    emergencyAvailable: false,
+    services: ['OPD', 'Immunization', 'Family welfare'],
+    operatingHours: 'Tue–Sun 09:00–16:00',
+  },
+  {
+    name: 'Govindpura Health Post',
+    address: 'Govindpura industrial area, Bhopal',
+    type: 'HEALTH_POST' as const,
+    latitude: 23.245,
+    longitude: 77.44,
+    emergencyAvailable: false,
+    services: ['OPD', 'Maternity', 'Immunization', 'Pathology'],
+    operatingHours: 'Mon–Sat 08:30–16:30',
+  },
+  {
+    name: 'Neelbad Community Health Post',
+    address: 'Neelbad village road, Bhopal',
+    type: 'HEALTH_POST' as const,
+    latitude: 23.29,
+    longitude: 77.35,
+    emergencyAvailable: false,
+    services: ['OPD', 'First aid', 'Elementary care'],
+    operatingHours: 'Mon–Fri 09:00–15:00',
+  },
+  {
+    name: 'Shantipur Health Post',
+    address: 'Shantipur, Kolar, Bhopal',
+    type: 'HEALTH_POST' as const,
+    latitude: 23.27,
+    longitude: 77.31,
+    emergencyAvailable: false,
+    services: ['OPD', 'First aid', 'Immunization'],
+    operatingHours: 'Mon–Fri 09:00–17:00',
+  },
+];
+
+async function ensureFacility(f: (typeof FACILITIES)[number]) {
+  const existing = await db.orm.public.HealthcareFacility.where({ name: f.name, address: f.address }).first();
+  if (existing) return existing;
+  const row = await db.orm.public.HealthcareFacility.create({
+    name: f.name,
+    address: f.address,
+    type: f.type,
+    latitude: f.latitude,
+    longitude: f.longitude,
+    emergencyAvailable: f.emergencyAvailable,
+    services: f.services,
+    operatingHours: f.operatingHours,
+  });
+  console.log('facility:', f.name);
+  return row;
+}
+
+async function main() {
+  let cityGeneral: any = null;
+  for (const f of FACILITIES) {
+    const row = await ensureFacility(f);
+    if (row.name === 'City General Hospital') cityGeneral = row;
+  }
+
+  if (!DEMO) {
+    console.log('Facilities ready. Run with --demo to add demo accounts + ambulance + blood stock.');
+    return;
+  }
+
+  const pass = process.env.SEED_PASSWORD ?? 'TestPass!123';
+  const hash = await hashPassword(pass);
+  const emailOp = 'operator@pananexus.local';
+  const op = await db.orm.public.User.where({ email: emailOp }).first();
+  if (!op) {
+    const u = await db.orm.public.User.create({
+      email: emailOp,
+      name: 'Rajesh Sharma',
+      role: 'AMBULANCE_OPERATOR',
+      verificationStatus: 'VERIFIED',
+      passwordHash: hash,
+      phone: '9822001100',
+    });
+    const amb = await db.orm.public.Ambulance.where({ registrationNumber: 'MP04-AB-1103' }).first();
+    if (!amb) {
+      await db.orm.public.Ambulance.create({
+        registrationNumber: 'MP04-AB-1103',
+        type: 'ICU',
+        status: 'AVAILABLE',
+        operatorId: u.id,
+        latitude: 23.2325,
+        longitude: 77.4105,
+        driverName: 'Suresh Patil',
+        driverPhone: '9822001101',
+      });
+      console.log('demo operator + ambulance: operator@pananexus.local');
+    }
+  }
+
+  const drEmail = 'dr.khan@pananexus.local';
+  if (!(await db.orm.public.User.where({ email: drEmail }).first())) {
+    const u = await db.orm.public.User.create({
+      email: drEmail,
+      name: 'Dr. Ayesha Khan',
+      role: 'DOCTOR',
+      verificationStatus: 'VERIFIED',
+      passwordHash: hash,
+      phone: '9822334455',
+      facilityId: cityGeneral?.id ?? null,
+    });
+    await db.orm.public.Doctor.create({
+      userId: u.id,
+      specialization: 'Cardiology',
+      licenseNumber: 'MH-MC-2024-7812',
+      bio: 'Consultant cardiologist with 12 years of experience in acute and preventive cardiac care.',
+      facilityId: cityGeneral?.id ?? null,
+    });
+    console.log('demo doctor: dr.khan@pananexus.local');
+  }
+
+  if (cityGeneral) {
+    {
+      const stock = { 'O+': 14, 'A+': 10, 'B+': 12, 'AB+': 6, 'O-': 4, 'A-': 2 };
+      const existing = await db.orm.public.BloodUnit.where({ facilityId: cityGeneral.id }).first();
+      if (!existing) {
+        for (const [group, units] of Object.entries(stock)) {
+          await db.orm.public.BloodUnit.create({ facilityId: cityGeneral.id as never, bloodGroup: group, units });
+        }
+        console.log('blood stock seeded at City General Hospital');
+      }
+    }
+  }
+
+  console.log('Seed complete.');
+}
+
+main()
+  .catch((err) => {
+    console.error('Seed failed', err);
+    process.exit(1);
+  })
+  .finally(() => process.exit(0));

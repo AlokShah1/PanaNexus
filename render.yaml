@@ -1,0 +1,52 @@
+# PanaNexus — Render Blueprint
+# Two services: `pananexus-api` (Express + Socket.IO) and `pananexus-web` (Next.js).
+#
+# Prerequisites on Render:
+#  1. Create a Neon PostgreSQL database and copy its POOLED url (database_url) and
+#     DIRECT url (direct_url) into the DATABASE_URL / DIRECT_URL env vars below.
+#  2. Set AUTH_SECRET to a long random string (e.g. 64 hex chars). This signs sessions.
+#  3. Run the API once, then from a local shell point the backend at the Neon DB and run:
+#        cd backend && npm run seed -- --demo
+#  4. For admin bootstrap, admin@email + admin_password are provided; the admin account
+#     is created automatically on first boot.
+
+services:
+  - name: pananexus-api
+    type: web
+    env: node
+    plan: starter
+    buildCommand: cd backend && npm ci && npm run build
+    startCommand: cd backend && node dist/src/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: https://pananexus-web.onrender.com
+      - key: ADMIN_EMAIL
+        value: pananexusadmin@gmail.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: RATE_LIMIT
+        value: 900
+
+  - name: pananexus-web
+    type: web
+    env: node
+    plan: starter
+    buildCommand: cd frontend && npm ci && npm run build
+    startCommand: cd frontend && npm run start
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://pananexus-api.onrender.com
