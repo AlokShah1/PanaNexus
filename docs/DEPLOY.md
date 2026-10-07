@@ -19,15 +19,20 @@ The blueprint in `render.yaml` boots both. It is a sample you can deploy as-is o
 
 ## 2. Backend service (Render, type: web, env: node)
 
-Build: `cd backend && npm install --include=dev && npm run build`
+Build: `cd backend && NODE_ENV=development npm ci && npm run build`
 Start: `cd backend && npm start`
 Health: `GET /health`
 
-> **Why `--include=dev`?** `NODE_ENV=production` makes npm omit devDependencies
-> during install. The build needs them (`typescript`, `@types/*`, `vitest`). The
-> compiled `dist` contains application code only (`tsconfig.build.json` excludes
-> `**/*.test.ts`), and `npm start` reuses the installed `node_modules` at runtime
-> (which also keeps the Prisma CLI available for the prestart migrate/verify).
+> **Why `NODE_ENV=development` on the install?** Render sets `NODE_ENV=production`
+> for the whole build, which makes npm omit devDependencies. The build needs them
+> (`typescript`, `@types/*`, `vitest`). Scoping `NODE_ENV=development` to the npm
+> install step forces them in regardless of any ambient `omit`/`include` config,
+> and `npm ci` rebuilds `node_modules` from the lockfile on every build (no stale
+> devDep-less cache). `npm run build` still runs with `NODE_ENV=production` (the
+> env var is untouched) and the compiled `dist` contains application code only
+> (`tsconfig.build.json` excludes `**/*.test.ts`). Runtime keeps `NODE_ENV=production`;
+> `npm start` reuses the installed `node_modules`, which also keeps the Prisma CLI
+> available for the prestart migrate/verify.
 
 Required env vars: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NODE_ENV=production`, `FRONTEND_URL=https://<web-host>`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
 

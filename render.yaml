@@ -15,12 +15,14 @@
 #  4. For admin bootstrap, ADMIN_EMAIL + ADMIN_PASSWORD are provided; the admin account
 #     is created/verified automatically on first boot (idempotent).
 #  6. The build sets NODE_ENV=production, which makes npm omit devDependencies by
-#     default. The backend needs devDependencies (typescript, @types/*, vitest) at
-#     build time, so the build command installs with `--include=dev`. Runtime keeps
-#     NODE_ENV=production; node_modules already contains everything `npm start` needs
-#     (including the Prisma CLI for the prestart migration + verify).
-#  7. Both services build with `--include=dev`: the frontend needs devDependencies
-#     (typescript, @types/*, tailwindcss, eslint, vitest) for `next build` too.
+#     default (the backend needs typescript, @types/*, vitest; the frontend needs
+#     typescript, @types/*, tailwindcss, eslint, vitest). The build commands force
+#     NODE_ENV=development for the install step only — that guarantees devDependencies
+#     are installed regardless of whatever npm omit/include config the builder injects.
+#     npm ci also rebuilds node_modules from the lockfile on every build (no stale,
+#     devDep-less cache). Runtime keeps NODE_ENV=production; node_modules already
+#     contains everything `npm start` needs (including the Prisma CLI for the prestart
+#     migration + verify).
 #  5. Run seed (optional demo content) from a machine with access to the Neon DB:
 #        cd backend && npm run seed -- --demo
 
@@ -29,7 +31,7 @@ services:
     type: web
     env: node
     plan: starter
-    buildCommand: cd backend && npm install --include=dev && npm run build
+    buildCommand: cd backend && NODE_ENV=development npm ci && npm run build
     startCommand: cd backend && npm start
     healthCheckPath: /health
     envVars:
@@ -58,7 +60,7 @@ services:
     type: web
     env: node
     plan: starter
-    buildCommand: cd frontend && npm install --include=dev && npm run build
+    buildCommand: cd frontend && NODE_ENV=development npm ci && npm run build
     startCommand: cd frontend && npm run start
     healthCheckPath: /login
     envVars:
