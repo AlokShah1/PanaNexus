@@ -14,6 +14,13 @@
 #     there — that is why migrations must run at start, after `npm ci` + build.
 #  4. For admin bootstrap, ADMIN_EMAIL + ADMIN_PASSWORD are provided; the admin account
 #     is created/verified automatically on first boot (idempotent).
+#  6. The build sets NODE_ENV=production, which makes npm omit devDependencies by
+#     default. The backend needs devDependencies (typescript, @types/*, vitest) at
+#     build time, so the build command installs with `--include=dev`. Runtime keeps
+#     NODE_ENV=production; node_modules already contains everything `npm start` needs
+#     (including the Prisma CLI for the prestart migration + verify).
+#  7. Both services build with `--include=dev`: the frontend needs devDependencies
+#     (typescript, @types/*, tailwindcss, eslint, vitest) for `next build` too.
 #  5. Run seed (optional demo content) from a machine with access to the Neon DB:
 #        cd backend && npm run seed -- --demo
 
@@ -22,7 +29,7 @@ services:
     type: web
     env: node
     plan: starter
-    buildCommand: cd backend && npm ci && npm run build
+    buildCommand: cd backend && npm install --include=dev && npm run build
     startCommand: cd backend && npm start
     healthCheckPath: /health
     envVars:
@@ -51,7 +58,7 @@ services:
     type: web
     env: node
     plan: starter
-    buildCommand: cd frontend && npm ci && npm run build
+    buildCommand: cd frontend && npm install --include=dev && npm run build
     startCommand: cd frontend && npm run start
     healthCheckPath: /login
     envVars:

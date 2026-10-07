@@ -19,9 +19,15 @@ The blueprint in `render.yaml` boots both. It is a sample you can deploy as-is o
 
 ## 2. Backend service (Render, type: web, env: node)
 
-Build: `cd backend && npm ci && npm run build`
+Build: `cd backend && npm install --include=dev && npm run build`
 Start: `cd backend && npm start`
 Health: `GET /health`
+
+> **Why `--include=dev`?** `NODE_ENV=production` makes npm omit devDependencies
+> during install. The build needs them (`typescript`, `@types/*`, `vitest`). The
+> compiled `dist` contains application code only (`tsconfig.build.json` excludes
+> `**/*.test.ts`), and `npm start` reuses the installed `node_modules` at runtime
+> (which also keeps the Prisma CLI available for the prestart migrate/verify).
 
 Required env vars: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NODE_ENV=production`, `FRONTEND_URL=https://<web-host>`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
 
