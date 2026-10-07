@@ -3,17 +3,26 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 export const API_ROOT = BASE;
 export const API_BASE = `${BASE}/api/v1`;
 
+export const NETWORK_ERROR_MESSAGE = "We're having trouble connecting right now. Please try again.";
+
 const FRIENDLY: Partial<Record<number, string>> = {
-  400: 'Something went wrong while loading healthcare facilities.',
+  400: 'Please check the details and try again.',
   401: 'Please log in to continue.',
   403: "You don't have permission to do that.",
   404: 'The requested information was not found.',
-  409: 'This slot is no longer available.',
+  409: 'That already exists. Please check and try again.',
   422: 'Please check the details and try again.',
   429: 'Too many requests. Please try again in a moment.',
-  500: 'Something went wrong while loading healthcare facilities.',
-  503: 'Service is unavailable right now.',
+  500: 'Something went wrong on our end. Please try again.',
+  502: 'Temporarily unavailable. Please try again in a moment.',
+  503: 'Temporarily unavailable. Please try again in a moment.',
 };
+
+const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
+
+function fallbackFor(status: number): string {
+  return FRIENDLY[status] ?? GENERIC_ERROR_MESSAGE;
+}
 
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -29,7 +38,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
       ...init,
     });
   } catch {
-    return { ok: false, status: 0, message: 'Something went wrong while loading healthcare facilities.' };
+    return { ok: false, status: 0, message: NETWORK_ERROR_MESSAGE };
   }
 
   let body: unknown = null;
@@ -44,7 +53,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
     const msg =
       res.status < 500 && b?.error?.message
         ? b.error.message
-        : FRIENDLY[res.status] ?? 'Something went wrong while loading healthcare facilities.';
+        : fallbackFor(res.status);
     return { ok: false, status: res.status, code: b?.error?.code, message: msg };
   }
 

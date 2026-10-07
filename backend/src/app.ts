@@ -6,19 +6,27 @@ import rateLimit from 'express-rate-limit';
 import { env } from './config/env.js';
 import apiRouter from './routes/index.js';
 
+const frontendOrigin = env.FRONTEND_URL.replace(/\/+$/, '');
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet());
 app.use(
   cors({
-    origin: env.NODE_ENV === 'production' ? env.FRONTEND_URL : ['http://localhost:3000', env.FRONTEND_URL],
+    origin: env.NODE_ENV === 'production' ? frontendOrigin : ['http://localhost:3000', frontendOrigin],
     credentials: true,
   }),
 );
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(
-  rateLimit({ windowMs: 15 * 60 * 1000, limit: env.RATE_LIMIT, standardHeaders: 'draft-7', legacyHeaders: false }),
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: env.RATE_LIMIT,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    skip: () => env.NODE_ENV === 'test',
+    message: { success: false, error: { code: 'RATE_LIMITED', message: 'Too many requests. Please try again in a moment.' } },
+  }),
 );
 
 const authLimiter = rateLimit({

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { apiPost } from '@/lib/api';
 import { isProRole, useSession, type SessionProfile } from '@/lib/session';
 import { ButtonLink } from '@/components/ui';
-import { apiErrorMessage } from '@/components/verification/apiError';
+import { authErrorMessage } from '@/lib/authErrors';
 import { Field, REGISTER_FIELDS, inputClass } from '@/components/verification/fields';
 import {
   IconAmbulance,
@@ -52,6 +52,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (pending) return;
     setError(null);
     setFieldError(null);
     setPending(true);
@@ -105,7 +106,7 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
 
     const res = await apiPost<{ profile: SessionProfile }>(`/auth/${mode}`, payload);
     if (!res.ok) {
-      setError(apiErrorMessage(res));
+      setError(authErrorMessage(res, mode));
       setPending(false);
       return;
     }
@@ -133,8 +134,8 @@ export default function AuthForm({ mode }: { mode: 'login' | 'register' }) {
         </span>
         <h2 className="mt-4 text-lg font-bold text-ink">Account created — pending verification</h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-          Your professional account is awaiting review by our team. Head to the verification page to
-          upload your credentials so an admin can approve you.
+          Your professional verification request has been submitted. We will review it shortly; head to
+          the verification page to upload your credentials so an admin can approve you.
         </p>
         <div className="mt-6 flex flex-col gap-2.5">
           <ButtonLink href="/verification" className="w-full">

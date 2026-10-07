@@ -20,4 +20,20 @@ if (!parsed.success) {
   console.error('Invalid backend environment:', parsed.error.issues[0]?.message ?? 'unknown');
   throw new Error('Backend env validation failed');
 }
-export const env = parsed.data;
+const env = parsed.data;
+
+if (env.NODE_ENV === 'production') {
+  if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 8) {
+    throw new Error(
+      'Backend env validation failed: ADMIN_PASSWORD (min 8 characters) is required when NODE_ENV=production.',
+    );
+  }
+  if (!process.env.FRONTEND_URL) {
+    throw new Error(
+      'Backend env validation failed: FRONTEND_URL is required when NODE_ENV=production. ' +
+        'It is the CORS origin for browser requests (e.g. https://pananexus.vercel.app).',
+    );
+  }
+}
+
+export { env };

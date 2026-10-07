@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../../prisma/db.js';
-import { fail, ok } from '../lib/api.js';
+import { asyncRoute, fail, ok } from '../lib/api.js';
 import { clearSessionCookie, getSession, hashPassword, setSessionCookie, verifyPassword } from '../lib/auth.js';
 import { notify } from '../lib/notify.js';
 import { env } from '../config/env.js';
@@ -39,7 +39,7 @@ function profile(user: {
   };
 }
 
-router.post('/register', async (req, res) => {
+router.post('/register', asyncRoute(async (req, res) => {
   const parsed = registerSchema.safeParse(req.body ?? {});
   if (!parsed.success) return fail(res, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.', 422);
   const data = parsed.data;
@@ -118,9 +118,9 @@ router.post('/register', async (req, res) => {
     link: PRO_ROLES.has(user.role) ? '/verification' : '/dashboard',
   });
   return ok(res, { profile: profile(user) }, 201);
-});
+}));
 
-router.post('/login', async (req, res) => {
+router.post('/login', asyncRoute(async (req, res) => {
   const parsed = loginSchema.safeParse(req.body ?? {});
   if (!parsed.success) return fail(res, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.', 422);
   const { email, password } = parsed.data;
@@ -134,14 +134,14 @@ router.post('/login', async (req, res) => {
   await db.orm.public.AuditLog.create({ action: 'USER_LOGIN', entity: 'User', entityId: user.id, actorId: user.id }).catch(() => undefined);
   setSessionCookie(res, user.id, user.role);
   return ok(res, { profile: profile(user) });
-});
+}));
 
 router.post('/logout', (_req, res) => {
   clearSessionCookie(res);
   return ok(res, { loggedOut: true });
 });
 
-router.get('/me', async (req, res) => {
+router.get('/me', asyncRoute(async (req, res) => {
   const session = getSession(req);
   if (!session) return fail(res, 'UNAUTHORIZED', 'Sign in required.', 401);
   const user = await db.orm.public.User.where({ id: session.sub }).first();
@@ -154,6 +154,6 @@ router.get('/me', async (req, res) => {
     return fail(res, 'ACCOUNT_SUSPENDED', 'Your account has been suspended. Contact support.', 403);
   }
   return ok(res, { profile: profile(user) });
-});
+}));
 
 export default router;

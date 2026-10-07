@@ -37,9 +37,14 @@ Required env vars: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NODE_ENV=produc
   the `User` table fails fast with an actionable message (instead of surfacing
   `relation "public.User" does not exist`) if the migration step was skipped.
 - The **admin account** is created automatically on first boot (bootstrap is idempotent).
-  Set a strong `ADMIN_PASSWORD`.
+  Set a strong `ADMIN_PASSWORD` — it is **required** in production and the server fails fast
+  at boot if it is unset (never a silently unusable admin).
 - `AUTH_SECRET` signs HttpOnly session cookies. Generate once and never rotate casually — sessions are stateless (scrypt + HMAC signed) and invalidating means logging everyone out.
 - Production cookies use `SameSite=None; Secure` (cross-site Vercel/Render → API). Render serves HTTPS automatically.
+- `FRONTEND_URL` is the CORS origin and is also **required** in production (fail-fast at
+  boot rather than defaulting to `http://localhost:3000`). The backend reflects requests
+  only from this origin with `Access-Control-Allow-Credentials: true` (origin matching
+  ignores a trailing `/`). Auth endpoints apply their own stricter rate limit.
 
 ## 3. Frontend service (Render, type: web, env: node)
 

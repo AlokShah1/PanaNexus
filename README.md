@@ -63,6 +63,12 @@ npm run dev                     # http://localhost:3000
 
 Admin auto-bootstraps on first boot from `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Demo accounts (`TestPass!123`): `operator@pananexus.local`, `dr.khan@pananexus.local`.
 
+In production the backend requires `FRONTEND_URL` (CORS origin) and `ADMIN_PASSWORD`,
+and fails fast at boot if either is missing. The frontend's `NEXT_PUBLIC_API_URL` must
+point at the deployed API origin — a single API client (`frontend/src/lib/api.ts`)
+serves every page, and auth screens surface domain-specific messages (login vs.
+registration) with no facility requests.
+
 ## Checks
 
 ```bash

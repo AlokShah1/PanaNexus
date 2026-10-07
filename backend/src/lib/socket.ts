@@ -19,7 +19,9 @@ const ACTIVE_TRIP_STATUSES = new Set(['ASSIGNED', 'EN_ROUTE', 'ARRIVED', 'TRANSP
 export function attachRealtime(server: HttpServer): Server {
   const io = new Server(server, {
     cors: {
-      origin: env.NODE_ENV === 'production' ? [env.FRONTEND_URL] : ['http://localhost:3000', env.FRONTEND_URL],
+      origin: env.NODE_ENV === 'production'
+        ? [env.FRONTEND_URL.replace(/\/+$/, '')]
+        : ['http://localhost:3000', env.FRONTEND_URL.replace(/\/+$/, '')],
       credentials: true,
     },
   });

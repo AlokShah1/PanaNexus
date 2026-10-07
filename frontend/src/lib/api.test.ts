@@ -61,7 +61,7 @@ describe('apiFetch', () => {
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.status).toBe(0);
-      expect(res.message).toContain('Something went wrong');
+      expect(res.message).toBe("We're having trouble connecting right now. Please try again.");
     }
   });
 });
