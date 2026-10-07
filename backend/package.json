@@ -16,7 +16,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "contract:emit": "prisma contract emit",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "db:seed": "tsx scripts/seed.ts --demo",
+    "db:seed:demo": "tsx scripts/seed.ts --demo",
+    "db:reset:demo": "tsx scripts/reset-demo.ts"
   },
   "dependencies": {
     "@prisma/orm-postgres": "^8.0.0-rc.14",

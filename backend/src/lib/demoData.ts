@@ -6,6 +6,9 @@ import { hashPassword } from './auth-core.js';
  * Every account uses the `@pananexus.local` suffix, and every created row id is
  * recorded in the `demo.data.ledger` PlatformSetting so it can be cleared safely
  * without ever touching real data.
+ *
+ * The dataset is deterministic (seeded RNG), idempotent (re-running refreshes via
+ * clear + reseed), and geographically coherent (Bhopal metro area).
  */
 
 export const DEMO_EMAIL_DOMAIN = 'pananexus.local';
@@ -33,6 +36,7 @@ function newLedger(): Ledger {
     bloodDonors: [],
     organDonors: [],
     verifications: [],
+    facilities: [],
   };
 }
 
@@ -53,18 +57,55 @@ async function writeLedger(ledger: Ledger): Promise<void> {
   });
 }
 
+/* Deterministic RNG so a re-seed produces the same dataset shape. */
+function mulberry32(seed: number) {
+  let t = seed;
+  return () => {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), t | 1);
+    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rand = mulberry32(20260107);
+const pick = <T>(arr: readonly T[]): T => arr[Math.floor(rand() * arr.length)];
+
+const FIRST_NAMES = [
+  'Aarav', 'Diya', 'Kabir', 'Meera', 'Rohan', 'Sara', 'Ishaan', 'Ananya', 'Vihaan', 'Aditi',
+  'Arjun', 'Freya', 'Aditya', 'Saanvi', 'Reyansh', 'Pari', 'Krishna', 'Anika', 'Yash', 'Kiara',
+  'Dhruv', 'Riya', 'Manav', 'Tanvi', 'Samarth', 'Navya', 'Shaurya', 'Ira', 'Vedant', 'Rhea',
+  'Arnav', 'Myra', 'Dev', 'Sanya', 'Onkar', 'Trisha', 'Sahil', 'Mahi', 'Aryan', 'Zoya',
+];
+const LAST_NAMES = [
+  'Sharma', 'Verma', 'Iyer', 'Nair', 'Gupta', 'Khan', 'Menon', 'Pillai', 'Rao', 'Kulkarni',
+  'Chatterjee', 'Deshmukh', 'Reddy', 'Joshi', 'Bansal', 'Malhotra', 'Sikri', 'Chauhan', 'Thakur',
+  'Srivastava', 'Banerjee', 'Das', 'Mukherjee', 'Choudhary', 'Mishra', 'Saxena', 'Patel', 'Shah',
+  'Agarwal', 'Saxena',
+];
+const AREAS = [
+  'Arera Colony', 'MP Nagar', 'Kolar Road', 'Shahpura', 'New Market', 'Hoshangabad Road',
+  'Govindpura', 'Bairagarh', 'Neelbad', 'Shantipur', 'Barahmanda', 'Jahangirabad', 'TT Nagar',
+  'Lalghati', 'Ashoka Garden', 'Kolar', 'Bawadiya', 'Nowgong',
+];
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
+
 const FACILITIES = [
   { name: 'City General Hospital', type: 'HOSPITAL' as const, lat: 23.2333, lng: 77.401, address: '12 Mahatma Gandhi Road, Bhopal', emergency: true, hours: 'Open 24 hours', services: ['Emergency', 'ICU', 'Cardiology', 'Orthopaedics', 'Diagnostics'] },
   { name: 'Green Cross Hospital', type: 'HOSPITAL' as const, lat: 23.19, lng: 77.42, address: 'Green Cross Road, Shahpura, Bhopal', emergency: true, hours: 'Open 24 hours', services: ['Emergency', 'General Medicine', 'Surgery', 'Diagnostics'] },
   { name: 'Lakeview Children Hospital', type: 'HOSPITAL' as const, lat: 23.258, lng: 77.39, address: 'Lakeview Avenue, Bhopal', emergency: true, hours: 'Open 24 hours', services: ['Paediatrics', 'Neonatal', 'Emergency'] },
   { name: 'Sunrise Multispeciality', type: 'HOSPITAL' as const, lat: 23.208, lng: 77.411, address: 'Sunrise Road, Bhopal', emergency: true, hours: 'Open 24 hours', services: ['Emergency', 'Cardiology', 'Neurology', 'ICU'] },
   { name: 'Barahmanda Health Post', type: 'HEALTH_POST' as const, lat: 23.16, lng: 77.39, address: 'Barahmanda, Bhopal', emergency: false, hours: '08:00 - 20:00', services: ['OPD', 'Immunisation', 'Maternity'] },
+  { name: 'Govindpura Health Post', type: 'HEALTH_POST' as const, lat: 23.245, lng: 77.44, address: 'Govindpura industrial area, Bhopal', emergency: false, hours: 'Mon–Sat 08:30–16:30', services: ['OPD', 'Maternity', 'Immunization', 'Pathology'] },
+  { name: 'Neelbad Community Health Post', type: 'HEALTH_POST' as const, lat: 23.29, lng: 77.35, address: 'Neelbad village road, Bhopal', emergency: false, hours: 'Mon–Fri 09:00–15:00', services: ['OPD', 'First aid', 'Elementary care'] },
+  { name: 'Shantipur Health Post', type: 'HEALTH_POST' as const, lat: 23.27, lng: 77.31, address: 'Shantipur, Kolar, Bhopal', emergency: false, hours: 'Mon–Fri 09:00–17:00', services: ['OPD', 'First aid', 'Immunization'] },
+  { name: 'Old City Clinic', type: 'HEALTH_POST' as const, lat: 23.262, lng: 77.397, address: 'Old City, Bhopal', emergency: false, hours: '08:00 - 14:00', services: ['OPD', 'General Medicine'] },
+  { name: 'Kolar Road Clinic', type: 'HEALTH_POST' as const, lat: 23.235, lng: 77.365, address: 'Kolar Road, Bhopal', emergency: false, hours: '09:00 - 18:00', services: ['OPD', 'Diagnostics', 'Vaccination'] },
 ];
 
 async function ensureFacility(f: (typeof FACILITIES)[number]) {
   const existing = await db.orm.public.HealthcareFacility.where({ name: f.name, address: f.address }).first();
   if (existing) return existing;
-  return db.orm.public.HealthcareFacility.create({
+  const row = await db.orm.public.HealthcareFacility.create({
     name: f.name,
     type: f.type,
     address: f.address,
@@ -74,6 +115,7 @@ async function ensureFacility(f: (typeof FACILITIES)[number]) {
     operatingHours: f.hours,
     services: f.services,
   });
+  return row;
 }
 
 async function ensureUser(
@@ -96,26 +138,11 @@ async function ensureUser(
   return created;
 }
 
-const PATIENTS = [
-  { key: 'aarav', name: 'Aarav Sharma', phone: '9876543210', blood: 'O+', dob: '1992-04-11' },
-  { key: 'diya', name: 'Diya Verma', phone: '9876500011', blood: 'A+', dob: '1988-09-23' },
-  { key: 'kabir', name: 'Kabir Nair', phone: '9876511223', blood: 'B+', dob: '1999-01-30' },
-  { key: 'meera', name: 'Meera Iyer', phone: '9876500192', blood: 'AB-', dob: '1978-07-05' },
-  { key: 'rohan', name: 'Rohan Gupta', phone: '9876588121', blood: 'O-', dob: '2001-12-14' },
-  { key: 'sara', name: 'Sara Khan', phone: '9876555330', blood: 'A-', dob: '1995-03-19' },
-];
-
-const DOCTORS = [
-  { key: 'ananya', name: 'Dr. Ananya Rao', spec: 'Cardiology', feeNotes: 'Weekly OP restdays Tuesday.' },
-  { key: 'vikram', name: 'Dr. Vikram Menon', spec: 'Emergency Medicine', feeNotes: 'Available for trauma calls.' },
-  { key: 'farah', name: 'Dr. Farah Siddiqui', spec: 'Paediatrics', feeNotes: 'Neonatal and child care.' },
-];
-
-const OPERATORS = [
-  { key: 'suresh', name: 'Suresh Yadav', reg: 'MP04-AM-1001', type: 'ADVANCED' as const, lat: 23.2299, lng: 77.4099, driver: 'Rakesh Kumar', driverPhone: '9876012012' },
-  { key: 'imran', name: 'Imran Sheikh', reg: 'MP04-AM-1002', type: 'BASIC' as const, lat: 23.2401, lng: 77.4155, driver: 'Salim Ansari', driverPhone: '9876023013' },
-  { key: 'priya', name: 'Priya Deshmukh', reg: 'MP04-AM-1003', type: 'ICU' as const, lat: 23.2135, lng: 77.3987, driver: 'Anil Rathore', driverPhone: '9876034014' },
-];
+const SPECIALTIES = [
+  'General Medicine', 'Cardiology', 'Paediatrics', 'Orthopedics', 'Gynaecology', 'Dermatology',
+  'Neurology', 'ENT', 'Pulmonology', 'Psychiatry', 'General Surgery', 'Ophthalmology', 'Dentistry',
+  'Radiology', 'Oncology', 'Urology', 'Anaesthesiology',
+] as const;
 
 export async function seedDemoData() {
   await clearDemoData();
@@ -123,51 +150,60 @@ export async function seedDemoData() {
   const password = process.env.DEMO_PASSWORD ?? process.env.SEED_PASSWORD ?? 'TestPass!123';
   const passwordHash = await hashPassword(password);
 
-  const city = await ensureFacility(FACILITIES[0]);
-  const green = await ensureFacility(FACILITIES[1]);
-  await ensureFacility(FACILITIES[2]);
-  await ensureFacility(FACILITIES[3]);
-  await ensureFacility(FACILITIES[4]);
+  const facilities: { id: string; name: string }[] = [];
+  for (const f of FACILITIES) {
+    const row = await ensureFacility(f);
+    facilities.push(row);
+  }
 
+  /* ------------------------------------------------------------- patients */
   const patientUsers: { id: string; patientId: string; name: string }[] = [];
-  for (const p of PATIENTS) {
+  const patientNames: string[] = [];
+  for (let i = 0; i < 75; i += 1) {
+    const name = `${FIRST_NAMES[i % FIRST_NAMES.length]} ${LAST_NAMES[(i * 7) % LAST_NAMES.length]}`;
+    patientNames.push(name);
     const u = await ensureUser(ledger, passwordHash, {
-      email: `${p.key}@${DEMO_EMAIL_DOMAIN}`,
-      name: p.name,
+      email: `patient.${i + 1}@${DEMO_EMAIL_DOMAIN}`,
+      name,
       role: 'PATIENT',
-      phone: p.phone,
+      phone: `98${String(10000000 + i * 137).slice(0, 8)}`,
       verificationStatus: 'VERIFIED',
     });
     let patient = await db.orm.public.Patient.where({ userId: u.id }).first();
     if (!patient) {
+      const dobYear = 1958 + ((i * 13) % 50);
       patient = await db.orm.public.Patient.create({
         userId: u.id,
-        bloodGroup: p.blood,
-        dateOfBirth: p.dob,
-        phone: p.phone,
+        bloodGroup: BLOOD_GROUPS[i % BLOOD_GROUPS.length],
+        dateOfBirth: new Date(Date.UTC(dobYear, (i * 5) % 12, ((i * 7) % 27) + 1)).toISOString(),
+        phone: u.phone,
+        address: `${((i * 3) % 120) + 1}, ${AREAS[i % AREAS.length]}, Bhopal`,
       });
       ledger.patients.push(patient.id);
     }
-    patientUsers.push({ id: u.id, patientId: patient.id, name: p.name });
+    patientUsers.push({ id: u.id, patientId: patient.id, name });
   }
 
+  /* -------------------------------------------------------------- doctors */
   const doctorUsers: { id: string; doctorId: string }[] = [];
-  for (const d of DOCTORS) {
+  for (let i = 0; i < 28; i += 1) {
+    const name = `Dr. ${FIRST_NAMES[(i + 11) % FIRST_NAMES.length]} ${LAST_NAMES[(i * 3 + 5) % LAST_NAMES.length]}`;
     const u = await ensureUser(ledger, passwordHash, {
-      email: `${d.key}@${DEMO_EMAIL_DOMAIN}`,
-      name: d.name,
+      email: `doctor.${i + 1}@${DEMO_EMAIL_DOMAIN}`,
+      name,
       role: 'DOCTOR',
-      facilityId: city.id,
+      phone: `98${String(20000000 + i * 271).slice(0, 8)}`,
+      facilityId: facilities[i % facilities.length].id,
       verificationStatus: 'VERIFIED',
     });
     let doctor = await db.orm.public.Doctor.where({ userId: u.id }).first();
     if (!doctor) {
       doctor = await db.orm.public.Doctor.create({
         userId: u.id,
-        facilityId: city.id,
-        specialization: d.spec,
-        licenseNumber: `MP-DEMO-${d.key.toUpperCase()}`,
-        bio: d.feeNotes,
+        facilityId: facilities[i % facilities.length].id,
+        specialization: SPECIALTIES[i % SPECIALTIES.length],
+        licenseNumber: `DEMO-DOC-2026-${String(i + 1).padStart(3, '0')}`,
+        bio: `${SPECIALTIES[i % SPECIALTIES.length]} consultant with regular OPD hours.`,
       });
       ledger.doctors.push(doctor.id);
       for (const weekday of [1, 3, 5]) {
@@ -184,259 +220,367 @@ export async function seedDemoData() {
     doctorUsers.push({ id: u.id, doctorId: doctor.id });
   }
 
-  await ensureUser(ledger, passwordHash, {
-    email: `frontdesk@${DEMO_EMAIL_DOMAIN}`,
-    name: 'Neha Joshi',
-    role: 'FACILITY_STAFF',
-    facilityId: city.id,
-    phone: '9876044015',
-    verificationStatus: 'VERIFIED',
-  });
-  await ensureUser(ledger, passwordHash, {
-    email: `admin@${DEMO_EMAIL_DOMAIN}`,
-    name: 'Platform Administrator',
-    role: 'ADMIN',
-    verificationStatus: 'VERIFIED',
-  });
+  /* -------------------------------------------------------- facility staff */
+  for (let i = 0; i < 12; i += 1) {
+    await ensureUser(ledger, passwordHash, {
+      email: `staff.${i + 1}@${DEMO_EMAIL_DOMAIN}`,
+      name: `${FIRST_NAMES[(i + 20) % FIRST_NAMES.length]} ${LAST_NAMES[(i + 9) % LAST_NAMES.length]}`,
+      role: 'FACILITY_STAFF',
+      facilityId: facilities[i % facilities.length].id,
+      phone: `98${String(30000000 + i * 313).slice(0, 8)}`,
+      verificationStatus: i % 5 === 0 ? 'PENDING' : 'VERIFIED',
+    });
+  }
 
-  const operatorUsers: { id: string; ambulanceId: string; lat: number; lng: number }[] = [];
-  for (const o of OPERATORS) {
+  /* ----------------------------------------------------------- ambulances */
+  const operatorUsers: { id: string; ambulanceId: string }[] = [];
+  for (let i = 0; i < 12; i += 1) {
+    const reg = `MP04-AM-${1001 + i}`;
     const u = await ensureUser(ledger, passwordHash, {
-      email: `${o.key}@${DEMO_EMAIL_DOMAIN}`,
-      name: o.name,
+      email: `operator.${i + 1}@${DEMO_EMAIL_DOMAIN}`,
+      name: `${FIRST_NAMES[(i + 25) % FIRST_NAMES.length]} ${LAST_NAMES[(i + 14) % LAST_NAMES.length]}`,
       role: 'AMBULANCE_OPERATOR',
-      phone: o.driverPhone,
+      phone: `98${String(40000000 + i * 419).slice(0, 8)}`,
       verificationStatus: 'VERIFIED',
     });
-    let amb = await db.orm.public.Ambulance.where({ registrationNumber: o.reg }).first();
+    let amb = await db.orm.public.Ambulance.where({ registrationNumber: reg }).first();
     if (!amb) {
+      const status = i === 0 ? 'EN_ROUTE' : i % 7 === 0 ? 'OFFLINE' : i % 5 === 0 ? 'ASSIGNED' : 'AVAILABLE';
       amb = await db.orm.public.Ambulance.create({
-        registrationNumber: o.reg,
-        type: o.type,
-        status: 'AVAILABLE',
+        registrationNumber: reg,
+        type: (['BASIC', 'ADVANCED', 'ICU'] as const)[i % 3],
+        status: status as never,
         operatorId: u.id,
-        latitude: o.lat,
-        longitude: o.lng,
-        driverName: o.driver,
-        driverPhone: o.driverPhone,
+        latitude: 23.23 + ((i * 3) % 11) * 0.004,
+        longitude: 77.40 + ((i * 5) % 11) * 0.004,
+        driverName: `${FIRST_NAMES[i % FIRST_NAMES.length]} ${LAST_NAMES[i % LAST_NAMES.length]}`,
+        driverPhone: `98${String(50000000 + i * 431).slice(0, 8)}`,
       });
       ledger.ambulances.push(amb.id);
     }
-    operatorUsers.push({ id: u.id, ambulanceId: amb.id, lat: o.lat, lng: o.lng });
+    operatorUsers.push({ id: u.id, ambulanceId: amb.id });
   }
 
-  // Blood donors
-  const donorGroup: Record<string, string> = { aarav: 'O+', diya: 'A+', kabir: 'B+', meera: 'AB-' };
-  for (const p of PATIENTS.filter((x) => donorGroup[x.key])) {
-    const donorUser = await db.orm.public.User.where({ email: `${p.key}@${DEMO_EMAIL_DOMAIN}` }).first();
-    if (!donorUser) continue;
-    let donor = await db.orm.public.BloodDonor.where({ userId: donorUser.id }).first();
+  /* ---------------------------------------------------------- demo logins */
+  const accents: Array<[string, string, 'PATIENT' | 'DOCTOR' | 'FACILITY_STAFF' | 'AMBULANCE_OPERATOR', string]> = [
+    ['patient.demo@' + DEMO_EMAIL_DOMAIN, 'Priya Nair', 'PATIENT', 'Patient demo'],
+    ['doctor.demo@' + DEMO_EMAIL_DOMAIN, 'Dr. Meera Iyer', 'DOCTOR', 'Doctor demo'],
+    ['facility.demo@' + DEMO_EMAIL_DOMAIN, 'Rakesh Kapoor', 'FACILITY_STAFF', 'Facility demo'],
+    ['ambulance.demo@' + DEMO_EMAIL_DOMAIN, 'Imran Sheikh', 'AMBULANCE_OPERATOR', 'Ambulance demo'],
+  ];
+  for (const [email, name, role, _] of accents) {
+    await ensureUser(ledger, passwordHash, {
+      email,
+      name,
+      role,
+      phone: '9800000000',
+      facilityId: facilities[0].id,
+      verificationStatus: 'VERIFIED',
+    });
+  }
+
+  // Patient demo account — browsable history in the patient UI
+  {
+    const u = await db.orm.public.User.where({ email: `patient.demo@${DEMO_EMAIL_DOMAIN}` }).first();
+    let pat = u && (await db.orm.public.Patient.where({ userId: u.id }).first());
+    if (u && !pat) {
+      pat = await db.orm.public.Patient.create({
+        userId: u.id,
+        bloodGroup: 'O+',
+        dateOfBirth: new Date(Date.UTC(1990, 3, 15)).toISOString(),
+        phone: u.phone,
+        address: 'Arera Colony, Bhopal',
+      });
+      ledger.patients.push(pat.id);
+      const doc = doctorUsers[0];
+      const rec1 = await db.orm.public.MedicalRecord.create({
+        patientId: pat.id, doctorId: doc.doctorId, facilityId: facilities[0].id,
+        recordType: 'CONSULTATION', diagnosis: 'Type 2 diabetes mellitus',
+        treatment: 'Lifestyle modification and oral agent',
+        prescriptions: ['Metformin 500 mg — twice daily after meals for 90 days'],
+        attachments: [], notes: DEMO_NOTE,
+        createdAt: new Date(Date.now() - 200 * 86400000).toISOString(),
+      });
+      ledger.records.push(rec1.id);
+      const rec2 = await db.orm.public.MedicalRecord.create({
+        patientId: pat.id, doctorId: doc.doctorId, facilityId: facilities[0].id,
+        recordType: 'CONSULTATION', diagnosis: 'Essential hypertension',
+        treatment: 'Lifestyle and medical therapy',
+        prescriptions: ['Amlodipine 5 mg — once daily for 30 days'],
+        attachments: [], notes: 'Follow-up in 30 days',
+        createdAt: new Date(Date.now() - 20 * 86400000).toISOString(),
+      });
+      ledger.records.push(rec2.id);
+      const appt = await db.orm.public.Appointment.create({
+        patientId: pat.id, doctorId: doc.doctorId, facilityId: facilities[0].id,
+        startsAt: new Date(Date.now() + 2 * 86400000).toISOString(), status: 'CONFIRMED', notes: 'Routine diabetes follow-up',
+      });
+      ledger.appointments.push(appt.id);
+    }
+  }
+
+  // Doctor demo account — has a doctor profile + availability
+  {
+    const u = await db.orm.public.User.where({ email: `doctor.demo@${DEMO_EMAIL_DOMAIN}` }).first();
+    let doc = u && (await db.orm.public.Doctor.where({ userId: u.id }).first());
+    if (u && !doc) {
+      doc = await db.orm.public.Doctor.create({
+        userId: u.id, facilityId: facilities[0].id, specialization: 'General Medicine',
+        licenseNumber: 'DEMO-DOC-2026-900', bio: 'General Medicine consultant (demo account).',
+      });
+      ledger.doctors.push(doc.id);
+      for (const weekday of [1, 3, 5]) {
+        const slot = await db.orm.public.DoctorAvailability.create({
+          doctorId: doc.id, weekday, startMinute: 9 * 60, endMinute: 13 * 60, slotMinutes: 30,
+        });
+        ledger.availability.push(slot.id);
+      }
+    }
+  }
+
+  // Ambulance demo account — an available unit in the fleet
+  {
+    const u = await db.orm.public.User.where({ email: `ambulance.demo@${DEMO_EMAIL_DOMAIN}` }).first();
+    let amb = u && (await db.orm.public.Ambulance.where({ operatorId: u.id }).first());
+    if (u && !amb) {
+      amb = await db.orm.public.Ambulance.create({
+        registrationNumber: 'MP04-AM-9999', type: 'ADVANCED', status: 'AVAILABLE', operatorId: u.id,
+        latitude: 23.25, longitude: 77.41, driverName: 'Demo Driver', driverPhone: '9800000000',
+      });
+      ledger.ambulances.push(amb.id);
+    }
+  }
+
+  /* ------------------------------------------------------ blood donors */
+  for (let i = 0; i < 50; i += 1) {
+    const u = patientUsers[i];
+    let donor = await db.orm.public.BloodDonor.where({ userId: u.id }).first();
     if (!donor) {
       donor = await db.orm.public.BloodDonor.create({
-        userId: donorUser.id,
-        bloodGroup: donorGroup[p.key] as never,
-        isAvailable: true,
+        userId: u.id,
+        bloodGroup: BLOOD_GROUPS[i % BLOOD_GROUPS.length],
+        isAvailable: i % 6 !== 0,
+        lastDonationDate: new Date(Date.now() - (i * 11) * 24 * 60 * 60 * 1000).toISOString(),
       });
       ledger.bloodDonors.push(donor.id);
     }
   }
 
-  // Organ donors
-  for (const key of ['diya', 'sara']) {
-    const u = await db.orm.public.User.where({ email: `${key}@${DEMO_EMAIL_DOMAIN}` }).first();
-    if (!u) continue;
+  /* ------------------------------------------------------ organ donors */
+  const ORGANS = ['kidney', 'liver', 'heart', 'lungs', 'pancreas', 'cornea'] as const;
+  for (let i = 0; i < 25; i += 1) {
+    const u = patientUsers[i + 50];
     let organ = await db.orm.public.OrganDonor.where({ userId: u.id }).first();
     if (!organ) {
       organ = await db.orm.public.OrganDonor.create({
         userId: u.id,
-        organs: ['kidney', 'liver'],
+        organs: [ORGANS[i % ORGANS.length], ORGANS[(i + 2) % ORGANS.length]],
         consent: true,
-        status: key === 'sara' ? 'PLEDGED' : 'VERIFIED',
+        status: i % 5 === 0 ? 'VERIFIED' : i % 7 === 0 ? 'INACTIVE' : 'PLEDGED',
       });
       ledger.organDonors.push(organ.id);
     }
   }
 
-  // Blood stock
-  const stock: Record<string, number> = { 'O+': 14, 'O-': 6, 'A+': 11, 'A-': 5, 'B+': 9, 'B-': 3, 'AB+': 4, 'AB-': 2 };
-  for (const [group, units] of Object.entries(stock)) {
-    const existing = await db.orm.public.BloodUnit.where({ facilityId: city.id, bloodGroup: group as never }).first();
-    if (!existing) {
-      const unit = await db.orm.public.BloodUnit.create({ facilityId: city.id, bloodGroup: group as never, units });
-      ledger.bloodUnits.push(unit.id);
+  /* ----------------------------------------------------------- blood stock */
+  for (const f of facilities) {
+    for (let g = 0; g < BLOOD_GROUPS.length; g += 1) {
+      const existing = await db.orm.public.BloodUnit.where({ facilityId: f.id, bloodGroup: BLOOD_GROUPS[g] as never }).first();
+      if (!existing) {
+        const unit = await db.orm.public.BloodUnit.create({
+          facilityId: f.id,
+          bloodGroup: BLOOD_GROUPS[g] as never,
+          units: [14, 6, 11, 5, 9, 3, 4, 2][g],
+        });
+        ledger.bloodUnits.push(unit.id);
+      }
     }
   }
 
-  // Blood requests
-  const now = Date.now();
-  for (let i = 0; i < 3; i += 1) {
+  /* ------------------------------------------------------- blood requests */
+  for (let i = 0; i < 15; i += 1) {
     const requester = patientUsers[i];
     const row = await db.orm.public.BloodRequest.create({
       requesterId: requester.id,
-      facilityId: i === 2 ? green.id : city.id,
-      bloodGroup: (['O+', 'A+', 'B+'][i]) as never,
-      units: 1 + (i % 2),
-      status: (['PENDING', 'PARTIALLY_FULFILLED', 'FULFILLED'][i]) as never,
+      facilityId: facilities[i % facilities.length].id,
+      bloodGroup: BLOOD_GROUPS[i % BLOOD_GROUPS.length] as never,
+      units: 1 + (i % 3),
+      status: (['PENDING', 'FULFILLED', 'PARTIALLY_FULFILLED', 'CANCELLED'] as const)[i % 4] as never,
     });
     ledger.bloodRequests.push(row.id);
   }
 
-  // Appointments across statuses
-  const apptStatus = ['REQUESTED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'COMPLETED'] as const;
-  for (let i = 0; i < 6; i += 1) {
-    const patient = patientUsers[i % patientUsers.length];
-    const doctor = doctorUsers[i % doctorUsers.length];
-    const row = await db.orm.public.Appointment.create({
-      patientId: patient.patientId,
-      doctorId: doctor.doctorId,
-      facilityId: city.id,
-      startsAt: new Date(now + (i - 2) * 24 * 60 * 60 * 1000).toISOString(),
-      status: apptStatus[i % apptStatus.length] as never,
-      notes: i % 2 === 0 ? 'Routine follow-up.' : null,
-    });
-    ledger.appointments.push(row.id);
+  /* ---------------------------------------------------------- appointments */
+  const apptDayOffsets = [-6, -4, -2, -1, 0, 2, 5, 9];
+  const apptStatusCycle = ['COMPLETED', 'COMPLETED', 'CANCELLED', 'CONFIRMED', 'REQUESTED', 'NO_SHOW', 'REQUESTED', 'COMPLETED'] as const;
+  for (let d = 0; d < doctorUsers.length; d += 1) {
+    const doctor = doctorUsers[d];
+    for (let a = 0; a < apptDayOffsets.length; a += 1) {
+      const startsAt = new Date(Date.now() + apptDayOffsets[a] * 86400000 + (9 * 60 + ((d % 4) * 45 + (a % 3) * 15)) * 60000).toISOString();
+      const row = await db.orm.public.Appointment.create({
+        patientId: patientUsers[(d * 8 + a) % patientUsers.length].patientId,
+        doctorId: doctor.doctorId,
+        facilityId: facilities[d % facilities.length].id,
+        startsAt,
+        status: apptStatusCycle[(d + a) % apptStatusCycle.length] as never,
+        notes: a % 3 === 0 ? 'Follow-up / review visit' : null,
+      });
+      ledger.appointments.push(row.id);
+    }
   }
 
-  // Medical records
-  for (let i = 0; i < 4; i += 1) {
+  /* -------------------------------------------------------- medical records */
+  const recordTemplates = [
+    { type: 'CONSULTATION', diagnosis: 'Type 2 diabetes mellitus', treatment: 'Lifestyle modification and oral agent', rx: 'Metformin 500 mg — twice daily after meals for 90 days' },
+    { type: 'CONSULTATION', diagnosis: 'Acute bronchitis', treatment: 'Symptomatic management', rx: 'Salbutamol inhaler 2 puffs — as needed; Paracetamol 500 mg — twice daily for 5 days' },
+    { type: 'CONSULTATION', diagnosis: 'Ankle sprain', treatment: 'Rest, ice, compression, elevation', rx: 'Diclofenac gel — apply twice daily for 7 days' },
+    { type: 'CONSULTATION', diagnosis: 'Viral upper respiratory infection', treatment: 'Supportive care and hydration', rx: 'Paracetamol 500 mg — every 6 hours as needed for 5 days' },
+    { type: 'CONSULTATION', diagnosis: 'Essential hypertension', treatment: 'Lifestyle and medical therapy', rx: 'Amlodipine 5 mg — once daily for 30 days' },
+    { type: 'LAB_RESULT', diagnosis: 'Lipid profile review', treatment: 'Reduced fried/processed food', rx: 'Atorvastatin 10 mg — once at night for 30 days' },
+    { type: 'IMAGING', diagnosis: 'Chest X-ray — no acute infiltrate', treatment: 'Clinical correlation advised', rx: 'No new medication; review in 2 weeks' },
+    { type: 'PRESCRIPTION', diagnosis: 'Migraine', treatment: 'Abortive therapy', rx: 'Sumatriptan 50 mg — at onset, repeat after 2 hours if needed' },
+    { type: 'VACCINATION', diagnosis: 'Routine immunisation administered', treatment: 'Observed for 15 minutes', rx: 'None — keep routine schedule' },
+    { type: 'OTHER', diagnosis: 'Synthetic pregnancy follow-up', treatment: 'Routine antenatal checks', rx: 'Folic acid 5 mg — once daily; Iron supplement — once daily' },
+  ] as const;
+  for (let i = 0; i < 140; i += 1) {
     const patient = patientUsers[i % patientUsers.length];
-    const doctor = doctorUsers[i % doctorUsers.length];
+    const doctor = doctorUsers[Math.floor(i / 2) % doctorUsers.length];
+    const t = recordTemplates[i % recordTemplates.length];
+    const createdAt = new Date(Date.now() - ((i * 17) % 330) * 86400000).toISOString();
     const row = await db.orm.public.MedicalRecord.create({
       patientId: patient.patientId,
       doctorId: doctor.doctorId,
-      facilityId: city.id,
-      recordType: (['CONSULTATION', 'LAB_RESULT', 'PRESCRIPTION', 'IMAGING'][i]) as never,
-      diagnosis: ['Hypertension', 'Viral fever', 'Type 2 diabetes', 'Fracture recovery'][i],
-      treatment: 'Medication and rest advised.',
-      prescriptions: ['Paracetamol 500mg - twice daily for 5 days'],
+      facilityId: facilities[i % facilities.length].id,
+      recordType: t.type as never,
+      diagnosis: t.diagnosis,
+      treatment: t.treatment,
+      prescriptions: [t.rx],
       attachments: [],
       notes: DEMO_NOTE,
+      createdAt,
     });
     ledger.records.push(row.id);
   }
 
-  // Emergency history + one live tracking scenario
-  const liveRequest = await db.orm.public.EmergencyRequest.create({
-    requesterId: patientUsers[0].id,
-    patientId: patientUsers[0].patientId,
-    category: 'MEDICAL',
-    priority: 'HIGH',
-    status: 'EN_ROUTE',
-    pickupLatitude: 23.2299,
-    pickupLongitude: 77.4099,
-    pickupAccuracy: 18,
-    pickupObtainedAt: new Date(now - 6 * 60 * 1000).toISOString(),
-    pickupAddress: 'Near Board Office, Arera Hills, Bhopal',
-    destinationFacilityId: city.id,
-    destinationAddress: city.address,
-    notes: 'Patient experiencing chest pain.',
-  });
-  ledger.emergencies.push(liveRequest.id);
+  /* ------------------------------------------------------ emergencies/trips */
+  const categories: Array<'MEDICAL' | 'ACCIDENT' | 'INJURY' | 'PREGNANCY' | 'BREATHING'> = ['MEDICAL', 'ACCIDENT', 'INJURY', 'PREGNANCY', 'BREATHING'];
+  const makeRequest = async (i: number, status: 'PENDING' | 'MATCHED' | 'ASSIGNED' | 'EN_ROUTE' | 'COMPLETED' | 'CANCELLED', priority: 'MEDIUM' | 'HIGH' | 'CRITICAL') => {
+    const p = patientUsers[i];
+    const row = await db.orm.public.EmergencyRequest.create({
+      requesterId: p.id,
+      patientId: p.patientId,
+      category: categories[i % categories.length],
+      priority,
+      status,
+      pickupLatitude: 23.23 + ((i * 7) % 9) * 0.004,
+      pickupLongitude: 77.40 + ((i * 11) % 9) * 0.004,
+      pickupAccuracy: 15,
+      pickupObtainedAt: new Date(Date.now() - i * 30 * 60000).toISOString(),
+      pickupAddress: `${AREAS[i % AREAS.length]}, Bhopal`,
+      cancelReason: status === 'CANCELLED' ? 'Resolved before unit arrived' : null,
+    });
+    ledger.emergencies.push(row.id);
+    return row;
+  };
+
+  // Live EN_ROUTE trip (simulated demo tracking)
+  const live = await makeRequest(0, 'EN_ROUTE', 'HIGH');
   const liveTrip = await db.orm.public.Trip.create({
-    emergencyRequestId: liveRequest.id,
-    ambulanceId: operatorUsers[0].ambulanceId,
-    status: 'EN_ROUTE',
-    isSimulation: true,
+    emergencyRequestId: live.id, ambulanceId: operatorUsers[0].ambulanceId, status: 'EN_ROUTE', isSimulation: true,
   });
   ledger.trips.push(liveTrip.id);
-  await db.orm.public.Ambulance.where({ id: operatorUsers[0].ambulanceId }).update({ status: 'EN_ROUTE' });
-  const pathStart = { lat: 23.2199, lng: 77.3909 };
-  for (let i = 1; i <= 3; i += 1) {
+  await db.orm.public.Ambulance.where({ id: operatorUsers[0].ambulanceId }).update({ status: 'EN_ROUTE' as never });
+  for (let i = 1; i <= 4; i += 1) {
     const loc = await db.orm.public.LocationUpdate.create({
       tripId: liveTrip.id,
-      latitude: pathStart.lat + ((23.2299 - pathStart.lat) * i) / 4,
-      longitude: pathStart.lng + ((77.4099 - pathStart.lng) * i) / 4,
+      latitude: 23.2199 + (23.2299 - 23.2199) * (i / 5),
+      longitude: 77.3909 + (77.4099 - 77.3909) * (i / 5),
       accuracy: 12,
     });
     ledger.locations.push(loc.id);
   }
 
-  // Open request available for simulation
-  const openRequest = await db.orm.public.EmergencyRequest.create({
-    requesterId: patientUsers[1].id,
-    patientId: patientUsers[1].patientId,
-    category: 'ACCIDENT',
-    priority: 'CRITICAL',
-    status: 'PENDING',
-    pickupLatitude: 23.2401,
-    pickupLongitude: 77.4155,
-    pickupAccuracy: 22,
-    pickupObtainedAt: new Date(now - 2 * 60 * 1000).toISOString(),
-    pickupAddress: 'Roshanpura Square, Bhopal',
-    notes: 'Road traffic accident, conscious.',
-  });
-  ledger.emergencies.push(openRequest.id);
+  // Open, searchable request for simulation
+  await makeRequest(1, 'PENDING', 'CRITICAL');
+  const requested = await makeRequest(2, 'MATCHED', 'HIGH');
 
-  // Completed history
-  const doneRequest = await db.orm.public.EmergencyRequest.create({
-    requesterId: patientUsers[2].id,
-    patientId: patientUsers[2].patientId,
-    category: 'INJURY',
-    priority: 'MEDIUM',
-    status: 'COMPLETED',
-    pickupLatitude: 23.2051,
-    pickupLongitude: 77.4288,
-    pickupAccuracy: 30,
-    pickupObtainedAt: new Date(now - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    pickupAddress: 'New Market, Bhopal',
-  });
-  ledger.emergencies.push(doneRequest.id);
-  const doneTrip = await db.orm.public.Trip.create({
-    emergencyRequestId: doneRequest.id,
-    ambulanceId: operatorUsers[2].ambulanceId,
-    status: 'COMPLETED',
-    arrivedAt: new Date(now - 3 * 24 * 60 * 60 * 1000 + 20 * 60 * 1000).toISOString(),
-    completedAt: new Date(now - 3 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
-    endedAt: new Date(now - 3 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
-  });
-  ledger.trips.push(doneTrip.id);
+  // Completed trips
+  for (const [idx, goAgoDays] of [[3, 2], [4, 5], [5, 12], [6, 20]] as const) {
+    const req = await makeRequest(idx, 'COMPLETED', idx % 2 === 0 ? 'MEDIUM' : 'HIGH');
+    const trip = await db.orm.public.Trip.create({
+      emergencyRequestId: req.id, ambulanceId: operatorUsers[(idx + 1) % operatorUsers.length].ambulanceId,
+      status: 'COMPLETED',
+      arrivedAt: new Date(Date.now() - goAgoDays * 86400000 + 20 * 60000).toISOString(),
+      completedAt: new Date(Date.now() - goAgoDays * 86400000 + 45 * 60000).toISOString(),
+      endedAt: new Date(Date.now() - goAgoDays * 86400000 + 45 * 60000).toISOString(),
+    });
+    ledger.trips.push(trip.id);
+  }
+  await makeRequest(7, 'CANCELLED', 'MEDIUM');
 
-  // Feedback
-  for (let i = 0; i < 4; i += 1) {
+  /* ------------------------------------------------------------- feedback */
+  const comments = [
+    'Doctor was calm and explained everything clearly.',
+    'Waiting room was crowded but the care was good.',
+    'Helpful staff and timely pharmacy.',
+    'Ambulance arrived promptly; crew was reassuring.',
+    'Clean facility and well-organised OPD.',
+    'A bit of delay in billing, but consultation was worthwhile.',
+    'Friendly front desk and clear instructions.',
+    'Quick lab results and kind follow-up advice.',
+  ];
+  for (let i = 0; i < 40; i += 1) {
     const author = patientUsers[i];
     const row = await db.orm.public.Feedback.create({
       authorId: author.id,
-      facilityId: i % 2 === 0 ? city.id : green.id,
-      rating: [5, 4, 5, 3][i],
-      comment: ['Prompt ambulance response.', 'Clean facility and caring staff.', 'Quick admission process.', 'Waiting time can improve.'][i],
-      status: 'APPROVED',
+      facilityId: facilities[i % facilities.length].id,
+      rating: [5, 4, 4, 3, 5, 2, 4, 5][i % 8],
+      comment: comments[i % comments.length],
+      status: i % 6 === 0 ? 'PENDING' : 'APPROVED',
     });
     ledger.feedback.push(row.id);
   }
 
-  // Notifications
-  const notes: Array<[string, string, string]> = [
-    ['EMERGENCY', 'Ambulance en route', 'Your ambulance is on the way.'],
+  /* --------------------------------------------------------- notifications */
+  const notifTemplates: Array<[string, string, string]> = [
     ['APPOINTMENT', 'Appointment confirmed', 'Your appointment has been confirmed.'],
-    ['BLOOD', 'Blood request approved', 'Your blood request was approved.'],
+    ['APPOINTMENT', 'Your appointment starts in 45 minutes', 'Please reach the facility 10 minutes early.'],
+    ['VERIFICATION', 'Doctor verification approved', 'Your professional verification was approved.'],
+    ['EMERGENCY', 'Ambulance assigned', 'An ambulance is assigned to your request.'],
+    ['BLOOD', 'Blood request matched', 'A donor has matched your request.'],
+    ['FEEDBACK', 'Your feedback was received', 'Thanks — your feedback helps us improve.'],
   ];
-  for (const [type, title, body] of notes) {
+  for (let i = 0; i < 70; i += 1) {
+    const [type, title, body] = notifTemplates[i % notifTemplates.length];
     const row = await db.orm.public.Notification.create({
-      userId: patientUsers[0].id,
-      type: type as never,
-      title,
-      body,
-      read: false,
+      userId: patientUsers[i % patientUsers.length].id,
+      type, title, body,
+      read: i % 3 !== 0,
       link: '/dashboard',
+      createdAt: new Date(Date.now() - i * 36 * 60000).toISOString(),
     });
     ledger.notifications.push(row.id);
   }
 
-  // Verification queue samples
-  const pendingDoctor = await db.orm.public.User.where({ email: `farah@${DEMO_EMAIL_DOMAIN}` }).first();
-  if (pendingDoctor) {
-    const existing = await db.orm.public.VerificationRequest.where({ userId: pendingDoctor.id }).first();
-    if (!existing) {
-      const row = await db.orm.public.VerificationRequest.create({
-        userId: pendingDoctor.id,
-        kind: 'DOCTOR',
-        status: 'PENDING',
-        payload: JSON.stringify({ specialization: 'Paediatrics', licenseNumber: 'MP-DEMO-FARAH', bio: 'Neonatal and child care.' }),
-        documentUrls: ['/uploads/demo/medical-council-certificate.pdf'],
-        reason: 'Awaiting council verification.',
-      });
-      ledger.verifications.push(row.id);
-    }
+  /* ----------------------------------------------------- verification mix */
+  const vstatuses = ['PENDING', 'APPROVED', 'REJECTED', 'PENDING', 'APPROVED', 'PENDING', 'REJECTED', 'APPROVED'] as const;
+  const vkinds = ['DOCTOR', 'DOCTOR', 'FACILITY', 'AMBULANCE', 'DOCTOR', 'FACILITY', 'AMBULANCE', 'DOCTOR'] as const;
+  for (let i = 0; i < vstatuses.length; i += 1) {
+    let userId: string | null = null;
+    if (vkinds[i] === 'DOCTOR') userId = doctorUsers[i % doctorUsers.length].id;
+    else if (vkinds[i] === 'AMBULANCE') userId = operatorUsers[i % operatorUsers.length].id;
+    else userId = (await db.orm.public.User.where({ email: `staff.${(i % 12) + 1}@${DEMO_EMAIL_DOMAIN}` }).first())?.id ?? null;
+    if (!userId) continue;
+    const row = await db.orm.public.VerificationRequest.create({
+      userId,
+      kind: vkinds[i],
+      status: vstatuses[i],
+      payload: JSON.stringify({ demoId: `DEMO-${vkinds[i]}-2026-${String(i + 1).padStart(3, '0')}` }),
+      documentUrls: [`/uploads/demo/demo-${vkinds[i].toLowerCase()}-${i + 1}.pdf`],
+      reason: vstatuses[i] === 'REJECTED' ? 'Document not legible — please re-upload.' : 'Under review.',
+      reviewedAt: ['APPROVED', 'REJECTED'].includes(vstatuses[i]) ? new Date(Date.now() - i * 86400000).toISOString() : null,
+    });
+    ledger.verifications.push(row.id);
   }
 
   await writeLedger(ledger);
@@ -445,9 +589,10 @@ export async function seedDemoData() {
     password,
     credentials: {
       admin: `admin@${DEMO_EMAIL_DOMAIN}`,
-      patient: `aarav@${DEMO_EMAIL_DOMAIN}`,
-      operator: `suresh@${DEMO_EMAIL_DOMAIN}`,
-      doctor: `ananya@${DEMO_EMAIL_DOMAIN}`,
+      patient: `patient.demo@${DEMO_EMAIL_DOMAIN}`,
+      doctor: `doctor.demo@${DEMO_EMAIL_DOMAIN}`,
+      operator: `ambulance.demo@${DEMO_EMAIL_DOMAIN}`,
+      facility: `facility.demo@${DEMO_EMAIL_DOMAIN}`,
     },
     created: Object.fromEntries(Object.entries(ledger).map(([k, v]) => [k, v.length])),
   };

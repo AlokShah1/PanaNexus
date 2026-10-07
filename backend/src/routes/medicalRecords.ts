@@ -11,6 +11,7 @@ const router = Router();
 router.get('/', requireAuth, async (req, res) => {
   const user = getUser(req);
   const patientId = typeof req.query.patientId === 'string' ? req.query.patientId : undefined;
+  let effectivePatientId = patientId;
 
   if (patientId) {
     if (user.role === 'PATIENT') {
@@ -60,7 +61,13 @@ router.get('/', requireAuth, async (req, res) => {
       return fail(res, 'FORBIDDEN', 'You cannot view these records.', 403);
     }
   } else {
-    if (user.role === 'FACILITY_STAFF') {
+    if (user.role === 'PATIENT') {
+      const patient = await db.orm.public.Patient.where({ userId: user.id }).first();
+      if (!patient) {
+        return fail(res, 'PATIENT_NOT_FOUND', 'Create a patient profile first.', 404);
+      }
+      effectivePatientId = patient.id;
+    } else if (user.role === 'FACILITY_STAFF') {
       if (!user.facilityId) {
         return fail(res, 'FORBIDDEN', 'You cannot view these records.', 403);
       }
@@ -70,8 +77,8 @@ router.get('/', requireAuth, async (req, res) => {
   }
 
   const p = parsePage(req.query as Record<string, unknown>, 20, 100);
-  const whereClause: any = patientId ? { patientId } : {};
-  if (user.role === 'FACILITY_STAFF' && !patientId) {
+  const whereClause: any = effectivePatientId ? { patientId: effectivePatientId } : {};
+  if (user.role === 'FACILITY_STAFF' && !effectivePatientId) {
     whereClause.facilityId = user.facilityId;
   }
 
