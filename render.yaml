@@ -4,11 +4,14 @@
 # Prerequisites on Render:
 #  1. Create a Neon PostgreSQL database and copy its POOLED url (database_url) and
 #     DIRECT url (direct_url) into the DATABASE_URL / DIRECT_URL env vars below.
-#     Migrations run against DIRECT_URL (unpooled) only.
+#     Migrations and schema verification prefer DIRECT_URL (unpooled).
 #  2. Set AUTH_SECRET to a long random string (e.g. 64 hex chars). This signs sessions.
-#  3. The API's preDeployCommand applies the Prisma migrations (baseline + any future
-#     ones) to the Neon DIRECT_URL before build/start, so the app never boots against
-#     an uninitialized schema. The serve also refuses to start if the schema is missing.
+#  3. Schema lifecycle runs inside the API start command (npm start):
+#     `npm prestart` = prisma db migrate (replay, idempotent — nothing to run when up to
+#     date) followed by prisma db verify (exit 0 only when the marker + live schema match
+#     the contract). Only then does Express boot. Render's preDeployCommand is NOT used:
+#     it runs before the build installs node_modules, so the Prisma CLI is unavailable
+#     there — that is why migrations must run at start, after `npm ci` + build.
 #  4. For admin bootstrap, ADMIN_EMAIL + ADMIN_PASSWORD are provided; the admin account
 #     is created/verified automatically on first boot (idempotent).
 #  5. Run seed (optional demo content) from a machine with access to the Neon DB:
@@ -20,8 +23,7 @@ services:
     env: node
     plan: starter
     buildCommand: cd backend && npm ci && npm run build
-    preDeployCommand: cd backend && npx prisma db migrate --db "$DIRECT_URL"
-    startCommand: cd backend && node dist/src/server.js
+    startCommand: cd backend && npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV

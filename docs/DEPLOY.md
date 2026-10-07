@@ -14,25 +14,28 @@ The blueprint in `render.yaml` boots both. It is a sample you can deploy as-is o
    - **Pooled** (`.neon.tech/…-pooler…`, same host as the app for pooled HTTP) → `DATABASE_URL`
    - **Direct** (unpooled) → `DIRECT_URL`
 3. If the schema is empty (new Neon branch/database), it is created automatically by the
-   API's pre-deploy migration step (below). Point `DATABASE_URL`/`DIRECT_URL` at the
+   API's start-time migration step (below). Point `DATABASE_URL`/`DIRECT_URL` at the
    intended production database — **do not** point them at a dev branch.
 
 ## 2. Backend service (Render, type: web, env: node)
 
-Build: `cd backend && npm run build`
-Pre-deploy: `cd backend && npx prisma db migrate --db "$DIRECT_URL"` (from `render.yaml`)
-Start: `node dist/src/server.js`
+Build: `cd backend && npm ci && npm run build`
+Start: `cd backend && npm start`
 Health: `GET /health`
 
 Required env vars: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NODE_ENV=production`, `FRONTEND_URL=https://<web-host>`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
 
-- **The schema is created by the pre-deploy migration**, not at app startup. On a blank
-  Neon database the committed baseline migration creates all 20 tables, indexes, unique
-  constraints and foreign keys. The migration is idempotent — `db migrate` replays only
-  migrations that haven't been applied ("nothing to run" when up to date).
-- **The server refuses to start against an uninitialized schema**: before booting it
-  probes the `User` table and fails with an actionable message (run the migration) instead
-  of surfacing `relation "public.User" does not exist`.
+- **The schema is applied at start time, before the server listens.** `npm start` runs
+  npm's `prestart` hook first: `prisma db migrate` (replay-only; "nothing to run" when up
+  to date) and then `prisma db verify` (aborts if the database marker or live schema does
+  not match the contract). Only after both succeed does Express boot. On a blank Neon
+  database the committed baseline migration creates all 20 tables, indexes, unique
+  constraints and foreign keys. This ordering is guaranteed because the start command runs
+  after the build has installed `node_modules` — Render's `preDeployCommand` is **not**
+  used, since it executes before the build installs the Prisma CLI.
+- **The server refuses to start against an uninitialized schema**: the boot-time probe of
+  the `User` table fails fast with an actionable message (instead of surfacing
+  `relation "public.User" does not exist`) if the migration step was skipped.
 - The **admin account** is created automatically on first boot (bootstrap is idempotent).
   Set a strong `ADMIN_PASSWORD`.
 - `AUTH_SECRET` signs HttpOnly session cookies. Generate once and never rotate casually — sessions are stateless (scrypt + HMAC signed) and invalidating means logging everyone out.
@@ -103,21 +106,33 @@ Workflow:
 4. Apply against a specific database (replay-only; safe to re-run):
 
    ```bash
-   npm run db:migrate                      # uses prisma.config.ts (DIRECT_URL ?? DATABASE_URL)
-   npm run db:migrate:prod                 # explicit: prisma db migrate --db "$DIRECT_URL"
-   npx prisma db migrate --db "$DIRECT_URL"   # the exact command render.yaml preDeploys
+   npm run db:migrate        # uses prisma.config.ts (DIRECT_URL ?? DATABASE_URL)
+   npm run db:migrate:prod   # explicit: prisma db migrate --db "${DIRECT_URL:-$DATABASE_URL}"
    ```
 
-5. Check status (no pending migrations → ready):
+5. Verify the database matches the contract (exit 0, else abort):
+
+   ```bash
+   npm run db:verify
+   ```
+
+6. Check status (no pending migrations → ready):
 
    ```bash
    npm run db:status
    ```
 
+Production start runs migration + verification automatically: `npm start` executes npm's
+`prestart` hook (`npm run db:migrate && npm run db:verify`) before `node dist/src/server.js`.
+Render's startCommand is `cd backend && npm start`, so every boot is: build → migrate →
+verify → admin bootstrap → listen. This is not `prisma db push` — `db migrate` is a
+plan-based, replay-only, idempotent apply; `db verify` never mutates the database.
+
 Rules:
 
 - Never run `prisma migrate dev` or `prisma migrate reset` against production.
-- Migrations run **before** boot (Render `preDeployCommand`), never as a blind
-  `db push` on startup. Startups that hit an uninitialized schema fail fast.
+- Migrations run **before** boot via the start command (`npm start` → `prestart`), never as a blind
+  `db push` on startup, and never in Render's `preDeployCommand` (it runs before the build
+  installs the Prisma CLI). Startups against an uninitialized schema fail fast.
 - Migrations connect with the **unpooled** `DIRECT_URL` (DDL over Neon's pooled
   `DATABASE_URL` is unsupported). The runtime app itself uses pooled `DATABASE_URL`.

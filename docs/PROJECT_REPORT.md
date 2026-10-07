@@ -64,7 +64,7 @@ Schema lifecycle (Prisma 8 migrations, not startup auto-sync):
 
 - Migrations are authored from `contract.prisma` (`prisma migration plan`), committed to git under `backend/migrations/app/`, and replayed to the database with `prisma db migrate` (replay-only, idempotent).
 - The commit baseline (`20261007T0416_baseline`) creates all 20 tables + indexes/constraints from empty; verified against a scratch database (99 operations, marker hash `8fd0bad7…` = contract hash) and re-running reports "nothing to run".
-- Render's API service runs the migration in `preDeployCommand` against Neon `DIRECT_URL` (unpooled) before build/start, so a first deploy cannot hit `relation "public.User" does not exist`.
+- Migration + schema verification run inside the API's start chain: `npm start` → npm `prestart` (`prisma db migrate` then `prisma db verify`) → `node dist/src/server.js`. Render startCommand is `cd backend && npm start`, so every boot is install → build → migrate → verify → admin bootstrap → listen. Render `preDeployCommand` is intentionally **not** used — it executes before the build installs `node_modules`, so the Prisma CLI is unavailable there (the original cause of the `relation "public.User" does not exist` on Neon).
 - The server refuses to boot against an uninitialized schema (pre-boot `User` table probe with an actionable error) — a fail-fast guard, not a silent `db push`.
 - Admin auto-bootstrap runs after the schema check and is idempotent (promotes or creates `ADMIN_EMAIL`; never logs the password).
 

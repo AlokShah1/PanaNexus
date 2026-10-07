@@ -81,8 +81,11 @@ Current: backend **100 tests / 16 files**, frontend **36 tests / 5 files** — a
 
 ## Deployment
 
-See `render.yaml` and `docs/DEPLOY.md`. The API's `preDeployCommand` applies the committed
-Prisma migrations to Neon's `DIRECT_URL` before the app starts, so first boot never hits an
-uninitialized schema (`npm run db:migrate` locally; `npm run start:prod` runs migrate + start).
+See `render.yaml` and `docs/DEPLOY.md`. The API boots via `npm start`, whose npm `prestart`
+hook runs `prisma db migrate` (idempotent replay of committed migrations) then `prisma db
+verify` (aborts unless the database matches the contract) before `node dist/src/server.js`.
+Render's startCommand is `cd backend && npm start`, so every deploy is:
+install → build → migrate → verify → admin bootstrap → listen. Migrations are **not** run
+in Render's `preDeployCommand` (it executes before the build installs the Prisma CLI).
 Production cookies are `SameSite=None; Secure` — both apps must be served over HTTPS
 (Render does this automatically).
