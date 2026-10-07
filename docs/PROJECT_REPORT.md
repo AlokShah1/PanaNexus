@@ -58,7 +58,15 @@ See `docs/DEPLOY.md`. Seed via `cd backend && npm run seed [-- --demo]`; demo ac
 
 ## 6. Deployment
 
-`render.yaml` (Render Blueprint) + `docs/DEPLOY.md` (Neon + seed + verification workflow). Production cookies are `SameSite=None; Secure`. See also `backend/.env.example` and `frontend/.env.example`.
+`render.yaml` (Render Blueprint) + `docs/DEPLOY.md` (Neon + migrations + seed + verification workflow). Production cookies are `SameSite=None; Secure`. See also `backend/.env.example` and `frontend/.env.example`.
+
+Schema lifecycle (Prisma 8 migrations, not startup auto-sync):
+
+- Migrations are authored from `contract.prisma` (`prisma migration plan`), committed to git under `backend/migrations/app/`, and replayed to the database with `prisma db migrate` (replay-only, idempotent).
+- The commit baseline (`20261007T0416_baseline`) creates all 20 tables + indexes/constraints from empty; verified against a scratch database (99 operations, marker hash `8fd0bad7…` = contract hash) and re-running reports "nothing to run".
+- Render's API service runs the migration in `preDeployCommand` against Neon `DIRECT_URL` (unpooled) before build/start, so a first deploy cannot hit `relation "public.User" does not exist`.
+- The server refuses to boot against an uninitialized schema (pre-boot `User` table probe with an actionable error) — a fail-fast guard, not a silent `db push`.
+- Admin auto-bootstrap runs after the schema check and is idempotent (promotes or creates `ADMIN_EMAIL`; never logs the password).
 
 ## 7. Verification (directive checklist)
 

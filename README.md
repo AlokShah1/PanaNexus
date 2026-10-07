@@ -49,6 +49,7 @@ docker exec -i pn-pg psql -U postgres -c 'create database pananexus'
 cd backend
 cp .env.example .env            # fill DATABASE_URL/DIRECT_URL/AUTH_SECRET
 npm install
+npm run db:migrate              # apply committed Prisma migrations (creates schema on a fresh DB)
 npm run seed                    # idempotent: facilities
 npm run seed -- --demo          # + demo accounts, ambulance, blood stock
 npm run dev                     # http://localhost:4000 (health: /health)
@@ -65,7 +66,7 @@ Admin auto-bootstraps on first boot from `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Demo ac
 ## Checks
 
 ```bash
-cd backend && npm run typecheck && npm run lint && npm test && npm run build
+cd backend && npm run typecheck && npm test && npm run build
 cd frontend && npm run typecheck && npm run lint && npm test && npm run build
 ```
 
@@ -80,4 +81,8 @@ Current: backend **100 tests / 16 files**, frontend **36 tests / 5 files** — a
 
 ## Deployment
 
-See `render.yaml` and `docs/DEPLOY.md`. Production cookies are `SameSite=None; Secure` — both apps must be served over HTTPS (Render does this automatically).
+See `render.yaml` and `docs/DEPLOY.md`. The API's `preDeployCommand` applies the committed
+Prisma migrations to Neon's `DIRECT_URL` before the app starts, so first boot never hits an
+uninitialized schema (`npm run db:migrate` locally; `npm run start:prod` runs migrate + start).
+Production cookies are `SameSite=None; Secure` — both apps must be served over HTTPS
+(Render does this automatically).

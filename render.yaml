@@ -4,11 +4,15 @@
 # Prerequisites on Render:
 #  1. Create a Neon PostgreSQL database and copy its POOLED url (database_url) and
 #     DIRECT url (direct_url) into the DATABASE_URL / DIRECT_URL env vars below.
+#     Migrations run against DIRECT_URL (unpooled) only.
 #  2. Set AUTH_SECRET to a long random string (e.g. 64 hex chars). This signs sessions.
-#  3. Run the API once, then from a local shell point the backend at the Neon DB and run:
+#  3. The API's preDeployCommand applies the Prisma migrations (baseline + any future
+#     ones) to the Neon DIRECT_URL before build/start, so the app never boots against
+#     an uninitialized schema. The serve also refuses to start if the schema is missing.
+#  4. For admin bootstrap, ADMIN_EMAIL + ADMIN_PASSWORD are provided; the admin account
+#     is created/verified automatically on first boot (idempotent).
+#  5. Run seed (optional demo content) from a machine with access to the Neon DB:
 #        cd backend && npm run seed -- --demo
-#  4. For admin bootstrap, admin@email + admin_password are provided; the admin account
-#     is created automatically on first boot.
 
 services:
   - name: pananexus-api
@@ -16,6 +20,7 @@ services:
     env: node
     plan: starter
     buildCommand: cd backend && npm ci && npm run build
+    preDeployCommand: cd backend && npx prisma db migrate --db "$DIRECT_URL"
     startCommand: cd backend && node dist/src/server.js
     healthCheckPath: /health
     envVars:
@@ -37,6 +42,8 @@ services:
         sync: false
       - key: RATE_LIMIT
         value: 900
+      - key: AUTH_RATE_LIMIT
+        value: 30
 
   - name: pananexus-web
     type: web

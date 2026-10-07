@@ -3,8 +3,10 @@ import app from './app.js';
 import { env } from './config/env.js';
 import { ensureAdmin } from './lib/bootstrap.js';
 import { attachRealtime } from './lib/socket.js';
+import { assertSchemaReady } from './lib/readiness.js';
 
 async function main(): Promise<void> {
+  await assertSchemaReady();
   await ensureAdmin();
   const server = createServer(app);
   attachRealtime(server);
