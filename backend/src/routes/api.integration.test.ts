@@ -1,9 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import fs from 'node:fs';
+import path from 'node:path';
 import app from '../app.js';
 import { db } from '../../prisma/db.js';
 import { env } from '../config/env.js';
+import { localReportsDir } from '../lib/storage.js';
 
 type Res = { status: number; json: any; cookie: string };
 
@@ -288,5 +291,153 @@ describeIf(dbOk, 'API integration — patient resources', () => {
     expect(anon.status).toBe(401);
     const authed = await req('GET', '/api/v1/notifications', undefined, jelly);
     expect(authed.status).toBe(200);
+  });
+});
+
+async function reqMultipart(
+  pathname: string,
+  fields: Record<string, string>,
+  file: { filename: string; contentType: string; bytes: Buffer } | null,
+  cookie?: string,
+): Promise<Res> {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  if (file) form.append('file', new Blob([file.bytes], { type: file.contentType }), file.filename);
+  const headers: Record<string, string> = {};
+  if (cookie) headers['Cookie'] = cookie;
+  const res = await fetch(`${base}${pathname}`, { method: 'POST', headers, body: form });
+  const json = await res.json().catch(() => null);
+  const setCookie = (res.headers.getSetCookie?.() ?? []).map((c: string) => c.split(';')[0]).join('; ');
+  return { status: res.status, json, cookie: setCookie };
+}
+
+const PDF_BYTES = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n', 'latin1');
+
+describeIf(dbOk, 'API integration — private medical reports', () => {
+  const ownerEmail = `it.rep.${UNIQ}@pananexus.local`;
+  const strangerEmail = `it.repstranger.${UNIQ}@pananexus.local`;
+  let ownerJar = '';
+  let strangerJar = '';
+  let patientId = '';
+  let uploadedId = '';
+  let uploadedKey = '';
+
+  beforeAll(async () => {
+    await req('POST', '/api/v1/auth/register', { name: 'IT Report Owner', email: ownerEmail, password: PASSWORD, role: 'PATIENT' });
+    const owner = await req('POST', '/api/v1/auth/login', { email: ownerEmail, password: PASSWORD });
+    ownerJar = owner.cookie;
+    const me = await req('GET', '/api/v1/patients/me', undefined, ownerJar);
+    patientId = me.json.data?.id ?? '';
+    if (!patientId) {
+      const created = await req('POST', '/api/v1/patients/me', { phone: '9000000000' }, ownerJar);
+      patientId = created.json.data.id;
+    }
+
+    await req('POST', '/api/v1/auth/register', { name: 'IT Report Stranger', email: strangerEmail, password: PASSWORD, role: 'PATIENT' });
+    const stranger = await req('POST', '/api/v1/auth/login', { email: strangerEmail, password: PASSWORD });
+    strangerJar = stranger.cookie;
+
+    const write = await reqMultipart(
+      '/api/v1/reports',
+      { patientId, category: 'LAB_RESULT', title: 'Blood panel' },
+      { filename: 'panel.pdf', contentType: 'application/pdf', bytes: PDF_BYTES },
+      ownerJar,
+    );
+    if (write.status === 201) {
+      uploadedId = write.json.data.id;
+      const row = await db.orm.public.ReportFile.where({ id: uploadedId }).first();
+      uploadedKey = row?.storageKey ?? '';
+    }
+  });
+
+  afterAll(async () => {
+    if (uploadedKey) {
+      await fs.promises.rm(path.join(localReportsDir(), uploadedKey), { force: true }).catch(() => undefined);
+    }
+  });
+
+  it('rejects an anonymous upload', async () => {
+    const r = await reqMultipart(
+      '/api/v1/reports',
+      { patientId, category: 'LAB_RESULT' },
+      { filename: 'x.pdf', contentType: 'application/pdf', bytes: PDF_BYTES },
+    );
+    expect(r.status).toBe(401);
+  });
+
+  it('rejects a file whose content does not match its declared type', async () => {
+    const r = await reqMultipart(
+      '/api/v1/reports',
+      { patientId, category: 'LAB_RESULT' },
+      { filename: 'fake.png', contentType: 'image/png', bytes: PDF_BYTES },
+      ownerJar,
+    );
+    expect(r.status).toBe(422);
+    expect(r.json.error.code).toBe('TYPE_MISMATCH');
+  });
+
+  it('rejects an unsupported file type', async () => {
+    const r = await reqMultipart(
+      '/api/v1/reports',
+      { patientId, category: 'LAB_RESULT' },
+      { filename: 'notes.txt', contentType: 'text/plain', bytes: Buffer.from('hello') },
+      ownerJar,
+    );
+    expect(r.status).toBe(422);
+    expect(r.json.error.code).toBe('UNSUPPORTED_TYPE');
+  });
+
+  it('uploads a valid PDF and stores only metadata', async () => {
+    expect(uploadedId).toBeTruthy();
+    const r = await req('GET', '/api/v1/reports', undefined, ownerJar);
+    expect(r.status).toBe(200);
+    const item = r.json.data.items.find((i: any) => i.id === uploadedId);
+    expect(item.category).toBe('LAB_RESULT');
+    expect(item.mimeType).toBe('application/pdf');
+    expect(item.originalFilename).toBe('panel.pdf');
+    expect(item.isDemo).toBe(false);
+    expect(item.storageKey).toBeUndefined();
+  });
+
+  it('denies a stranger from listing or downloading the report', async () => {
+    const list = await req('GET', `/api/v1/reports?patientId=${patientId}`, undefined, strangerJar);
+    expect(list.status).toBe(403);
+    const dl = await req('GET', `/api/v1/reports/${uploadedId}/download`, undefined, strangerJar);
+    expect(dl.status).toBe(403);
+  });
+
+  it('issues a short-lived signed download URL that serves the file', async () => {
+    const r = await req('GET', `/api/v1/reports/${uploadedId}/download`, undefined, ownerJar);
+    expect(r.status).toBe(200);
+    expect(r.json.data.expiresInSeconds).toBeGreaterThan(0);
+    expect(r.json.data.url).toContain('/api/v1/reports/file');
+
+    const file = await fetch(r.json.data.url);
+    expect(file.status).toBe(200);
+    const body = Buffer.from(await file.arrayBuffer());
+    expect(body.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+  });
+
+  it('rejects a tampered download link', async () => {
+    const r = await req('GET', `/api/v1/reports/${uploadedId}/download`, undefined, ownerJar);
+    const url = new URL(r.json.data.url);
+    url.searchParams.set('sig', 'deadbeef'.repeat(8));
+    const file = await fetch(url.toString());
+    expect(file.status).toBe(403);
+  });
+
+  it('returns FILE_MISSING when the stored object is gone', async () => {
+    expect(uploadedKey).toBeTruthy();
+    await fs.promises.rm(path.join(localReportsDir(), uploadedKey), { force: true });
+    const r = await req('GET', `/api/v1/reports/${uploadedId}/download`, undefined, ownerJar);
+    expect(r.status).toBe(404);
+    expect(r.json.error.code).toBe('FILE_MISSING');
+  });
+
+  it('soft-deletes the report for its uploader', async () => {
+    const del = await req('DELETE', `/api/v1/reports/${uploadedId}`, undefined, ownerJar);
+    expect(del.status).toBe(200);
+    const after = await req('GET', `/api/v1/reports/${uploadedId}/download`, undefined, ownerJar);
+    expect(after.status).toBe(404);
   });
 });

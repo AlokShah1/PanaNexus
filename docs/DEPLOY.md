@@ -36,6 +36,8 @@ Health: `GET /health`
 
 Required env vars: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NODE_ENV=production`, `FRONTEND_URL=https://<web-host>`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
 
+For private medical report storage, also set `STORAGE_DRIVER=s3` with `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` — see [STORAGE.md](./STORAGE.md).
+
 - **The schema is applied at start time, before the server listens.** `npm start` runs
   npm's `prestart` hook first: `prisma db migrate` (replay-only; "nothing to run" when up
   to date) and then `prisma db verify` (aborts if the database marker or live schema does

@@ -1,5 +1,7 @@
 import { db } from '../../prisma/db.js';
 import { hashPassword } from './auth-core.js';
+import { createHash, randomUUID } from 'node:crypto';
+import { getStorage } from './storage.js';
 
 /**
  * Synthetic demo data for presentation and testing ONLY.
@@ -25,6 +27,7 @@ function newLedger(): Ledger {
     availability: [],
     appointments: [],
     records: [],
+    reportFiles: [],
     ambulances: [],
     emergencies: [],
     trips: [],
@@ -462,6 +465,36 @@ export async function seedDemoData() {
     ledger.records.push(row.id);
   }
 
+  /* ---------------------------------------------------- demo report files */
+  // Synthetic PDFs kept under a `demo/` prefix and flagged isDemo so they never
+  // mix with real patient documents.
+  const demoPdf = Buffer.from(
+    '%PDF-1.4\n% PanaNexus synthetic demo report\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n',
+    'latin1',
+  );
+  const reportCategories = ['MEDICAL_REPORT', 'LAB_RESULT', 'PRESCRIPTION', 'IMAGING', 'DISCHARGE_SUMMARY'] as const;
+  for (let i = 0; i < 18; i += 1) {
+    const patient = patientUsers[i % patientUsers.length];
+    const doctor = doctorUsers[Math.floor(i / 2) % doctorUsers.length];
+    const category = reportCategories[i % reportCategories.length];
+    const storageKey = `demo/${patient.patientId}/${randomUUID()}.pdf`;
+    await getStorage().put(storageKey, demoPdf, 'application/pdf');
+    const row = await db.orm.public.ReportFile.create({
+      patientId: patient.patientId,
+      recordId: null,
+      uploadedById: doctor.id,
+      category: category as never,
+      title: `${category.replace(/_/g, ' ').toLowerCase()} — synthetic demo`,
+      originalFilename: `demo-${category.toLowerCase()}-${i + 1}.pdf`,
+      storageKey,
+      mimeType: 'application/pdf',
+      sizeBytes: demoPdf.length,
+      checksumSha256: createHash('sha256').update(demoPdf).digest('hex'),
+      isDemo: true,
+    });
+    ledger.reportFiles.push(row.id);
+  }
+
   /* ------------------------------------------------------ emergencies/trips */
   const categories: Array<'MEDICAL' | 'ACCIDENT' | 'INJURY' | 'PREGNANCY' | 'BREATHING'> = ['MEDICAL', 'ACCIDENT', 'INJURY', 'PREGNANCY', 'BREATHING'];
   const makeRequest = async (i: number, status: 'PENDING' | 'MATCHED' | 'ASSIGNED' | 'EN_ROUTE' | 'COMPLETED' | 'CANCELLED', priority: 'MEDIUM' | 'HIGH' | 'CRITICAL') => {
@@ -600,7 +633,7 @@ export async function seedDemoData() {
 
 export async function clearDemoData() {
   const ledger = await readLedger();
-  const [allUsers, allPatients, allDoctors, allAmbulances, allAppointments, allRecords, allEmergencies, allTrips, allLocations, allAvailability, allBloodDonors, allOrganDonors, allBloodRequests, allFeedback, allNotifications, allVerifications] =
+  const [allUsers, allPatients, allDoctors, allAmbulances, allAppointments, allRecords, allReportFiles, allEmergencies, allTrips, allLocations, allAvailability, allBloodDonors, allOrganDonors, allBloodRequests, allFeedback, allNotifications, allVerifications] =
     await Promise.all([
       db.orm.public.User.all(),
       db.orm.public.Patient.all(),
@@ -608,6 +641,7 @@ export async function clearDemoData() {
       db.orm.public.Ambulance.all(),
       db.orm.public.Appointment.all(),
       db.orm.public.MedicalRecord.all(),
+      db.orm.public.ReportFile.all(),
       db.orm.public.EmergencyRequest.all(),
       db.orm.public.Trip.all(),
       db.orm.public.LocationUpdate.all(),
@@ -635,6 +669,13 @@ export async function clearDemoData() {
   const tripIds = allTrips.filter((t) => emergencySet.has(t.emergencyRequestId) || ambulanceIds.includes(t.ambulanceId)).map((t) => t.id);
   const tripSet = new Set(tripIds);
 
+  const demoReportFiles = allReportFiles.filter(
+    (f) => f.isDemo || patientSet.has(f.patientId) || userSet.has(f.uploadedById),
+  );
+  for (const f of demoReportFiles) {
+    await getStorage().remove(f.storageKey).catch(() => undefined);
+  }
+
   const pick = <T,>(rows: T[], fn: (row: T) => boolean) => rows.filter(fn);
 
   const groups: Array<[keyof typeof db.orm.public, string[]]> = [
@@ -643,6 +684,7 @@ export async function clearDemoData() {
     ['EmergencyRequest', emergencyIds],
     ['Notification', pick(allNotifications, (n) => userSet.has(n.userId)).map((n) => n.id)],
     ['Feedback', pick(allFeedback, (f) => userSet.has(f.authorId)).map((f) => f.id)],
+    ['ReportFile', demoReportFiles.map((f) => f.id)],
     ['MedicalRecord', pick(allRecords, (r) => patientSet.has(r.patientId) || (r.doctorId ? doctorSet.has(r.doctorId) : false)).map((r) => r.id)],
     ['Appointment', pick(allAppointments, (a) => patientSet.has(a.patientId) || doctorSet.has(a.doctorId)).map((a) => a.id)],
     ['DoctorAvailability', pick(allAvailability, (a) => doctorSet.has(a.doctorId)).map((a) => a.id)],

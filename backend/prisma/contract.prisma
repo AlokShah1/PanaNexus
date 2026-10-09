@@ -53,6 +53,15 @@ enum MedicalRecordType {
   OTHER
 }
 
+enum ReportCategory {
+  MEDICAL_REPORT
+  LAB_RESULT
+  PRESCRIPTION
+  IMAGING
+  DISCHARGE_SUMMARY
+  OTHER
+}
+
 model User {
   id           String      @id @default(uuid())
   email        String      @unique
@@ -77,6 +86,7 @@ model User {
   verificationRequests VerificationRequest[] @relation("UserVerificationRequests")
   reviewedRequests     VerificationRequest[] @relation("UserReviewedRequests")
   sessions     Session[]
+  reportFiles  ReportFile[]
 
   @@index([role])
   @@index([verificationStatus])
@@ -148,6 +158,7 @@ model Patient {
   appointments   Appointment[]
   medicalRecords MedicalRecord[]
   emergencyRequests EmergencyRequest[]
+  reportFiles    ReportFile[]
 }
 
 model Doctor {
@@ -239,11 +250,36 @@ model MedicalRecord {
   notes     String?
   prescriptions String[]
   attachments   String[]
+  reportFiles   ReportFile[]
   createdAt TimestamptzString @default(now())
   updatedAt temporal.updatedAtString()
 
   @@index([patientId])
   @@index([facilityId])
+}
+
+model ReportFile {
+  id               String          @id @default(uuid())
+  patient          Patient         @relation(fields: [patientId], references: [id])
+  patientId        String
+  record           MedicalRecord?  @relation(fields: [recordId], references: [id])
+  recordId         String?
+  uploadedBy       User            @relation(fields: [uploadedById], references: [id])
+  uploadedById     String
+  category         ReportCategory  @default(MEDICAL_REPORT)
+  title            String?
+  originalFilename String
+  storageKey       String          @unique
+  mimeType         String
+  sizeBytes        Int
+  checksumSha256   String
+  isDemo           Boolean         @default(false)
+  createdAt        TimestamptzString @default(now())
+  deletedAt        TimestamptzString?
+
+  @@index([patientId])
+  @@index([recordId])
+  @@index([uploadedById])
 }
 
 enum AmbulanceType {

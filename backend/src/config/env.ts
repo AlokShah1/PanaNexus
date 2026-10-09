@@ -19,6 +19,27 @@ const schema = z.object({
   ADMIN_EMAIL: z.string().email().default('pananexusadmin@gmail.com'),
   ADMIN_PASSWORD: z.string().min(8).optional(),
   UPLOAD_DIR: z.string().default('uploads'),
+  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  AWS_REGION: z.string().min(1).optional(),
+  AWS_S3_BUCKET: z.string().min(1).optional(),
+  AWS_ACCESS_KEY_ID: z.string().min(1).optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  REPORT_MAX_FILE_BYTES: z.coerce.number().int().positive().default(15 * 1024 * 1024),
+  REPORT_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+}).superRefine((value, ctx) => {
+  if (value.STORAGE_DRIVER !== 's3') return;
+  for (const key of ['AWS_REGION', 'AWS_S3_BUCKET'] as const) {
+    if (!value[key]) {
+      ctx.addIssue({ code: 'custom', path: [key], message: `${key} is required when STORAGE_DRIVER=s3.` });
+    }
+  }
+  if (Boolean(value.AWS_ACCESS_KEY_ID) !== Boolean(value.AWS_SECRET_ACCESS_KEY)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['AWS_ACCESS_KEY_ID'],
+      message: 'AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be set together.',
+    });
+  }
 });
 
 const parsed = schema.safeParse(process.env);
@@ -43,6 +64,13 @@ if (env.NODE_ENV === 'production') {
   if (env.DEMO_MODE === 'true') {
     throw new Error('Backend env validation failed: DEMO_MODE must be false when NODE_ENV=production.');
   }
+}
+
+if (env.NODE_ENV === 'production' && env.STORAGE_DRIVER === 'local') {
+  console.warn(
+    '[storage] STORAGE_DRIVER=local in production. Private medical reports should use ' +
+      'S3-compatible storage (set STORAGE_DRIVER=s3 plus AWS_* variables).',
+  );
 }
 
 export const demoMode = env.DEMO_MODE === 'true';

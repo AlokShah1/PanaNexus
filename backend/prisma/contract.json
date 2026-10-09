@@ -72,6 +72,10 @@
       "model": "PlatformSetting",
       "namespace": "public"
     },
+    "ReportFile": {
+      "model": "ReportFile",
+      "namespace": "public"
+    },
     "Session": {
       "model": "Session",
       "namespace": "public"
@@ -349,6 +353,35 @@
               {
                 "name": "INACTIVE",
                 "value": "INACTIVE"
+              }
+            ]
+          },
+          "ReportCategory": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "MEDICAL_REPORT",
+                "value": "MEDICAL_REPORT"
+              },
+              {
+                "name": "LAB_RESULT",
+                "value": "LAB_RESULT"
+              },
+              {
+                "name": "PRESCRIPTION",
+                "value": "PRESCRIPTION"
+              },
+              {
+                "name": "IMAGING",
+                "value": "IMAGING"
+              },
+              {
+                "name": "DISCHARGE_SUMMARY",
+                "value": "DISCHARGE_SUMMARY"
+              },
+              {
+                "name": "OTHER",
+                "value": "OTHER"
               }
             ]
           },
@@ -2348,6 +2381,21 @@
                   "model": "Patient",
                   "namespace": "public"
                 }
+              },
+              "reportFiles": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "recordId"
+                  ]
+                },
+                "to": {
+                  "model": "ReportFile",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -2711,6 +2759,21 @@
                   "namespace": "public"
                 }
               },
+              "reportFiles": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "patientId"
+                  ]
+                },
+                "to": {
+                  "model": "ReportFile",
+                  "namespace": "public"
+                }
+              },
               "user": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -2798,6 +2861,212 @@
               },
               "namespaceId": "public",
               "table": "PlatformSetting"
+            }
+          },
+          "ReportFile": {
+            "fields": {
+              "category": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "ReportCategory",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "checksumSha256": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "deletedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "isDemo": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "mimeType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "originalFilename": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "patientId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "recordId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sizeBytes": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "storageKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "uploadedById": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "patient": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "patientId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Patient",
+                  "namespace": "public"
+                }
+              },
+              "record": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "recordId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "MedicalRecord",
+                  "namespace": "public"
+                }
+              },
+              "uploadedBy": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "uploadedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "category": {
+                  "column": "category"
+                },
+                "checksumSha256": {
+                  "column": "checksumSha256"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "deletedAt": {
+                  "column": "deletedAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "isDemo": {
+                  "column": "isDemo"
+                },
+                "mimeType": {
+                  "column": "mimeType"
+                },
+                "originalFilename": {
+                  "column": "originalFilename"
+                },
+                "patientId": {
+                  "column": "patientId"
+                },
+                "recordId": {
+                  "column": "recordId"
+                },
+                "sizeBytes": {
+                  "column": "sizeBytes"
+                },
+                "storageKey": {
+                  "column": "storageKey"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "uploadedById": {
+                  "column": "uploadedById"
+                }
+              },
+              "namespaceId": "public",
+              "table": "ReportFile"
             }
           },
           "Session": {
@@ -3347,6 +3616,21 @@
                 },
                 "to": {
                   "model": "Patient",
+                  "namespace": "public"
+                }
+              },
+              "reportFiles": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "uploadedById"
+                  ]
+                },
+                "to": {
+                  "model": "ReportFile",
                   "namespace": "public"
                 }
               },
@@ -5535,6 +5819,193 @@
               },
               "uniques": []
             },
+            "ReportFile": {
+              "checks": [
+                {
+                  "expression": "\"category\" IN ('MEDICAL_REPORT', 'LAB_RESULT', 'PRESCRIPTION', 'IMAGING', 'DISCHARGE_SUMMARY', 'OTHER')",
+                  "name": "ReportFile_category_check_b8a5d14f",
+                  "prefix": "ReportFile_category_check"
+                }
+              ],
+              "columns": {
+                "category": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "MEDICAL_REPORT"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ReportCategory",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "checksumSha256": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "deletedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "isDemo": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "mimeType": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "originalFilename": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "patientId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "recordId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "sizeBytes": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "storageKey": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "uploadedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "patientId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ReportFile"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Patient"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "recordId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ReportFile"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "MedicalRecord"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "uploadedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ReportFile"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "patientId"
+                  ],
+                  "name": "ReportFile_patientId_idx_e5f07e88",
+                  "prefix": "ReportFile_patientId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "recordId"
+                  ],
+                  "name": "ReportFile_recordId_idx_6f7ec67b",
+                  "prefix": "ReportFile_recordId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "uploadedById"
+                  ],
+                  "name": "ReportFile_uploadedById_idx_b92fad21",
+                  "prefix": "ReportFile_uploadedById_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "storageKey"
+                  ]
+                }
+              ]
+            },
             "Session": {
               "checks": [
                 {
@@ -6216,6 +6687,17 @@
                 "INACTIVE"
               ]
             },
+            "ReportCategory": {
+              "kind": "valueSet",
+              "values": [
+                "MEDICAL_REPORT",
+                "LAB_RESULT",
+                "PRESCRIPTION",
+                "IMAGING",
+                "DISCHARGE_SUMMARY",
+                "OTHER"
+              ]
+            },
             "Role": {
               "kind": "valueSet",
               "values": [
@@ -6269,10 +6751,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "d8ec304aa1dcdf7a97aced4512803cf3026d3fe3ae1cd29495c951aaa9e77f61"
+    "storageHash": "a7e115b650e2643c5d15cbe082334fe1dce8537ccf85629a6a430f2062a98eeb"
   },
   "execution": {
-    "executionHash": "0f42534a46440079ff671f453c73305f0cf8db75f7464334cbb168fc02dc7689",
+    "executionHash": "793775b6f4c4bec907ddf96335e86499b44fc6c6030c3d89562f937ea41fc9a0",
     "mutations": {
       "defaults": [
         {
@@ -6643,6 +7125,17 @@
           "ref": {
             "entry": "PlatformSetting",
             "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "ReportFile",
+            "field": "id",
             "namespace": "public"
           }
         },
