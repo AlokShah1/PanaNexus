@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { db } from '../../prisma/db.js';
 import { fail, ok } from '../lib/api.js';
-import { getSession } from '../lib/auth.js';
 import { getUser, requireAuth, requireRole, requireVerified } from '../middleware/auth.js';
 import { slotTaken } from '../lib/appointments.js';
 import { createAppointmentSchema, updateAppointmentSchema, availabilitySchema } from '../validations/healthcare.js';
@@ -120,6 +119,11 @@ router.get('/', requireAuth, async (req, res) => {
     }));
     const total = filtered.length;
     return ok(res, { items, meta: pageMeta(p, total) });
+  }
+
+  // Every other role (donors, operators, etc.) must not enumerate appointments.
+  if (user.role !== 'ADMIN') {
+    return ok(res, { items: [], meta: pageMeta(p, 0) });
   }
 
   const rows = await db.orm.public.Appointment.include('doctor', (d: any) => d.include('user')).include('patient', (p: any) => p.include('user')).include('facility').all();

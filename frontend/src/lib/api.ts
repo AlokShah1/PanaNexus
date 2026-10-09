@@ -50,6 +50,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
 
   if (!res.ok) {
     const b = body as { error?: { code?: string; message?: string } } | null;
+    if (res.status === 401 && b?.error?.code === 'SESSION_EXPIRED' && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pn:session-expired'));
+    }
     const msg =
       res.status < 500 && b?.error?.message
         ? b.error.message

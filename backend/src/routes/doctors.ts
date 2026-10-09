@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { db } from '../../prisma/db.js';
 import { fail, ok } from '../lib/api.js';
-import { getSession } from '../lib/auth.js';
-import { getUser, requireAuth, requireRole, requireVerified } from '../middleware/auth.js';
+
+import { getUser, optionalUser, requireAuth, requireRole, requireVerified, withOptionalAuth } from '../middleware/auth.js';
 import { doctorProfileSchema } from '../validations/healthcare.js';
 
 const router = Router();
@@ -60,12 +60,12 @@ router.get('/me', requireAuth, requireRole('DOCTOR', 'ADMIN'), async (req, res) 
   return ok(res, { ...doctor, availability });
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', withOptionalAuth, async (req, res) => {
   const { id } = req.params;
   const d = await db.orm.public.Doctor.where({ id }).include('user').include('facility').first();
   if (!d) return fail(res, 'NOT_FOUND', 'Doctor not found.', 404);
-  const session = getSession(req);
-  const isSelfOrAdmin = session && (session.sub === d.userId || session.role === 'ADMIN');
+  const session = optionalUser(req);
+  const isSelfOrAdmin = session && (session.id === d.userId || session.role === 'ADMIN');
   const result: any = {
     id: d.id,
     name: d.user?.name ?? null,

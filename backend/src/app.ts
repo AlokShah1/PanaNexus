@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env.js';
 import apiRouter from './routes/index.js';
+import { originGuard } from './middleware/origin.js';
 
 const frontendOrigin = env.FRONTEND_URL.replace(/\/+$/, '');
 const app = express();
@@ -18,6 +19,7 @@ app.use(
 );
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
+app.use(originGuard);
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,

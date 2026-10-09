@@ -1,6 +1,7 @@
 import './globals.css';
 import { Inter } from 'next/font/google';
 import SiteHeader from '@/components/SiteHeader';
+import SessionGuard from '@/components/SessionGuard';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
@@ -9,6 +10,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     <html lang="en" className={`h-full antialiased ${inter.variable}`}>
       <body className="flex min-h-full flex-col bg-surface text-ink">
         <SiteHeader />
+        <SessionGuard />
         <main className="flex-1">{children}</main>
         <footer className="border-t border-slate-200 bg-white">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-ink-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">

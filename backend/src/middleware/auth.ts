@@ -1,7 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import { db } from '../../prisma/db.js';
 import { fail } from '../lib/api.js';
-import { clearSessionCookie, getSession } from '../lib/auth.js';
+import { clearSessionCookie, readSessionToken } from '../lib/auth.js';
+import { resolveSession } from '../lib/session.js';
 import type { Role } from '../lib/auth-core.js';
 
 export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED' | 'SUSPENDED';
@@ -26,33 +27,70 @@ export function getUser(req: Request): SessionUser {
   return user;
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  void (async () => {
-    const session = getSession(req);
-    if (!session) {
-      fail(res, 'UNAUTHORIZED', 'Sign in required.', 401);
-      return;
-    }
-    const user = await db.orm.public.User.where({ id: session.sub }).first();
-    if (!user) {
-      clearSessionCookie(res);
-      fail(res, 'UNAUTHORIZED', 'Sign in required.', 401);
-      return;
-    }
-    if (user.verificationStatus === 'SUSPENDED') {
-      clearSessionCookie(res);
-      fail(res, 'ACCOUNT_SUSPENDED', 'Your account has been suspended. Contact support.', 403);
-      return;
-    }
-    (req as AuthedRequest).user = {
+export function optionalUser(req: Request): SessionUser | null {
+  return (req as AuthedRequest).user ?? null;
+}
+
+type LoadResult =
+  | { ok: true; user: SessionUser }
+  | { ok: false; reason: 'missing' | 'expired' | 'revoked' | 'suspended' };
+
+async function loadSessionUser(req: Request): Promise<LoadResult> {
+  const resolution = await resolveSession(readSessionToken(req));
+  if (resolution.status !== 'valid') {
+    return { ok: false, reason: resolution.status };
+  }
+  const user = await db.orm.public.User.where({ id: resolution.session.userId }).first();
+  if (!user) return { ok: false, reason: 'missing' };
+  if (user.verificationStatus === 'SUSPENDED') return { ok: false, reason: 'suspended' };
+  return {
+    ok: true,
+    user: {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
-      verificationStatus: user.verificationStatus,
+      role: user.role as Role,
+      verificationStatus: user.verificationStatus as VerificationStatus,
       facilityId: user.facilityId,
       phone: user.phone,
-    };
+    },
+  };
+}
+
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  void (async () => {
+    const result = await loadSessionUser(req);
+    if (!result.ok) {
+      if (result.reason === 'expired' || result.reason === 'revoked') {
+        clearSessionCookie(res);
+        fail(res, 'SESSION_EXPIRED', 'Your session has ended. Please sign in again.', 401);
+        return;
+      }
+      if (result.reason === 'suspended') {
+        clearSessionCookie(res);
+        fail(res, 'ACCOUNT_SUSPENDED', 'Your account has been suspended. Contact support.', 403);
+        return;
+      }
+      fail(res, 'UNAUTHORIZED', 'Sign in required.', 401);
+      return;
+    }
+    (req as AuthedRequest).user = result.user;
+    next();
+  })().catch(next);
+}
+
+/**
+ * Attach the authenticated user when a valid session is present, but never
+ * reject the request. Used by public routes that reveal more to signed-in users.
+ */
+export function withOptionalAuth(req: Request, res: Response, next: NextFunction): void {
+  void (async () => {
+    try {
+      const result = await loadSessionUser(req);
+      if (result.ok) (req as AuthedRequest).user = result.user;
+    } catch {
+      /* treat unexpected failures as anonymous */
+    }
     next();
   })().catch(next);
 }

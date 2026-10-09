@@ -76,10 +76,30 @@ model User {
   feedback      Feedback[]
   verificationRequests VerificationRequest[] @relation("UserVerificationRequests")
   reviewedRequests     VerificationRequest[] @relation("UserReviewedRequests")
+  sessions     Session[]
 
   @@index([role])
   @@index([verificationStatus])
   @@index([facilityId])
+}
+
+model Session {
+  id                String   @id @default(uuid())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
+  tokenHash         String   @unique
+  role              Role
+  userAgent         String?
+  ip                String?
+  createdAt         TimestamptzString @default(now())
+  lastSeenAt        TimestamptzString @default(now())
+  idleExpiresAt     TimestamptzString
+  absoluteExpiresAt TimestamptzString
+  revokedAt         TimestamptzString?
+  rotatedFrom       String?
+
+  @@index([userId])
+  @@index([absoluteExpiresAt])
 }
 
 model VerificationRequest {

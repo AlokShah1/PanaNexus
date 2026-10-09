@@ -1,14 +1,10 @@
 import type { Request, Response } from 'express';
-import { createSessionToken, hashPassword, verifyPassword, verifySessionToken } from './auth-core.js';
-import type { Role, SessionPayload } from './auth-core.js';
+import { hashPassword, verifyPassword } from './auth-core.js';
+import type { Role } from './auth-core.js';
 
-const SESSION_COOKIE = 'hc_session';
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+export const SESSION_COOKIE = 'hc_session';
 
-function readToken(req: Request): string | undefined {
-  const cookies = (req as Request & { cookies?: Record<string, string> }).cookies;
-  if (cookies && cookies[SESSION_COOKIE]) return cookies[SESSION_COOKIE];
-  const header = req.headers?.cookie;
+function readTokenFromHeader(header: string | undefined): string | undefined {
   if (!header) return undefined;
   for (const part of header.split(';')) {
     const [k, ...rest] = part.trim().split('=');
@@ -17,25 +13,29 @@ function readToken(req: Request): string | undefined {
   return undefined;
 }
 
-export function getSession(req: Request): SessionPayload | null {
-  return verifySessionToken(readToken(req));
+export function readSessionToken(req: Request): string | undefined {
+  const cookies = (req as Request & { cookies?: Record<string, string> }).cookies;
+  if (cookies && cookies[SESSION_COOKIE]) return cookies[SESSION_COOKIE];
+  return readTokenFromHeader(req.headers?.cookie);
 }
 
-export function setSessionCookie(res: Response, userId: string, role: Role): void {
+function cookieOptions() {
   const isProd = process.env.NODE_ENV === 'production';
-  res.cookie(SESSION_COOKIE, createSessionToken(userId, role), {
+  return {
     httpOnly: true,
-    sameSite: isProd ? 'none' : 'lax',
+    sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
     secure: isProd,
     path: '/',
-    maxAge: SESSION_TTL_MS / 1000,
-  });
+  };
+}
+
+export function setSessionCookie(res: Response, token: string, maxAgeSeconds: number): void {
+  res.cookie(SESSION_COOKIE, token, { ...cookieOptions(), maxAge: maxAgeSeconds });
 }
 
 export function clearSessionCookie(res: Response): void {
-  const isProd = process.env.NODE_ENV === 'production';
-  res.clearCookie(SESSION_COOKIE, { httpOnly: true, sameSite: isProd ? 'none' : 'lax', secure: isProd, path: '/' });
+  res.clearCookie(SESSION_COOKIE, cookieOptions());
 }
 
-export { createSessionToken, hashPassword, verifyPassword, verifySessionToken };
-export type { Role, SessionPayload };
+export { hashPassword, verifyPassword };
+export type { Role };

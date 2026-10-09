@@ -2,7 +2,7 @@ import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { db } from '../../prisma/db.js';
 import { env } from '../config/env.js';
-import { verifySessionToken } from '../lib/auth-core.js';
+import { resolveSession } from '../lib/session.js';
 import { OPERATOR_ROOM, setRealtime, tripRoom, userRoom } from '../lib/realtime.js';
 
 function readCookieToken(header: string | undefined): string | undefined {
@@ -36,14 +36,18 @@ export function attachRealtime(server: HttpServer): Server {
   });
 
   io.use((socket, next) => {
-    const token =
-      readCookieToken(socket.handshake.headers.cookie) ??
-      (typeof socket.handshake.auth?.token === 'string' ? socket.handshake.auth.token : undefined);
-    const session = verifySessionToken(token);
-    if (!session) return next(new Error('UNAUTHORIZED'));
-    socket.data.userId = session.sub;
-    socket.data.role = session.role;
-    next();
+    void (async () => {
+      const token =
+        readCookieToken(socket.handshake.headers.cookie) ??
+        (typeof socket.handshake.auth?.token === 'string' ? socket.handshake.auth.token : undefined);
+      const resolution = await resolveSession(token);
+      if (resolution.status !== 'valid') return next(new Error('UNAUTHORIZED'));
+      const user = await db.orm.public.User.where({ id: resolution.session.userId }).first();
+      if (!user || user.verificationStatus === 'SUSPENDED') return next(new Error('UNAUTHORIZED'));
+      socket.data.userId = user.id;
+      socket.data.role = user.role;
+      next();
+    })().catch(() => next(new Error('UNAUTHORIZED')));
   });
 
   io.on('connection', (socket) => {
