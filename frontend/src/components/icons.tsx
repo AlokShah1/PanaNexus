@@ -215,3 +215,28 @@ export const IconStar = (p: IconProps) => (
   </svg>
 );
 
+export const IconUpload = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 15V4" />
+    <path d="m7.5 8.5 4.5-4.5 4.5 4.5" />
+    <path d="M4.5 15v3.5a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V15" />
+  </svg>
+);
+
+export const IconDownload = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 4v11" />
+    <path d="m7.5 10.5 4.5 4.5 4.5-4.5" />
+    <path d="M4.5 15v3.5a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5V15" />
+  </svg>
+);
+
+export const IconTrash = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 7h16" />
+    <path d="M10 4h4" />
+    <path d="M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7" />
+    <path d="M10 11v6M14 11v6" />
+  </svg>
+);
+

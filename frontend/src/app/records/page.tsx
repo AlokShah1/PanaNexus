@@ -6,6 +6,7 @@ import { apiGet, apiPatch, Paginated } from '@/lib/api';
 import { Badge, Blob, SectionHeading } from '@/components/ui';
 import { IconFileText, IconRefresh } from '@/components/icons';
 import RecordForm from '@/components/records/RecordForm';
+import ReportFiles from '@/components/records/ReportFiles';
 import { formatDateTime, formatDate } from '@/lib/format';
 
 type RecordItem = {
@@ -73,7 +74,7 @@ export default function Page() {
   }
 
   useEffect(() => {
-    if (!canCreate) return;
+    if (!canCreate && profile?.role !== 'FACILITY_STAFF') return;
     apiGet<Paginated<Appointment>>('/appointments?limit=100').then((r) => {
       if (r.ok) {
         const map = new Map<string, { id: string; name: string | null }>();
@@ -83,7 +84,7 @@ export default function Page() {
         setPatients(Array.from(map.values()));
       }
     });
-  }, [canCreate]);
+  }, [canCreate, profile?.role]);
 
   const filtered = useMemo(() => {
     if (!search) return items;
@@ -154,6 +155,7 @@ export default function Page() {
       </header>
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-10 sm:px-6">
         {canCreate && <RecordForm patients={patients} onSuccess={() => load(1, typeFilter)} />}
+        <ReportFiles patients={patients} />
         <div className="flex flex-wrap items-center gap-3">
           <input
             value={search}
