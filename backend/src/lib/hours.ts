@@ -3,6 +3,26 @@ export type NowIST = { day: number; minutes: number };
 
 const DAY: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
+/** India has a single fixed offset (UTC+5:30) and observes no DST. */
+export const IST_OFFSET_MINUTES = 330;
+
+/**
+ * Build the UTC instant for an IST wall-clock calendar date and minute-of-day.
+ * Availability is authored in IST, so slot generation must convert from IST
+ * wall-clock rather than from the server's local timezone (which is UTC on most
+ * hosts). `month0` is zero-based, matching `Date.UTC`.
+ */
+export function istWallClockToUtc(
+  year: number,
+  month0: number,
+  day: number,
+  minutes: number,
+): Date {
+  const hh = Math.floor(minutes / 60);
+  const mm = minutes % 60;
+  return new Date(Date.UTC(year, month0, day, hh, mm) - IST_OFFSET_MINUTES * 60_000);
+}
+
 /**
  * Parses the facility operating-hours formats used in the product:
  *   "Open 24 hours" | "Mon–Sat 08:00–20:00" | "Mon–Fri 09:00–17:00"

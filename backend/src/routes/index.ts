@@ -17,6 +17,7 @@ import notifications from './notifications.js';
 import feedback from './feedback.js';
 import admin from './admin.js';
 import analytics from './analytics.js';
+import admissions from './admissions.js';
 import demo from './demo.js';
 
 const router = Router();
@@ -39,5 +40,6 @@ router.use('/feedback', feedback);
 router.use('/admin/demo', demo);
 router.use('/admin', admin);
 router.use('/analytics', analytics);
+router.use('/admissions', admissions);
 
 export default router;

@@ -1,5 +1,6 @@
 import { db } from '../prisma/db.js';
 import { seedDemoData } from '../src/lib/demoData.js';
+import { demoMode } from '../src/config/env.js';
 
 const DEMO = process.argv.includes('--demo');
 
@@ -104,6 +105,14 @@ async function ensureFacility(f: (typeof FACILITIES)[number]) {
 }
 
 async function main() {
+  if (DEMO && !demoMode) {
+    console.error(
+      'Refusing to seed demo data: DEMO_MODE is not enabled. ' +
+        'Set DEMO_MODE=true (dev/demo environments only) and retry.',
+    );
+    process.exit(1);
+  }
+
   for (const f of FACILITIES) {
     await ensureFacility(f);
   }

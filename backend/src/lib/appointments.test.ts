@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { slotTaken } from './appointments.js';
+import { isUniqueViolation, slotTaken } from './appointments.js';
 import { createAppointmentSchema, facilitySchema, medicalRecordSchema, bedCapacitySchema } from '../validations/healthcare.js';
 
 describe('slotTaken', () => {
@@ -16,6 +16,25 @@ describe('slotTaken', () => {
   it('normalizes offset timestamps', () => {
     const existing = [{ startsAt: '2026-10-06T10:00:00.000Z', status: 'CONFIRMED' }];
     expect(slotTaken(existing, '2026-10-06T15:45:00.000+05:45')).toBe(true);
+  });
+});
+
+describe('isUniqueViolation', () => {
+  it('detects a PostgreSQL 23505 error code', () => {
+    expect(isUniqueViolation({ code: '23505' })).toBe(true);
+  });
+
+  it('detects a duplicate-key message', () => {
+    expect(isUniqueViolation({ message: 'duplicate key value violates unique constraint "appt_active_slot"' })).toBe(true);
+  });
+
+  it('walks nested causes', () => {
+    expect(isUniqueViolation({ message: 'query failed', cause: { code: '23505' } })).toBe(true);
+  });
+
+  it('returns false for unrelated errors', () => {
+    expect(isUniqueViolation(new Error('boom'))).toBe(false);
+    expect(isUniqueViolation(null)).toBe(false);
   });
 });
 

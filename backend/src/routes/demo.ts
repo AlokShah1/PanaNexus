@@ -16,6 +16,7 @@ function gate(res: Parameters<typeof fail>[0]) {
 }
 
 router.get('/status', async (_req, res) => {
+  if (!gate(res)) return;
   return ok(res, { demoMode: isDemoMode(), ...(await demoStatus()) });
 });
 
@@ -26,6 +27,7 @@ router.post('/seed', async (req, res) => {
 });
 
 router.post('/clear', async (req, res) => {
+  if (!gate(res)) return;
   const result = await clearDemoData();
   return ok(res, { cleared: true, ...result });
 });

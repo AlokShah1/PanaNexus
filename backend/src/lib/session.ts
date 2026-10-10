@@ -174,7 +174,3 @@ export function sessionInfo(session: SessionRow): SessionInfo {
     warningSeconds: env.SESSION_WARNING_SECONDS,
   };
 }
-
-export function sessionCookieMaxAge(role: Role): number {
-  return Math.floor(sessionTtlForRole(role).absoluteMs / 1000);
-}

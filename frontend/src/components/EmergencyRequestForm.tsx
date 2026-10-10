@@ -115,6 +115,7 @@ export default function EmergencyRequestForm() {
   const [liveUp, setLiveUp] = useState(false);
   const [isSimulation, setIsSimulation] = useState(false);
   const [etaEndMs, setEtaEndMs] = useState<number | null>(null);
+  const [etaApproximate, setEtaApproximate] = useState(true);
   const [nowMs, setNowMs] = useState(0);
   const [pollFails, setPollFails] = useState(0);
   const [askingCancel, setAskingCancel] = useState(false);
@@ -216,11 +217,16 @@ export default function EmergencyRequestForm() {
     if (!s) return undefined;
     const onStatus = (p: TripStatusEvent) => {
       if (p.emergencyRequestId !== requestId) return;
+      setNowMs(Date.now());
       setLiveUp(true);
       if (p.isSimulation) setIsSimulation(true);
+      if (typeof p.etaMinutes === 'number' && p.etaMinutes > 0) {
+        setEtaEndMs(Date.now() + p.etaMinutes * 60_000);
+      }
+      if (typeof p.etaApproximate === 'boolean') setEtaApproximate(p.etaApproximate);
       setStage((prev) => {
         const next = (p.state as Stage) ?? prev;
-        if (next === 'EN_ROUTE' && !etaEndMs) {
+        if (next === 'EN_ROUTE' && !etaEndMs && !(typeof p.etaMinutes === 'number' && p.etaMinutes > 0)) {
           setEtaEndMs(Date.now() + 8 * 60_000);
         }
         return next;
@@ -235,12 +241,14 @@ export default function EmergencyRequestForm() {
       }
     };
     const onLocation = (p: TripLocationEvent) => {
+      setNowMs(Date.now());
       setLiveUp(true);
       setLiveLocation(p);
       if (p.isSimulation) setIsSimulation(true);
       if (typeof p.etaMinutes === 'number' && p.etaMinutes > 0) {
         setEtaEndMs(Date.now() + p.etaMinutes * 60_000);
       }
+      if (typeof p.etaApproximate === 'boolean') setEtaApproximate(p.etaApproximate);
     };
     s.on('trip:status', onStatus);
     s.on('trip:location', onLocation);
@@ -605,7 +613,9 @@ export default function EmergencyRequestForm() {
                       {matches[0].registrationNumber} · {matches[0].type?.toLowerCase() ?? 'ambulance'}
                     </p>
                   ) : null}
-                  <p className="mt-2 text-[11px] text-brand-100/80">Estimate based on straight-line distance.</p>
+                  <p className="mt-2 text-[11px] text-brand-100/80">
+                    {etaApproximate ? 'Estimate based on straight-line distance.' : 'Estimate based on live road route.'}
+                  </p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-ink-subtle">

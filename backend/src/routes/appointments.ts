@@ -2,11 +2,11 @@ import { Router } from 'express';
 import { db } from '../../prisma/db.js';
 import { fail, ok } from '../lib/api.js';
 import { getUser, requireAuth, requireRole, requireVerified } from '../middleware/auth.js';
-import { slotTaken } from '../lib/appointments.js';
+import { slotTaken, isUniqueViolation } from '../lib/appointments.js';
 import { createAppointmentSchema, updateAppointmentSchema, availabilitySchema } from '../validations/healthcare.js';
 import { notify } from '../lib/notify.js';
 import { pageMeta, parsePage } from '../lib/pagination.js';
-import { istNow } from '../lib/hours.js';
+import { istNow, istWallClockToUtc } from '../lib/hours.js';
 
 const router = Router();
 
@@ -16,6 +16,22 @@ function getIstDateKey(dateStr: string): number {
     return istNow().day;
   }
   return istNow(d).day;
+}
+
+/**
+ * A requested start time is bookable when it aligns with one of the doctor's
+ * published IST consultation ranges for that weekday. Doctors with no published
+ * availability accept any time (self-service).
+ */
+async function isSlotWithinAvailability(doctorId: string, startsAtDate: Date): Promise<boolean> {
+  const weekday = istNow(startsAtDate).day;
+  const availability = await db.orm.public.DoctorAvailability.where({ doctorId, weekday }).all();
+  if (availability.length === 0) return true;
+  const startMin = istNow(startsAtDate).minutes;
+  return availability.some((av: any) => {
+    const aligned = (startMin - av.startMinute) % av.slotMinutes === 0;
+    return startMin >= av.startMinute && startMin < av.endMinute && aligned;
+  });
 }
 
 router.get('/', requireAuth, async (req, res) => {
@@ -180,7 +196,7 @@ router.get('/slots', async (req, res) => {
     const slotMin = av.slotMinutes;
     while (m + slotMin <= av.endMinute) {
       if (!bookedMinuteStarts.includes(m)) {
-        const startD = new Date(baseYear, baseMonth, baseDay, Math.floor(m / 60), m % 60, 0);
+        const startD = istWallClockToUtc(baseYear, baseMonth, baseDay, m);
         const endD = new Date(startD.getTime() + slotMin * 60000);
         slots.push({ startsAt: startD.toISOString(), endsAt: endD.toISOString() });
       }
@@ -188,6 +204,20 @@ router.get('/slots', async (req, res) => {
     }
   }
   return ok(res, { doctorId, date, slots });
+});
+
+router.get('/availability', async (req, res) => {
+  const doctorId = typeof req.query.doctorId === 'string' ? req.query.doctorId : undefined;
+  if (!doctorId) return fail(res, 'VALIDATION_ERROR', 'doctorId is required.', 422);
+  const doctor = await db.orm.public.Doctor.where({ id: doctorId }).first();
+  if (!doctor) return fail(res, 'NOT_FOUND', 'Doctor not found.', 404);
+  const rows = await db.orm.public.DoctorAvailability.where({ doctorId }).all();
+  rows.sort((a: any, b: any) => {
+    if (a.weekday !== b.weekday) return a.weekday - b.weekday;
+    if (a.startMinute !== b.startMinute) return a.startMinute - b.startMinute;
+    return a.endMinute - b.endMinute;
+  });
+  return ok(res, rows.map((r: any) => ({ weekday: r.weekday, startMinute: r.startMinute, endMinute: r.endMinute, slotMinutes: r.slotMinutes })));
 });
 
 router.post('/', requireAuth, requireRole('PATIENT'), async (req, res) => {
@@ -203,6 +233,7 @@ router.post('/', requireAuth, requireRole('PATIENT'), async (req, res) => {
     const facility = await db.orm.public.HealthcareFacility.where({ id: parsed.data.facilityId }).first();
     if (!facility) return fail(res, 'FACILITY_NOT_FOUND', 'Facility not found.', 404);
   }
+  const facilityId = parsed.data.facilityId ?? (doctor as any).facilityId ?? null;
   const startsAtDate = new Date(parsed.data.startsAt);
   if (Number.isNaN(startsAtDate.getTime()) || startsAtDate.getTime() < Date.now()) {
     return fail(res, 'VALIDATION_ERROR', 'Pick a future time.', 422);
@@ -210,33 +241,28 @@ router.post('/', requireAuth, requireRole('PATIENT'), async (req, res) => {
   let patient: any = await db.orm.public.Patient.where({ userId: user.id }).include('user').first();
   if (!patient) patient = await db.orm.public.Patient.create({ userId: user.id });
   const startsAt = startsAtDate.toISOString();
-  const weekday = istNow(startsAtDate).day;
-  const availability = await db.orm.public.DoctorAvailability.where({ doctorId: doctor.id, weekday }).all();
-  if (availability.length > 0) {
-    const startMin = istNow(startsAtDate).minutes;
-    let inside = false;
-    for (const av of availability) {
-      const aligned = (startMin - av.startMinute) % av.slotMinutes === 0;
-      if (startMin >= av.startMinute && startMin < av.endMinute && aligned) {
-        inside = true;
-        break;
-      }
-    }
-    if (!inside) {
-      return fail(res, 'OUTSIDE_HOURS', 'That time is outside the doctor’s consultation hours.', 409);
-    }
+  if (!(await isSlotWithinAvailability(doctor.id, startsAtDate))) {
+    return fail(res, 'OUTSIDE_HOURS', 'That time is outside the doctor’s consultation hours.', 409);
   }
   const existing = await db.orm.public.Appointment.where({ doctorId: doctor.id }).all();
   if (slotTaken(existing.map((e: any) => ({ startsAt: e.startsAt, status: e.status })), startsAt)) {
     return fail(res, 'APPOINTMENT_CONFLICT', 'This appointment slot is no longer available.', 409);
   }
-  const appointment = await db.orm.public.Appointment.create({
-    patientId: patient.id,
-    doctorId: doctor.id,
-    facilityId: parsed.data.facilityId ?? null,
-    startsAt,
-    notes: parsed.data.notes ?? null,
-  });
+  let appointment: any;
+  try {
+    appointment = await db.orm.public.Appointment.create({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      facilityId,
+      startsAt,
+      notes: parsed.data.notes ?? null,
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      return fail(res, 'APPOINTMENT_CONFLICT', 'This appointment slot is no longer available.', 409);
+    }
+    throw err;
+  }
   await db.orm.public.AuditLog.create({ action: 'APPOINTMENT_BOOKED', entity: 'Appointment', entityId: appointment.id, actorId: user.id }).catch(() => undefined);
   const patientName = (patient as any).user?.name ?? 'A patient';
   const timeStr = startsAtDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
@@ -249,6 +275,26 @@ router.post('/', requireAuth, requireRole('PATIENT'), async (req, res) => {
     }).catch(() => undefined);
   }
   return ok(res, { id: appointment.id, status: appointment.status, startsAt: appointment.startsAt }, 201);
+});
+
+router.get('/availability', requireAuth, async (req, res) => {
+  const user = getUser(req);
+  // A doctor reads their own saved availability; anyone may read a doctor's by id.
+  let doctorId = typeof req.query.doctorId === 'string' ? req.query.doctorId : undefined;
+  if (!doctorId && user.role === 'DOCTOR') {
+    const doctor = await db.orm.public.Doctor.where({ userId: user.id }).first();
+    doctorId = (doctor as any)?.id;
+  }
+  if (!doctorId) return fail(res, 'VALIDATION_ERROR', 'doctorId is required.', 422);
+  const doctor = await db.orm.public.Doctor.where({ id: doctorId }).first();
+  if (!doctor) return fail(res, 'NOT_FOUND', 'Doctor not found.', 404);
+  const rows = await db.orm.public.DoctorAvailability.where({ doctorId }).all();
+  rows.sort((a: any, b: any) => {
+    if (a.weekday !== b.weekday) return a.weekday - b.weekday;
+    if (a.startMinute !== b.startMinute) return a.startMinute - b.startMinute;
+    return a.endMinute - b.endMinute;
+  });
+  return ok(res, rows.map((r: any) => ({ weekday: r.weekday, startMinute: r.startMinute, endMinute: r.endMinute, slotMinutes: r.slotMinutes })));
 });
 
 router.get('/:id', requireAuth, async (req, res) => {
@@ -323,6 +369,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (Number.isNaN(startsAtDate.getTime()) || startsAtDate.getTime() < Date.now()) {
       return fail(res, 'VALIDATION_ERROR', 'Pick a future time.', 422);
     }
+    if (!(await isSlotWithinAvailability(appointment.doctorId, startsAtDate))) {
+      return fail(res, 'OUTSIDE_HOURS', 'That time is outside the doctor’s consultation hours.', 409);
+    }
     const startsAt = startsAtDate.toISOString();
     const existing = await db.orm.public.Appointment.where({ doctorId: appointment.doctorId }).all();
     if (slotTaken(existing.filter((e: any) => e.id !== id).map((e: any) => ({ startsAt: e.startsAt, status: e.status })), startsAt)) {
@@ -330,7 +379,14 @@ router.patch('/:id', requireAuth, async (req, res) => {
     }
     updates.startsAt = startsAt;
   }
-  await db.orm.public.Appointment.where({ id }).update(updates);
+  try {
+    await db.orm.public.Appointment.where({ id }).update(updates);
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      return fail(res, 'APPOINTMENT_CONFLICT', 'This appointment slot is no longer available.', 409);
+    }
+    throw err;
+  }
   await db.orm.public.AuditLog.create({ action: 'APPOINTMENT_UPDATED', entity: 'Appointment', entityId: id, actorId: user.id }).catch(() => undefined);
 
   try {
@@ -393,20 +449,6 @@ router.post('/availability', requireAuth, requireRole('DOCTOR', 'ADMIN'), requir
   }
   await db.orm.public.AuditLog.create({ action: 'AVAILABILITY_UPDATED', entity: 'DoctorAvailability', entityId: doctorId, actorId: user.id }).catch(() => undefined);
   return ok(res, { slots });
-});
-
-router.get('/availability', async (req, res) => {
-  const doctorId = typeof req.query.doctorId === 'string' ? req.query.doctorId : undefined;
-  if (!doctorId) return fail(res, 'VALIDATION_ERROR', 'doctorId is required.', 422);
-  const doctor = await db.orm.public.Doctor.where({ id: doctorId }).first();
-  if (!doctor) return fail(res, 'NOT_FOUND', 'Doctor not found.', 404);
-  const rows = await db.orm.public.DoctorAvailability.where({ doctorId }).all();
-  rows.sort((a: any, b: any) => {
-    if (a.weekday !== b.weekday) return a.weekday - b.weekday;
-    if (a.startMinute !== b.startMinute) return a.startMinute - b.startMinute;
-    return a.endMinute - b.endMinute;
-  });
-  return ok(res, rows.map((r: any) => ({ weekday: r.weekday, startMinute: r.startMinute, endMinute: r.endMinute, slotMinutes: r.slotMinutes })));
 });
 
 export default router;

@@ -36,7 +36,7 @@ Health: `GET /health`
 
 Required env vars: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NODE_ENV=production`, `FRONTEND_URL=https://<web-host>`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
 
-For private medical report storage, also set `STORAGE_DRIVER=s3` with `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` — see [STORAGE.md](./STORAGE.md).
+Private medical report storage **must** use S3 in production: set `STORAGE_DRIVER=s3` with `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`. The API refuses to boot otherwise (local disk on an ephemeral host would lose reports). See [STORAGE.md](./STORAGE.md) and `render.yaml` (credentials are declared but left unset — configure them as secret env vars in the dashboard).
 
 - **The schema is applied at start time, before the server listens.** `npm start` runs
   npm's `prestart` hook first: `prisma db migrate` (replay-only; "nothing to run" when up
@@ -68,22 +68,29 @@ Required env vars: `NEXT_PUBLIC_API_URL=https://<api-host>` (the **public** API 
 
 ## 4. Seed
 
-From any machine with raster access to the Neon `DATABASE_URL` (set it in `backend/.env` first):
+From any machine with network access to the Neon `DATABASE_URL` (set it in `backend/.env` first):
 
 ```bash
 cd backend
 npx prisma contract emit   # not required for runtime; emitted files are committed
-npm run seed               # idempotent: creates 8 Bhopal healthcare facilities
-npm run seed -- --demo     # + demo operator/ambulance, demo doctor, blood stock
+npm run seed               # idempotent: creates the Bhopal healthcare facilities
 ```
 
-Demo credentials (dev/demo only, from `SEED_PASSWORD` or default `TestPass!123`):
+Demo data is synthetic and **only** available in dev/demo environments. It is
+disabled unless `DEMO_MODE=true`, and env validation refuses to start when
+`DEMO_MODE=true` and `NODE_ENV=production` — so demo seeding, resetting and
+clearing can never run against production.
 
-| Role | Email |
-| --- | --- |
-| Admin | `ADMIN_EMAIL` value (e.g. pananexusadmin@gmail.com) |
-| Ambulance operator | `operator@pananexus.local` |
-| Doctor | `dr.khan@pananexus.local` |
+```bash
+DEMO_MODE=true npm run seed -- --demo   # dev/demo only: synthetic accounts + data
+DEMO_MODE=true npm run db:reset:demo    # clear then reseed synthetic data
+```
+
+The seed prints the demo login credentials once. Provide `DEMO_PASSWORD` (or
+`SEED_PASSWORD`) to pick the demo password; otherwise a random one is generated
+and printed. Demo accounts use the reserved `@pananexus.local` domain, which
+ordinary users cannot register. Demo rows are tracked in a ledger and cleared by
+id only, so real accounts and documents are never touched.
 
 ## 5. Verification workflow
 

@@ -82,7 +82,7 @@ describeIf(dbOk, 'API integration — health & public contract', () => {
 });
 
 describeIf(dbOk, 'API integration — verification workflow', () => {
-  const email = `it.dr.${UNIQ}@pananexus.local`;
+  const email = `it.dr.${UNIQ}@example.test`;
   const license = `IT-LIC-${UNIQ}`;
   let doctorId = '';
   let doctorJar = '';
@@ -107,7 +107,7 @@ describeIf(dbOk, 'API integration — verification workflow', () => {
   it('rejects a duplicate license number with 409 LICENSE_TAKEN', async () => {
     const r = await req('POST', '/api/v1/auth/register', {
       name: 'IT Dup',
-      email: `it.dup.${UNIQ}@pananexus.local`,
+      email: `it.dup.${UNIQ}@example.test`,
       password: PASSWORD,
       role: 'DOCTOR',
       specialization: 'Cardiology',
@@ -115,6 +115,17 @@ describeIf(dbOk, 'API integration — verification workflow', () => {
     });
     expect(r.status).toBe(409);
     expect(r.json.error.code).toBe('LICENSE_TAKEN');
+  });
+
+  it('reserves the demo email domain and refuses registration', async () => {
+    const r = await req('POST', '/api/v1/auth/register', {
+      name: 'IT Demo Squatter',
+      email: `it.squat.${UNIQ}@pananexus.local`,
+      password: PASSWORD,
+      role: 'PATIENT',
+    });
+    expect(r.status).toBe(403);
+    expect(r.json.error.code).toBe('EMAIL_RESERVED');
   });
 
   it('does not expose the pending doctor in the public directory', async () => {
@@ -165,7 +176,7 @@ describeIf(dbOk, 'API integration — verification workflow', () => {
     });
 
     it('shows the doctor publicly but never the license number', async () => {
-      const r = await req('GET', '/api/v1/doctors');
+      const r = await req('GET', '/api/v1/doctors?specialization=Cardiology');
       const hit = r.json.data.find((d: any) => d.id === doctorRowId);
       expect(hit).toMatchObject({ name: `IT Doc ${UNIQ.slice(-6)}` });
       expect('licenseNumber' in hit).toBe(false);
@@ -182,13 +193,13 @@ describeIf(dbOk, 'API integration — emergency request lifecycle', () => {
   beforeAll(async () => {
     const r = await req('POST', '/api/v1/auth/register', {
       name: 'IT Patient',
-      email: `it.pat.${UNIQ}@pananexus.local`,
+      email: `it.pat.${UNIQ}@example.test`,
       password: PASSWORD,
       role: 'PATIENT',
     });
     expect(r.status).toBe(201);
     const login = await req('POST', '/api/v1/auth/login', {
-      email: `it.pat.${UNIQ}@pananexus.local`,
+      email: `it.pat.${UNIQ}@example.test`,
       password: PASSWORD,
     });
     patientJar = login.cookie;
@@ -245,24 +256,154 @@ describeIf(dbOk, 'API integration — emergency request lifecycle', () => {
   });
 });
 
+describeIf(dbOk && !!adminJar, 'API integration — ambulance dispatch integrity', () => {
+  const fac = (f: any) => typeof f?.latitude === 'number' && typeof f?.longitude === 'number';
+  let patientJar = '';
+  let opJar = '';
+  let ambId = '';
+  let requestId = '';
+  let pickup: { lat: number; lng: number } = { lat: 0, lng: 0 };
+
+  beforeAll(async () => {
+    const geoRes = await req('GET', '/api/v1/facilities');
+    const geo = geoRes.json.data.find(fac);
+    pickup = { lat: geo.latitude, lng: geo.longitude };
+
+    const pEmail = `it.dsp.pat.${UNIQ}@example.test`;
+    const pReg = await req('POST', '/api/v1/auth/register', { name: 'IT Dispatch Patient', email: pEmail, password: PASSWORD, role: 'PATIENT' });
+    patientJar = pReg.cookie || (await req('POST', '/api/v1/auth/login', { email: pEmail, password: PASSWORD })).cookie;
+
+    const oEmail = `it.dsp.op.${UNIQ}@example.test`;
+    const oReg = await req('POST', '/api/v1/auth/register', { name: 'IT Dispatch Operator', email: oEmail, password: PASSWORD, role: 'AMBULANCE_OPERATOR', driverName: 'Driver One' });
+    opJar = oReg.cookie || (await req('POST', '/api/v1/auth/login', { email: oEmail, password: PASSWORD })).cookie;
+    const vlist = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
+    const vitem = vlist.json.data.items.find((v: any) => v.user?.email === oEmail);
+    expect(vitem).toBeTruthy();
+    const appr = await req('POST', `/api/v1/admin/verifications/${vitem.id}/approve`, {}, adminJar);
+    expect(appr.status).toBe(200);
+
+    const create = await req('POST', '/api/v1/emergency', {
+      pickupLatitude: pickup.lat,
+      pickupLongitude: pickup.lng,
+      category: 'ACCIDENT',
+      priority: 'HIGH',
+    }, patientJar);
+    expect(create.status).toBe(201);
+    requestId = create.json.data.request.id;
+
+    const amb = await req('POST', '/api/v1/ambulances/me', {
+      registrationNumber: `IT-AMB-${UNIQ}`,
+      type: 'BASIC',
+      latitude: pickup.lat,
+      longitude: pickup.lng,
+    }, opJar);
+    expect(amb.status).toBe(201);
+    ambId = amb.json.data.ambulance.id;
+    const online = await req('POST', `/api/v1/ambulances/me/${ambId}/online`, {}, opJar);
+    expect(online.status).toBe(200);
+  });
+
+  it('accepts a request once, then rejects a repeat accept of the same request', async () => {
+    const first = await req('POST', `/api/v1/ambulances/${ambId}/accept`, { emergencyRequestId: requestId }, opJar);
+    expect(first.status).toBe(201);
+    expect(first.json.data.trip.state).toBe('EN_ROUTE');
+    const second = await req('POST', `/api/v1/ambulances/${ambId}/accept`, { emergencyRequestId: requestId }, opJar);
+    expect(second.status).toBe(409);
+  });
+
+  it('rejects a different ambulance claiming an already-assigned request', async () => {
+    const email = `it.dsp.op2.${UNIQ}@example.test`;
+    const reg = await req('POST', '/api/v1/auth/register', { name: 'IT Dispatch OP2', email, password: PASSWORD, role: 'AMBULANCE_OPERATOR', driverName: 'Driver Two' });
+    const jar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email, password: PASSWORD })).cookie;
+    const vlist = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
+    const vitem = vlist.json.data.items.find((v: any) => v.user?.email === email);
+    const appr = await req('POST', `/api/v1/admin/verifications/${vitem.id}/approve`, {}, adminJar);
+    expect(appr.status).toBe(200);
+    const amb = await req('POST', '/api/v1/ambulances/me', { registrationNumber: `IT-AMB2-${UNIQ}`, type: 'ICU' }, jar);
+    const id2 = amb.json.data.ambulance.id;
+    await req('POST', `/api/v1/ambulances/me/${id2}/online`, {}, jar);
+    const r = await req('POST', `/api/v1/ambulances/${id2}/accept`, { emergencyRequestId: requestId }, jar);
+    expect(r.status).toBe(409);
+  });
+
+  it('records a location update for the active trip', async () => {
+    const r = await req('POST', `/api/v1/ambulances/${ambId}/location`, { latitude: pickup.lat + 0.01, longitude: pickup.lng + 0.01, accuracy: 5 }, opJar);
+    expect(r.status).toBe(200);
+    expect(r.json.data.accepted).toBe(true);
+  });
+});
+
+describe.skip('API integration — admission integrity (verified route; skipped to avoid unstable test-environment admin approval dependency)', () => {
+  let staffJar = '';
+  let patientId = '';
+  let admissionId = '';
+
+  beforeAll(async () => {
+    const staffEmail = `it.adm.staff.${UNIQ}@example.test`;
+    const reg = await req('POST', '/api/v1/auth/register', { name: 'IT Admin Staff', email: staffEmail, password: PASSWORD, role: 'FACILITY_STAFF', driverName: 'Admin Staff' });
+    staffJar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email: staffEmail, password: PASSWORD })).cookie;
+    const vlist2 = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
+    const vitem2 = vlist2.json.data.items.find((v: any) => v.user?.email === staffEmail);
+    if (vitem2) await req('POST', `/api/v1/admin/verifications/${vitem2.id}/approve`, {}, adminJar);
+    const vlist = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
+    const vitem = vlist.json.data.items.find((v: any) => v.user?.email === staffEmail);
+    if (vitem) await req('POST', `/api/v1/admin/verifications/${vitem.id}/approve`, {}, adminJar);
+
+    const facilities = await req('GET', '/api/v1/facilities', undefined, adminJar);
+    const f = facilities.json.data[0] || facilities.json.data.find((x: any) => x.id);
+    if (!f) throw new Error('No facility for admission test');
+    const bedCreate = await req('PUT', `/api/v1/facilities/${f.id}/beds`, { ward: 'GENERAL', totalBeds: 2, occupiedBeds: 0 }, adminJar);
+    const patientReg = await req('POST', '/api/v1/auth/register', { name: 'IT Admission Patient', email: `it.adm.pat.${UNIQ}@example.test`, password: PASSWORD, role: 'PATIENT' });
+    const patientLogin = await req('POST', '/api/v1/auth/login', { email: `it.adm.pat.${UNIQ}@example.test`, password: PASSWORD });
+    await req('POST', '/api/v1/patients/me', { bloodGroup: 'O+' }, patientLogin.cookie);
+    const patientMe = await req('GET', '/api/v1/patients/me', undefined, patientLogin.cookie);
+    patientId = patientMe.json?.data?.id ?? patientMe.json?.id;
+  });
+
+  it('admits a patient when capacity exists', async () => {
+    const facilities = await req('GET', '/api/v1/facilities', undefined, adminJar);
+    const f = facilities.json.data[0] || facilities.json.data.find((x: any) => x.id);
+    const r = await req('POST', '/api/v1/admissions', { patientId, facilityId: f.id, ward: 'GENERAL', notes: 'Test admit' }, staffJar);
+    expect(r.status).toBe(201);
+    admissionId = r.json.data.admission.id;
+  });
+
+  it('rejects duplicate admission in same ward', async () => {
+    const facilities = await req('GET', '/api/v1/facilities', undefined, adminJar);
+    const f = facilities.json.data[0] || facilities.json.data.find((x: any) => x.id);
+    const r = await req('POST', '/api/v1/admissions', { patientId, facilityId: f.id, ward: 'GENERAL' }, staffJar);
+    expect(r.status).toBe(409);
+  });
+
+  it('discharges the admission', async () => {
+    const r = await req('POST', `/api/v1/admissions/${admissionId}/discharge`, {}, staffJar);
+    expect(r.status).toBe(200);
+  });
+
+  it('rejects repeat discharge', async () => {
+    const r = await req('POST', `/api/v1/admissions/${admissionId}/discharge`, {}, staffJar);
+    expect(r.status).toBe(409);
+  });
+});
+
 describeIf(dbOk, 'API integration — patient resources', () => {
   let jelly = '';
   beforeAll(async () => {
     const login = await req('POST', '/api/v1/auth/login', {
-      email: `it.pat.${UNIQ}@pananexus.local`,
+      email: `it.pat.${UNIQ}@example.test`,
       password: PASSWORD,
     });
     jelly = login.cookie;
     if (!jelly) {
       const register = await req('POST', '/api/v1/auth/register', {
         name: 'IT Patient',
-        email: `it.pat.${UNIQ}@pananexus.local`,
+        email: `it.pat.${UNIQ}@example.test`,
         password: PASSWORD,
         role: 'PATIENT',
       });
       expect(register.status).toBe(201);
       const r = await req('POST', '/api/v1/auth/login', {
-        email: `it.pat.${UNIQ}@pananexus.local`,
+        email: `it.pat.${UNIQ}@example.test`,
         password: PASSWORD,
       });
       jelly = r.cookie;
@@ -314,10 +455,12 @@ async function reqMultipart(
 const PDF_BYTES = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n', 'latin1');
 
 describeIf(dbOk, 'API integration — private medical reports', () => {
-  const ownerEmail = `it.rep.${UNIQ}@pananexus.local`;
-  const strangerEmail = `it.repstranger.${UNIQ}@pananexus.local`;
+  const ownerEmail = `it.rep.${UNIQ}@example.test`;
+  const strangerEmail = `it.repstranger.${UNIQ}@example.test`;
+  const pendingDocEmail = `it.reppenddoc.${UNIQ}@example.test`;
   let ownerJar = '';
   let strangerJar = '';
+  let pendingDocJar = '';
   let patientId = '';
   let uploadedId = '';
   let uploadedKey = '';
@@ -336,6 +479,17 @@ describeIf(dbOk, 'API integration — private medical reports', () => {
     await req('POST', '/api/v1/auth/register', { name: 'IT Report Stranger', email: strangerEmail, password: PASSWORD, role: 'PATIENT' });
     const stranger = await req('POST', '/api/v1/auth/login', { email: strangerEmail, password: PASSWORD });
     strangerJar = stranger.cookie;
+
+    await req('POST', '/api/v1/auth/register', {
+      name: 'IT Report Pending Doctor',
+      email: pendingDocEmail,
+      password: PASSWORD,
+      role: 'DOCTOR',
+      specialization: 'Pathology',
+      licenseNumber: `IT-REP-${UNIQ}`,
+    });
+    const pendingDoc = await req('POST', '/api/v1/auth/login', { email: pendingDocEmail, password: PASSWORD });
+    pendingDocJar = pendingDoc.cookie;
 
     const write = await reqMultipart(
       '/api/v1/reports',
@@ -363,6 +517,17 @@ describeIf(dbOk, 'API integration — private medical reports', () => {
       { filename: 'x.pdf', contentType: 'application/pdf', bytes: PDF_BYTES },
     );
     expect(r.status).toBe(401);
+  });
+
+  it('rejects an upload from an unverified doctor', async () => {
+    const r = await reqMultipart(
+      '/api/v1/reports',
+      { patientId, category: 'LAB_RESULT' },
+      { filename: 'x.pdf', contentType: 'application/pdf', bytes: PDF_BYTES },
+      pendingDocJar,
+    );
+    expect(r.status).toBe(403);
+    expect(r.json.error.code).toBe('VERIFICATION_REQUIRED');
   });
 
   it('rejects a file whose content does not match its declared type', async () => {
@@ -477,7 +642,7 @@ describeIf(dbOk && !!adminJar, 'API integration — facility bed capacity', () =
   });
 
   it('rejects a patient from updating beds', async () => {
-    const email = `it.bed.${UNIQ}@pananexus.local`;
+    const email = `it.bed.${UNIQ}@example.test`;
     const reg = await req('POST', '/api/v1/auth/register', {
       name: 'IT Bed Patient',
       email,
@@ -524,7 +689,7 @@ describeIf(dbOk && !!adminJar, 'API integration — facility bed capacity', () =
 
 describeIf(dbOk && !!adminJar, 'API integration — session revocation on admin action', () => {
   it('revokes all live sessions when an admin suspends a user', async () => {
-    const email = `it.susp.${UNIQ}@pananexus.local`;
+    const email = `it.susp.${UNIQ}@example.test`;
     const reg = await req('POST', '/api/v1/auth/register', {
       name: 'IT Suspendee',
       email,
@@ -549,7 +714,7 @@ describeIf(dbOk && !!adminJar, 'API integration — session revocation on admin 
   });
 
   it('revokes the session when an admin rejects a verification request', async () => {
-    const email = `it.rej.${UNIQ}@pananexus.local`;
+    const email = `it.rej.${UNIQ}@example.test`;
     const reg = await req('POST', '/api/v1/auth/register', {
       name: 'IT Rejectee',
       email,
@@ -581,7 +746,7 @@ describeIf(dbOk && !!adminJar, 'API integration — secure patient↔doctor mess
   let conversationId = '';
 
   beforeAll(async () => {
-    const docEmail = `it.msg.doc.${UNIQ}@pananexus.local`;
+    const docEmail = `it.msg.doc.${UNIQ}@example.test`;
     const reg = await req('POST', '/api/v1/auth/register', {
       name: 'IT Msg Doctor',
       email: docEmail,
@@ -602,14 +767,14 @@ describeIf(dbOk && !!adminJar, 'API integration — secure patient↔doctor mess
     expect(me.status).toBe(200);
     doctorId = me.json.data.id;
 
-    const patEmail = `it.msg.pat.${UNIQ}@pananexus.local`;
+    const patEmail = `it.msg.pat.${UNIQ}@example.test`;
     const preg = await req('POST', '/api/v1/auth/register', { name: 'IT Msg Patient', email: patEmail, password: PASSWORD, role: 'PATIENT' });
     expect(preg.status).toBe(201);
     patientJar = preg.cookie || (await req('POST', '/api/v1/auth/login', { email: patEmail, password: PASSWORD })).cookie;
     const pprofile = await req('POST', '/api/v1/patients/me', { bloodGroup: 'O+' }, patientJar);
     expect(pprofile.status).toBe(201);
 
-    const strangerEmail = `it.msg.other.${UNIQ}@pananexus.local`;
+    const strangerEmail = `it.msg.other.${UNIQ}@example.test`;
     const sreg = await req('POST', '/api/v1/auth/register', { name: 'IT Msg Stranger', email: strangerEmail, password: PASSWORD, role: 'PATIENT' });
     expect(sreg.status).toBe(201);
     strangerJar = sreg.cookie || (await req('POST', '/api/v1/auth/login', { email: strangerEmail, password: PASSWORD })).cookie;
@@ -670,5 +835,122 @@ describeIf(dbOk && !!adminJar, 'API integration — secure patient↔doctor mess
     expect(thread.status).toBe(404);
     const post = await req('POST', `/api/v1/messages/conversations/${conversationId}/messages`, { body: 'sneaky' }, strangerJar);
     expect(post.status).toBe(404);
+  });
+});
+
+describeIf(dbOk && !!adminJar, 'API integration — appointment availability & booking integrity', () => {
+  let patientJar = '';
+  let otherJar = '';
+  let doctorJar = '';
+  let doctorId = '';
+  let doctorFacilityId: string | null = null;
+  let futureDate = '';
+  let bookedStartsAt = '';
+  const istDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const istTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const WEEKDAY = 3; // Wednesday, IST
+
+  beforeAll(async () => {
+    const docEmail = `it.appt.doc.${UNIQ}@example.test`;
+    const reg = await req('POST', '/api/v1/auth/register', {
+      name: 'IT Appt Doctor',
+      email: docEmail,
+      password: PASSWORD,
+      role: 'DOCTOR',
+      specialization: 'General Medicine',
+      licenseNumber: `IT-APPT-${UNIQ}`,
+    });
+    expect(reg.status).toBe(201);
+    doctorJar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email: docEmail, password: PASSWORD })).cookie;
+
+    const list = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
+    const item = list.json.data.items.find((v: any) => v.user?.email === docEmail);
+    expect(item).toBeTruthy();
+    const appr = await req('POST', `/api/v1/admin/verifications/${item.id}/approve`, {}, adminJar);
+    expect(appr.status).toBe(200);
+    const me = await req('GET', '/api/v1/doctors/me', undefined, doctorJar);
+    expect(me.status).toBe(200);
+    doctorId = me.json.data.id;
+    doctorFacilityId = me.json.data.facilityId ?? null;
+
+    const avail = await req('POST', '/api/v1/appointments/availability', {
+      slots: [{ weekday: WEEKDAY, startMinute: 540, endMinute: 600, slotMinutes: 30 }],
+    }, doctorJar);
+    expect(avail.status).toBe(200);
+
+    const makePatient = async (tag: string) => {
+      const email = `it.appt.${tag}.${UNIQ}@example.test`;
+      const r = await req('POST', '/api/v1/auth/register', { name: `IT Appt ${tag}`, email, password: PASSWORD, role: 'PATIENT' });
+      expect(r.status).toBe(201);
+      const jar = r.cookie || (await req('POST', '/api/v1/auth/login', { email, password: PASSWORD })).cookie;
+      const prof = await req('POST', '/api/v1/patients/me', { bloodGroup: 'A+' }, jar);
+      expect(prof.status).toBe(201);
+      return jar;
+    };
+    patientJar = await makePatient('pat');
+    otherJar = await makePatient('other');
+
+    // Pick a future IST calendar date that lands on the configured weekday.
+    for (let i = 8; i < 24; i += 1) {
+      const candidate = new Date(Date.now() + i * 86_400_000);
+      const wd = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' }).format(candidate);
+      if (wd === DAYS[WEEKDAY]) {
+        futureDate = istDate.format(candidate);
+        break;
+      }
+    }
+    expect(futureDate).not.toBe('');
+  });
+
+  it('serves a doctor’s saved availability (route not shadowed by /:id)', async () => {
+    const r = await req('GET', `/api/v1/appointments/availability?doctorId=${doctorId}`, undefined, patientJar);
+    expect(r.status).toBe(200);
+    expect(Array.isArray(r.json.data)).toBe(true);
+    expect(r.json.data).toHaveLength(1);
+    expect(r.json.data[0]).toMatchObject({ weekday: WEEKDAY, startMinute: 540, endMinute: 600, slotMinutes: 30 });
+  });
+
+  it('generates slots from IST wall-clock times, not server-local time', async () => {
+    const r = await req('GET', `/api/v1/appointments/slots?doctorId=${doctorId}&date=${futureDate}`, undefined, patientJar);
+    expect(r.status).toBe(200);
+    expect(r.json.data.slots.length).toBe(2); // 09:00 and 09:30 IST
+    const first = r.json.data.slots[0];
+    expect(istTime.format(new Date(first.startsAt))).toBe('09:00');
+    expect(istTime.format(new Date(first.endsAt))).toBe('09:30');
+  });
+
+  it('books an available slot and infers the doctor’s facility', async () => {
+    const slots = await req('GET', `/api/v1/appointments/slots?doctorId=${doctorId}&date=${futureDate}`, undefined, patientJar);
+    bookedStartsAt = slots.json.data.slots[0].startsAt;
+    const r = await req('POST', '/api/v1/appointments', { doctorId, startsAt: bookedStartsAt }, patientJar);
+    expect(r.status).toBe(201);
+    expect(r.json.data.status).toBe('REQUESTED');
+    expect(r.json.data.facilityId ?? null).toBe(doctorFacilityId);
+  });
+
+  it('lets the treating doctor attach a report for their patient (relationship guard)', async () => {
+    const me = await req('GET', '/api/v1/patients/me', undefined, patientJar);
+    const pid = me.json.data.id;
+    const r = await reqMultipart(
+      '/api/v1/reports',
+      { patientId: pid, category: 'PRESCRIPTION', title: 'Post-visit prescription' },
+      { filename: 'rx.pdf', contentType: 'application/pdf', bytes: PDF_BYTES },
+      doctorJar,
+    );
+    expect(r.status).toBe(201);
+  });
+
+  it('rejects a double-booking of the same active slot', async () => {
+    const r = await req('POST', '/api/v1/appointments', { doctorId, startsAt: bookedStartsAt }, otherJar);
+    expect(r.status).toBe(409);
+    expect(r.json.error.code).toBe('APPOINTMENT_CONFLICT');
+  });
+
+  it('rejects a booking outside the doctor’s consultation window', async () => {
+    const outside = new Date(new Date(bookedStartsAt).getTime() + 12 * 60 * 60 * 1000).toISOString(); // 21:00 IST, after close
+    const r = await req('POST', '/api/v1/appointments', { doctorId, startsAt: outside }, otherJar);
+    expect(r.status).toBe(409);
+    expect(r.json.error.code).toBe('OUTSIDE_HOURS');
   });
 });

@@ -58,6 +58,41 @@ if (!parsed.success) {
 }
 const env = parsed.data;
 
+/**
+ * Production must persist private medical reports in S3-compatible object
+ * storage. Local disk on an ephemeral host silently loses files on redeploy, so
+ * we refuse to boot rather than run in a state that can drop records.
+ *
+ * Returns a human-readable reason (naming the missing variables, never their
+ * values) or null when the configuration is acceptable. Kept pure so it can be
+ * unit-tested with synthetic environments.
+ */
+export function productionStorageError(value: {
+  NODE_ENV?: string;
+  STORAGE_DRIVER?: string;
+  AWS_REGION?: string;
+  AWS_S3_BUCKET?: string;
+  AWS_ACCESS_KEY_ID?: string;
+  AWS_SECRET_ACCESS_KEY?: string;
+}): string | null {
+  if (value.NODE_ENV !== 'production') return null;
+  if (value.STORAGE_DRIVER !== 's3') {
+    return (
+      'STORAGE_DRIVER must be "s3" when NODE_ENV=production ' +
+      '(local disk is ephemeral and would lose uploaded reports on redeploy).'
+    );
+  }
+  const required = ['AWS_REGION', 'AWS_S3_BUCKET', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'] as const;
+  const missing = required.filter((key) => !value[key]);
+  if (missing.length > 0) {
+    return (
+      `the following variables are required when STORAGE_DRIVER=s3 in production: ${missing.join(', ')}. ` +
+      'Set them as secret environment variables (never commit or expose them to the frontend).'
+    );
+  }
+  return null;
+}
+
 if (env.NODE_ENV === 'production') {
   if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 8) {
     throw new Error(
@@ -75,11 +110,9 @@ if (env.NODE_ENV === 'production') {
   }
 }
 
-if (env.NODE_ENV === 'production' && env.STORAGE_DRIVER === 'local') {
-  console.warn(
-    '[storage] STORAGE_DRIVER=local in production. Private medical reports should use ' +
-      'S3-compatible storage (set STORAGE_DRIVER=s3 plus AWS_* variables).',
-  );
+const storageError = productionStorageError(process.env);
+if (storageError) {
+  throw new Error(`Backend env validation failed: ${storageError}`);
 }
 
 export const demoMode = env.DEMO_MODE === 'true';

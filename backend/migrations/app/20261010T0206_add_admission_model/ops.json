@@ -1,0 +1,401 @@
+[
+  {
+    "id": "table.Admission",
+    "label": "Create table \"Admission\"",
+    "summary": "Creates table \"Admission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Admission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Admission\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Admission\"",
+        "sql": "CREATE TABLE \"public\".\"Admission\" (\n  \"admittedAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"dischargedAt\" timestamptz,\n  \"facilityId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"notes\" text,\n  \"patientId\" text NOT NULL,\n  \"staffId\" text NOT NULL,\n  \"status\" text DEFAULT 'ADMITTED' NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  \"ward\" text NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Admission_status_check_bfff8205\" CHECK (\"status\" IN ('ADMITTED', 'DISCHARGED', 'TRANSFERRED')),\n  CONSTRAINT \"Admission_ward_check_11a48c15\" CHECK (\"ward\" IN ('GENERAL', 'ICU', 'PEDIATRIC', 'MATERNITY', 'EMERGENCY', 'SURGICAL', 'ISOLATION', 'OTHER'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Admission\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Admission.Admission_facilityId_idx_3710d8c1",
+    "label": "Create index \"Admission_facilityId_idx_3710d8c1\" on \"Admission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Admission_facilityId_idx_3710d8c1",
+        "table": "Admission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Admission_facilityId_idx_3710d8c1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission_facilityId_idx_3710d8c1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Admission_facilityId_idx_3710d8c1\"",
+        "sql": "CREATE INDEX \"Admission_facilityId_idx_3710d8c1\" ON \"public\".\"Admission\" (\"facilityId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Admission_facilityId_idx_3710d8c1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission_facilityId_idx_3710d8c1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Admission.Admission_facilityId_ward_status_idx_158c8f59",
+    "label": "Create index \"Admission_facilityId_ward_status_idx_158c8f59\" on \"Admission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Admission_facilityId_ward_status_idx_158c8f59",
+        "table": "Admission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Admission_facilityId_ward_status_idx_158c8f59\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission_facilityId_ward_status_idx_158c8f59\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Admission_facilityId_ward_status_idx_158c8f59\"",
+        "sql": "CREATE INDEX \"Admission_facilityId_ward_status_idx_158c8f59\" ON \"public\".\"Admission\" (\"facilityId\", \"ward\", \"status\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Admission_facilityId_ward_status_idx_158c8f59\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission_facilityId_ward_status_idx_158c8f59\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Admission.Admission_patientId_idx_e5f07e88",
+    "label": "Create index \"Admission_patientId_idx_e5f07e88\" on \"Admission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Admission_patientId_idx_e5f07e88",
+        "table": "Admission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Admission_patientId_idx_e5f07e88\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission_patientId_idx_e5f07e88\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Admission_patientId_idx_e5f07e88\"",
+        "sql": "CREATE INDEX \"Admission_patientId_idx_e5f07e88\" ON \"public\".\"Admission\" (\"patientId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Admission_patientId_idx_e5f07e88\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission_patientId_idx_e5f07e88\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Admission.Admission_patientId_status_idx_f2f98c70",
+    "label": "Create index \"Admission_patientId_status_idx_f2f98c70\" on \"Admission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Admission_patientId_status_idx_f2f98c70",
+        "table": "Admission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Admission_patientId_status_idx_f2f98c70\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission_patientId_status_idx_f2f98c70\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Admission_patientId_status_idx_f2f98c70\"",
+        "sql": "CREATE INDEX \"Admission_patientId_status_idx_f2f98c70\" ON \"public\".\"Admission\" (\"patientId\", \"status\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Admission_patientId_status_idx_f2f98c70\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission_patientId_status_idx_f2f98c70\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Admission.Admission_staffId_idx_ce92c64e",
+    "label": "Create index \"Admission_staffId_idx_ce92c64e\" on \"Admission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Admission_staffId_idx_ce92c64e",
+        "table": "Admission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Admission_staffId_idx_ce92c64e\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission_staffId_idx_ce92c64e\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Admission_staffId_idx_ce92c64e\"",
+        "sql": "CREATE INDEX \"Admission_staffId_idx_ce92c64e\" ON \"public\".\"Admission\" (\"staffId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Admission_staffId_idx_ce92c64e\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Admission_staffId_idx_ce92c64e\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Admission.admission_active_ward_af4e0b07",
+    "label": "Create index \"admission_active_ward_af4e0b07\" on \"Admission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "admission_active_ward_af4e0b07",
+        "table": "Admission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"admission_active_ward_af4e0b07\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"admission_active_ward_af4e0b07\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"admission_active_ward_af4e0b07\"",
+        "sql": "CREATE UNIQUE INDEX \"admission_active_ward_af4e0b07\" ON \"public\".\"Admission\" (\"facilityId\", \"patientId\", \"ward\", \"status\") WHERE (status = 'ADMITTED')",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"admission_active_ward_af4e0b07\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"admission_active_ward_af4e0b07\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Admission.Admission_patientId_fkey",
+    "label": "Add foreign key \"Admission_patientId_fkey\" on \"Admission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Admission_patientId_fkey",
+        "table": "Admission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Admission_patientId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Admission_patientId_fkey",
+          "public",
+          "\"public\".\"Admission\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Admission_patientId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Admission\"\nADD CONSTRAINT \"Admission_patientId_fkey\"\nFOREIGN KEY (\"patientId\")\nREFERENCES \"public\".\"Patient\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Admission_patientId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Admission_patientId_fkey",
+          "public",
+          "\"public\".\"Admission\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Admission.Admission_facilityId_fkey",
+    "label": "Add foreign key \"Admission_facilityId_fkey\" on \"Admission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Admission_facilityId_fkey",
+        "table": "Admission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Admission_facilityId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Admission_facilityId_fkey",
+          "public",
+          "\"public\".\"Admission\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Admission_facilityId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Admission\"\nADD CONSTRAINT \"Admission_facilityId_fkey\"\nFOREIGN KEY (\"facilityId\")\nREFERENCES \"public\".\"HealthcareFacility\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Admission_facilityId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Admission_facilityId_fkey",
+          "public",
+          "\"public\".\"Admission\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Admission.Admission_staffId_fkey",
+    "label": "Add foreign key \"Admission_staffId_fkey\" on \"Admission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Admission_staffId_fkey",
+        "table": "Admission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Admission_staffId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Admission_staffId_fkey",
+          "public",
+          "\"public\".\"Admission\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Admission_staffId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Admission\"\nADD CONSTRAINT \"Admission_staffId_fkey\"\nFOREIGN KEY (\"staffId\")\nREFERENCES \"public\".\"User\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Admission_staffId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Admission_staffId_fkey",
+          "public",
+          "\"public\".\"Admission\""
+        ]
+      }
+    ]
+  }
+]

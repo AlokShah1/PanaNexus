@@ -34,9 +34,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'928229059311ebb323f8788329cd63559c8e31cb8f9cbf3c3a23bd037390f7a6'>;
+  StorageHashBase<'204acd322d039179b42b362eb9c90399ffdc5f44a622a2083cea088afdc2c6c0'>;
 export type ExecutionHash =
-  ExecutionHashBase<'d85d3d6e4f9de41055c3f78280d01cac63abbc03290100a5fd4d574b1d18aec5'>;
+  ExecutionHashBase<'a083a04779ba57f35da1572a3e2875542d8c3c44bbcebcd67a4c7b7dddb95db4'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -250,27 +250,6 @@ type DefaultLiteralValue<CodecId extends string, Encoded> = CodecId extends keyo
 
 export type FieldOutputTypes = {
   readonly public: {
-    readonly Admission: {
-      readonly admittedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-      readonly dischargedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-      readonly facilityId: CodecTypes['pg/text@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly notes: CodecTypes['pg/text@1']['output'] | null;
-      readonly patientId: CodecTypes['pg/text@1']['output'];
-      readonly staffId: CodecTypes['pg/text@1']['output'];
-      readonly status: 'ADMITTED' | 'DISCHARGED' | 'TRANSFERRED';
-      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-      readonly ward:
-        | 'GENERAL'
-        | 'ICU'
-        | 'PEDIATRIC'
-        | 'MATERNITY'
-        | 'EMERGENCY'
-        | 'SURGICAL'
-        | 'ISOLATION'
-        | 'OTHER';
-    };
     readonly Ambulance: {
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly driverName: CodecTypes['pg/text@1']['output'] | null;
@@ -591,27 +570,6 @@ export type FieldOutputTypes = {
 };
 export type FieldInputTypes = {
   readonly public: {
-    readonly Admission: {
-      readonly admittedAt: CodecTypes['pg/timestamptz-string@1']['input'];
-      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
-      readonly dischargedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
-      readonly facilityId: CodecTypes['pg/text@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly notes: CodecTypes['pg/text@1']['input'] | null;
-      readonly patientId: CodecTypes['pg/text@1']['input'];
-      readonly staffId: CodecTypes['pg/text@1']['input'];
-      readonly status: 'ADMITTED' | 'DISCHARGED' | 'TRANSFERRED';
-      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
-      readonly ward:
-        | 'GENERAL'
-        | 'ICU'
-        | 'PEDIATRIC'
-        | 'MATERNITY'
-        | 'EMERGENCY'
-        | 'SURGICAL'
-        | 'ISOLATION'
-        | 'OTHER';
-    };
     readonly Ambulance: {
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly driverName: CodecTypes['pg/text@1']['input'] | null;
@@ -932,27 +890,6 @@ export type FieldInputTypes = {
 };
 export type StorageColumnTypes = {
   readonly public: {
-    readonly Admission: {
-      readonly admittedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-      readonly dischargedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-      readonly facilityId: CodecTypes['pg/text@1']['output'];
-      readonly id: CodecTypes['pg/text@1']['output'];
-      readonly notes: CodecTypes['pg/text@1']['output'] | null;
-      readonly patientId: CodecTypes['pg/text@1']['output'];
-      readonly staffId: CodecTypes['pg/text@1']['output'];
-      readonly status: 'ADMITTED' | 'DISCHARGED' | 'TRANSFERRED';
-      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-      readonly ward:
-        | 'GENERAL'
-        | 'ICU'
-        | 'PEDIATRIC'
-        | 'MATERNITY'
-        | 'EMERGENCY'
-        | 'SURGICAL'
-        | 'ISOLATION'
-        | 'OTHER';
-    };
     readonly Ambulance: {
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly driverName: CodecTypes['pg/text@1']['output'] | null;
@@ -1273,27 +1210,6 @@ export type StorageColumnTypes = {
 };
 export type StorageColumnInputTypes = {
   readonly public: {
-    readonly Admission: {
-      readonly admittedAt: CodecTypes['pg/timestamptz-string@1']['input'];
-      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
-      readonly dischargedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
-      readonly facilityId: CodecTypes['pg/text@1']['input'];
-      readonly id: CodecTypes['pg/text@1']['input'];
-      readonly notes: CodecTypes['pg/text@1']['input'] | null;
-      readonly patientId: CodecTypes['pg/text@1']['input'];
-      readonly staffId: CodecTypes['pg/text@1']['input'];
-      readonly status: 'ADMITTED' | 'DISCHARGED' | 'TRANSFERRED';
-      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
-      readonly ward:
-        | 'GENERAL'
-        | 'ICU'
-        | 'PEDIATRIC'
-        | 'MATERNITY'
-        | 'EMERGENCY'
-        | 'SURGICAL'
-        | 'ISOLATION'
-        | 'OTHER';
-    };
     readonly Ambulance: {
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly driverName: CodecTypes['pg/text@1']['input'] | null;
@@ -1614,31 +1530,6 @@ export type StorageColumnInputTypes = {
 };
 
 export namespace Models {
-  export type public_Admission = {
-    admittedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    dischargedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    facilityId: CodecTypes['pg/text@1']['output'];
-    id: CodecTypes['pg/text@1']['output'];
-    notes: CodecTypes['pg/text@1']['output'] | null;
-    patientId: CodecTypes['pg/text@1']['output'];
-    staffId: CodecTypes['pg/text@1']['output'];
-    status: 'ADMITTED' | 'DISCHARGED' | 'TRANSFERRED';
-    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    ward:
-      | 'GENERAL'
-      | 'ICU'
-      | 'PEDIATRIC'
-      | 'MATERNITY'
-      | 'EMERGENCY'
-      | 'SURGICAL'
-      | 'ISOLATION'
-      | 'OTHER';
-    facility: public_HealthcareFacility;
-    patient: public_Patient;
-    staff: public_User;
-    readonly [RelationKeys]?: 'facility' | 'patient' | 'staff';
-  };
   export type public_Ambulance = {
     createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
     driverName: CodecTypes['pg/text@1']['output'] | null;
@@ -2080,7 +1971,6 @@ export namespace Models {
 
 export declare const models: {
   public: {
-    Admission: Models.public_Admission;
     Ambulance: Models.public_Ambulance;
     Appointment: Models.public_Appointment;
     AuditLog: Models.public_AuditLog;
@@ -2127,150 +2017,6 @@ type ContractBase = Omit<
         readonly kind: 'postgres-schema';
         readonly entries: {
           readonly table: {
-            readonly Admission: {
-              columns: {
-                readonly admittedAt: {
-                  readonly nativeType: 'timestamptz';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                };
-                readonly createdAt: {
-                  readonly nativeType: 'timestamptz';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                };
-                readonly dischargedAt: {
-                  readonly nativeType: 'timestamptz';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                  readonly nullable: true;
-                };
-                readonly facilityId: {
-                  readonly nativeType: 'text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                };
-                readonly id: {
-                  readonly nativeType: 'text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                };
-                readonly notes: {
-                  readonly nativeType: 'text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                };
-                readonly patientId: {
-                  readonly nativeType: 'text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                };
-                readonly staffId: {
-                  readonly nativeType: 'text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                };
-                readonly status: {
-                  readonly nativeType: 'text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/text@1', 'ADMITTED'>;
-                  };
-                };
-                readonly updatedAt: {
-                  readonly nativeType: 'timestamptz';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                  readonly nullable: false;
-                };
-                readonly ward: {
-                  readonly nativeType: 'text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'Admission_facilityId_idx_3710d8c1';
-                  readonly prefix: 'Admission_facilityId_idx';
-                  readonly columns: readonly ['facilityId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Admission_facilityId_ward_status_idx_158c8f59';
-                  readonly prefix: 'Admission_facilityId_ward_status_idx';
-                  readonly columns: readonly ['facilityId', 'ward', 'status'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Admission_patientId_idx_e5f07e88';
-                  readonly prefix: 'Admission_patientId_idx';
-                  readonly columns: readonly ['patientId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Admission_patientId_status_idx_f2f98c70';
-                  readonly prefix: 'Admission_patientId_status_idx';
-                  readonly columns: readonly ['patientId', 'status'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Admission_staffId_idx_ce92c64e';
-                  readonly prefix: 'Admission_staffId_idx';
-                  readonly columns: readonly ['staffId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'admission_active_ward_af4e0b07';
-                  readonly prefix: 'admission_active_ward';
-                  readonly columns: readonly ['facilityId', 'patientId', 'ward', 'status'];
-                  readonly where: "status = 'ADMITTED'";
-                  readonly unique: true;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Admission';
-                    readonly columns: readonly ['patientId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Patient';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Admission';
-                    readonly columns: readonly ['facilityId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'HealthcareFacility';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Admission';
-                    readonly columns: readonly ['staffId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
             readonly Ambulance: {
               columns: {
                 readonly createdAt: {
@@ -4535,10 +4281,6 @@ type ContractBase = Omit<
             };
           };
           readonly valueSet: {
-            readonly AdmissionStatus: {
-              readonly kind: 'valueSet';
-              readonly values: readonly ['ADMITTED', 'DISCHARGED', 'TRANSFERRED'];
-            };
             readonly AmbulanceStatus: {
               readonly kind: 'valueSet';
               readonly values: readonly [
@@ -4694,7 +4436,6 @@ type ContractBase = Omit<
   readonly target: 'postgres';
   readonly targetFamily: 'sql';
   readonly roots: {
-    readonly Admission: { readonly namespace: 'public' & NamespaceId; readonly model: 'Admission' };
     readonly Ambulance: { readonly namespace: 'public' & NamespaceId; readonly model: 'Ambulance' };
     readonly Appointment: {
       readonly namespace: 'public' & NamespaceId;
@@ -4770,118 +4511,6 @@ type ContractBase = Omit<
     readonly namespaces: {
       readonly public: {
         readonly models: {
-          readonly Admission: {
-            readonly fields: {
-              readonly admittedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                };
-              };
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                };
-              };
-              readonly dischargedAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                };
-              };
-              readonly facilityId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly notes: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly patientId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly staffId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly status: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-string@1';
-                };
-              };
-              readonly ward: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly facility: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'HealthcareFacility';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['facilityId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly patient: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Patient';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['patientId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly staff: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['staffId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'Admission';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly admittedAt: { readonly column: 'admittedAt' };
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly dischargedAt: { readonly column: 'dischargedAt' };
-                readonly facilityId: { readonly column: 'facilityId' };
-                readonly id: { readonly column: 'id' };
-                readonly notes: { readonly column: 'notes' };
-                readonly patientId: { readonly column: 'patientId' };
-                readonly staffId: { readonly column: 'staffId' };
-                readonly status: { readonly column: 'status' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly ward: { readonly column: 'ward' };
-              };
-            };
-          };
           readonly Ambulance: {
             readonly fields: {
               readonly createdAt: {
@@ -7286,14 +6915,6 @@ type ContractBase = Omit<
           };
         };
         readonly enum: {
-          readonly AdmissionStatus: {
-            readonly codecId: 'pg/text@1';
-            readonly members: readonly [
-              { readonly name: 'ADMITTED'; readonly value: 'ADMITTED' },
-              { readonly name: 'DISCHARGED'; readonly value: 'DISCHARGED' },
-              { readonly name: 'TRANSFERRED'; readonly value: 'TRANSFERRED' },
-            ];
-          };
           readonly AmbulanceStatus: {
             readonly codecId: 'pg/text@1';
             readonly members: readonly [
@@ -7500,23 +7121,6 @@ type ContractBase = Omit<
     readonly executionHash: ExecutionHash;
     readonly mutations: {
       readonly defaults: readonly [
-        {
-          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'Admission';
-            readonly field: 'id';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'Admission';
-            readonly field: 'updatedAt';
-            readonly namespace: 'public';
-          };
-        },
         {
           readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
           readonly ref: {

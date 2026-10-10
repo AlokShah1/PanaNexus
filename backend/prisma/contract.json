@@ -4,6 +4,10 @@
   "target": "postgres",
   "profileHash": "3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2",
   "roots": {
+    "Admission": {
+      "model": "Admission",
+      "namespace": "public"
+    },
     "Ambulance": {
       "model": "Ambulance",
       "namespace": "public"
@@ -109,6 +113,23 @@
     "namespaces": {
       "public": {
         "enum": {
+          "AdmissionStatus": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "ADMITTED",
+                "value": "ADMITTED"
+              },
+              {
+                "name": "DISCHARGED",
+                "value": "DISCHARGED"
+              },
+              {
+                "name": "TRANSFERRED",
+                "value": "TRANSFERRED"
+              }
+            ]
+          },
           "AmbulanceStatus": {
             "codecId": "pg/text@1",
             "members": [
@@ -549,6 +570,188 @@
           }
         },
         "models": {
+          "Admission": {
+            "fields": {
+              "admittedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "dischargedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "facilityId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "patientId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "staffId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "AdmissionStatus",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "ward": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "WardType",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              }
+            },
+            "relations": {
+              "facility": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "facilityId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "HealthcareFacility",
+                  "namespace": "public"
+                }
+              },
+              "patient": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "patientId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Patient",
+                  "namespace": "public"
+                }
+              },
+              "staff": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "staffId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "admittedAt": {
+                  "column": "admittedAt"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "dischargedAt": {
+                  "column": "dischargedAt"
+                },
+                "facilityId": {
+                  "column": "facilityId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "patientId": {
+                  "column": "patientId"
+                },
+                "staffId": {
+                  "column": "staffId"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "ward": {
+                  "column": "ward"
+                }
+              },
+              "namespaceId": "public",
+              "table": "Admission"
+            }
+          },
           "Ambulance": {
             "fields": {
               "createdAt": {
@@ -4380,6 +4583,214 @@
       "public": {
         "entries": {
           "table": {
+            "Admission": {
+              "checks": [
+                {
+                  "expression": "\"status\" IN ('ADMITTED', 'DISCHARGED', 'TRANSFERRED')",
+                  "name": "Admission_status_check_bfff8205",
+                  "prefix": "Admission_status_check"
+                },
+                {
+                  "expression": "\"ward\" IN ('GENERAL', 'ICU', 'PEDIATRIC', 'MATERNITY', 'EMERGENCY', 'SURGICAL', 'ISOLATION', 'OTHER')",
+                  "name": "Admission_ward_check_11a48c15",
+                  "prefix": "Admission_ward_check"
+                }
+              ],
+              "columns": {
+                "admittedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "dischargedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "facilityId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "patientId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "staffId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "ADMITTED"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "AdmissionStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "ward": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "WardType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "patientId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Admission"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Patient"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "facilityId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Admission"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "HealthcareFacility"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "staffId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Admission"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "facilityId"
+                  ],
+                  "name": "Admission_facilityId_idx_3710d8c1",
+                  "prefix": "Admission_facilityId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "facilityId",
+                    "ward",
+                    "status"
+                  ],
+                  "name": "Admission_facilityId_ward_status_idx_158c8f59",
+                  "prefix": "Admission_facilityId_ward_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "patientId"
+                  ],
+                  "name": "Admission_patientId_idx_e5f07e88",
+                  "prefix": "Admission_patientId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "patientId",
+                    "status"
+                  ],
+                  "name": "Admission_patientId_status_idx_f2f98c70",
+                  "prefix": "Admission_patientId_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "staffId"
+                  ],
+                  "name": "Admission_staffId_idx_ce92c64e",
+                  "prefix": "Admission_staffId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "facilityId",
+                    "patientId",
+                    "ward",
+                    "status"
+                  ],
+                  "name": "admission_active_ward_af4e0b07",
+                  "prefix": "admission_active_ward",
+                  "unique": true,
+                  "where": "status = 'ADMITTED'"
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
             "Ambulance": {
               "checks": [
                 {
@@ -4680,6 +5091,16 @@
                   "name": "Appointment_patientId_startsAt_idx_e7cd3706",
                   "prefix": "Appointment_patientId_startsAt_idx",
                   "unique": false
+                },
+                {
+                  "columns": [
+                    "doctorId",
+                    "startsAt"
+                  ],
+                  "name": "appt_active_slot_d39b8f21",
+                  "prefix": "appt_active_slot",
+                  "unique": true,
+                  "where": "status IN ('REQUESTED', 'CONFIRMED')"
                 }
               ],
               "primaryKey": {
@@ -7089,6 +7510,15 @@
                   "name": "Trip_ambulanceId_idx_77f531f9",
                   "prefix": "Trip_ambulanceId_idx",
                   "unique": false
+                },
+                {
+                  "columns": [
+                    "ambulanceId"
+                  ],
+                  "name": "trip_active_ambulance_d4c02969",
+                  "prefix": "trip_active_ambulance",
+                  "unique": true,
+                  "where": "status IN ('EN_ROUTE', 'ARRIVED', 'TRANSPORTING')"
                 }
               ],
               "primaryKey": {
@@ -7415,6 +7845,14 @@
             }
           },
           "valueSet": {
+            "AdmissionStatus": {
+              "kind": "valueSet",
+              "values": [
+                "ADMITTED",
+                "DISCHARGED",
+                "TRANSFERRED"
+              ]
+            },
             "AmbulanceStatus": {
               "kind": "valueSet",
               "values": [
@@ -7598,12 +8036,38 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "df732f015029f7610fe8ce3c119b65e4362006a4a186bd1a5e7f6022eb655cb1"
+    "storageHash": "928229059311ebb323f8788329cd63559c8e31cb8f9cbf3c3a23bd037390f7a6"
   },
   "execution": {
-    "executionHash": "a083a04779ba57f35da1572a3e2875542d8c3c44bbcebcd67a4c7b7dddb95db4",
+    "executionHash": "d85d3d6e4f9de41055c3f78280d01cac63abbc03290100a5fd4d574b1d18aec5",
     "mutations": {
       "defaults": [
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Admission",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Admission",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
         {
           "onCreate": {
             "id": "uuidv4",

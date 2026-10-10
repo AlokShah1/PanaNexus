@@ -5,6 +5,8 @@ import { notify } from '../lib/notify.js';
 import { emitToRoom, emitToUser, tripRoom } from '../lib/realtime.js';
 import { getUser, requireAuth, requireRole, requireVerified, type SessionUser } from '../middleware/auth.js';
 import { haversineKm } from '../lib/matching.js';
+import { isUniqueViolation } from '../lib/appointments.js';
+import { DispatchConflictError, roadEtaMinutes } from '../lib/dispatch.js';
 import { acceptAmbulanceSchema, ambulanceLocationSchema, ambulanceStatusSchema } from '../validations/emergency.js';
 import { isDemoMode } from '../lib/demoSimulation.js';
 
@@ -171,9 +173,33 @@ router.post('/:id/accept', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN
   const reqRow = await db.orm.public.EmergencyRequest.where({ id: parsed.data.emergencyRequestId }).first();
   if (!reqRow) return fail(res, 'NOT_FOUND', 'Emergency request not found.', 404);
   if (reqRow.status !== 'PENDING' && reqRow.status !== 'MATCHED') return fail(res, 'INVALID_STATE', 'Request cannot be accepted.', 409);
-  await db.orm.public.Ambulance.where({ id: owned.row.id }).update({ status: 'ASSIGNED' });
-  await db.orm.public.EmergencyRequest.where({ id: reqRow.id }).update({ status: 'ASSIGNED' });
-  const trip = await db.orm.public.Trip.create({ emergencyRequestId: reqRow.id, ambulanceId: owned.row.id, status: 'EN_ROUTE' });
+
+  // Claim the ambulance and the request atomically. Unique indexes on an active
+  // trip per ambulance and per emergency request are the real guard against two
+  // operators racing to accept the same request (or one unit taking two trips).
+  let trip;
+  try {
+    trip = await db.transaction(async (tx) => {
+      const freshAmb = await tx.orm.public.Ambulance.where({ id: owned.row.id }).first();
+      if (!freshAmb || freshAmb.status !== 'AVAILABLE') {
+        throw new DispatchConflictError('NOT_AVAILABLE', 'Ambulance is not available.');
+      }
+      const freshReq = await tx.orm.public.EmergencyRequest.where({ id: reqRow.id }).first();
+      if (!freshReq || (freshReq.status !== 'PENDING' && freshReq.status !== 'MATCHED')) {
+        throw new DispatchConflictError('INVALID_STATE', 'This request has already been assigned.');
+      }
+      await tx.orm.public.Ambulance.where({ id: owned.row.id }).update({ status: 'ASSIGNED' });
+      await tx.orm.public.EmergencyRequest.where({ id: reqRow.id }).update({ status: 'ASSIGNED' });
+      return await tx.orm.public.Trip.create({ emergencyRequestId: reqRow.id, ambulanceId: owned.row.id, status: 'EN_ROUTE' });
+    });
+  } catch (err) {
+    if (err instanceof DispatchConflictError) return fail(res, err.code, err.message, 409);
+    if (isUniqueViolation(err)) {
+      return fail(res, 'INVALID_STATE', 'This request has already been assigned.', 409);
+    }
+    throw err;
+  }
+
   await db.orm.public.AuditLog.create({ action: 'AMBULANCE_ASSIGNED', entity: 'Trip', entityId: trip.id, actorId: user.id }).catch(() => undefined);
   await notify(reqRow.requesterId, {
     type: 'EMERGENCY',
@@ -181,10 +207,20 @@ router.post('/:id/accept', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN
     body: `${owned.row.registrationNumber} is on the way to you.`,
     link: '/emergency',
   });
-  const payload = { tripId: trip.id, emergencyRequestId: reqRow.id, status: trip.status, state: 'EN_ROUTE', ambulance: fleetView(owned.row), isSimulation: false };
+  const eta = await roadEtaMinutes(owned.row.latitude, owned.row.longitude, reqRow.pickupLatitude, reqRow.pickupLongitude);
+  const payload = {
+    tripId: trip.id,
+    emergencyRequestId: reqRow.id,
+    status: trip.status,
+    state: 'EN_ROUTE',
+    ambulance: fleetView(owned.row),
+    isSimulation: false,
+    etaMinutes: eta?.minutes ?? null,
+    etaApproximate: eta?.approximate ?? null,
+  };
   emitToUser(reqRow.requesterId, 'trip:status', payload);
   emitToRoom(tripRoom(trip.id), 'trip:status', payload);
-  return ok(res, { trip: { id: trip.id, status: trip.status, state: 'EN_ROUTE' } }, 201);
+  return ok(res, { trip: { id: trip.id, status: trip.status, state: 'EN_ROUTE', etaMinutes: eta?.minutes ?? null, etaApproximate: eta?.approximate ?? null } }, 201);
 });
 
 router.patch('/:id/status', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMIN'), requireVerified, async (req, res) => {
@@ -244,6 +280,9 @@ interface LocThrottleState {
 }
 const lastLocationAt = new Map<string, LocThrottleState>();
 
+/** Road-ETA is recomputed at most once every 20s per trip to spare the provider. */
+const lastEtaAt = new Map<string, number>();
+
 /** Only publish a GPS point every ~2.5s AND when it moves meaningfully (>15 m). */
 function shouldPublish(id: string, lat: number, lng: number): boolean {
   const now = Date.now();
@@ -281,6 +320,13 @@ router.post('/:id/location', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADM
       longitude: parsed.data.longitude,
       accuracy: parsed.data.accuracy ?? null,
     });
+    const reqRow = await db.orm.public.EmergencyRequest.where({ id: trip.emergencyRequestId }).first();
+    const lastEta = lastEtaAt.get(trip.id) ?? 0;
+    let eta: Awaited<ReturnType<typeof roadEtaMinutes>> = null;
+    if (reqRow && Date.now() - lastEta >= 20_000) {
+      eta = await roadEtaMinutes(parsed.data.latitude, parsed.data.longitude, reqRow.pickupLatitude, reqRow.pickupLongitude);
+      lastEtaAt.set(trip.id, Date.now());
+    }
     const event = {
       tripId: trip.id,
       latitude: update.latitude,
@@ -288,9 +334,10 @@ router.post('/:id/location', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADM
       accuracy: update.accuracy ?? null,
       recordedAt: update.recordedAt,
       isSimulation: trip.isSimulation,
+      etaMinutes: eta?.minutes ?? null,
+      etaApproximate: eta?.approximate ?? null,
     };
     emitToRoom(tripRoom(trip.id), 'trip:location', event);
-    const reqRow = await db.orm.public.EmergencyRequest.where({ id: trip.emergencyRequestId }).first();
     if (reqRow) {
       emitToUser(reqRow.requesterId, 'trip:location', event);
     }

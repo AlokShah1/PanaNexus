@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiGet, apiPost } from '@/lib/api';
+import { getRealtime } from '@/lib/realtime';
 import { Badge, Button } from '@/components/ui';
 import { IconAmbulance, IconHeart } from '@/components/icons';
 import { Card, Empty, ErrorBanner, Skeleton, SuccessNotice, type ApiError, blockReason, fmtDateTime } from './ui';
@@ -67,6 +68,19 @@ export default function DispatchBoard({
     void (async () => {
       await load();
     })();
+  }, [load]);
+
+  useEffect(() => {
+    const s = getRealtime();
+    if (s) {
+      const refresh = () => void load();
+      s.on('emergency:new', refresh);
+      return () => {
+        s.off('emergency:new', refresh);
+      };
+    }
+    const t = setInterval(() => void load(), 15000);
+    return () => clearInterval(t);
   }, [load]);
 
   const available = (fleet ?? []).filter((a) => a.status === 'AVAILABLE' && a.online);

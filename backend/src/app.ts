@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import { env } from './config/env.js';
 import apiRouter from './routes/index.js';
 import { originGuard } from './middleware/origin.js';
+import { db } from '../prisma/db.js';
 
 const frontendOrigin = env.FRONTEND_URL.replace(/\/+$/, '');
 const app = express();
@@ -41,6 +42,14 @@ const authLimiter = rateLimit({
 });
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/ready', async (_req, res) => {
+  try {
+    await db.orm.public.User.where({}).first();
+    res.json({ status: 'ready' });
+  } catch {
+    res.status(503).json({ status: 'not ready', reason: 'database' });
+  }
+});
 app.use('/api/v1/auth', authLimiter);
 app.use('/api/v1', apiRouter);
 

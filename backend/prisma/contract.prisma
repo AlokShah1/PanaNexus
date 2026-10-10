@@ -47,6 +47,12 @@ enum WardType {
   OTHER
 }
 
+enum AdmissionStatus {
+  ADMITTED
+  DISCHARGED
+  TRANSFERRED
+}
+
 enum AppointmentStatus {
   REQUESTED
   CONFIRMED
@@ -251,6 +257,27 @@ model BedCapacity {
   @@index([facilityId])
 }
 
+model Admission {
+  id         String           @id @default(uuid())
+  patient    Patient          @relation(fields: [patientId], references: [id])
+  patientId  String
+  facility   HealthcareFacility @relation(fields: [facilityId], references: [id])
+  facilityId String
+  ward       WardType
+  status     AdmissionStatus  @default(ADMITTED)
+  staff      User             @relation(fields: [staffId], references: [id])
+  staffId    String
+  admittedAt TimestamptzString @default(now())
+  dischargedAt TimestamptzString?
+  notes      String?
+  createdAt  TimestamptzString @default(now())
+  updatedAt  temporal.updatedAtString()
+
+  @@index([patientId, status])
+  @@index([facilityId, ward, status])
+  @@index([facilityId, patientId, ward, status], unique: true, where: "status = 'ADMITTED'", name: "admission_active_ward")
+}
+
 model Appointment {
   id         String             @id @default(uuid())
   patient    Patient            @relation(fields: [patientId], references: [id])
@@ -267,6 +294,7 @@ model Appointment {
 
   @@index([doctorId, startsAt])
   @@index([patientId, startsAt])
+  @@index([doctorId, startsAt], unique: true, where: "status IN ('REQUESTED', 'CONFIRMED')", name: "appt_active_slot")
 }
 
 model MedicalRecord {
@@ -427,6 +455,7 @@ model Trip {
   locationUpdates  LocationUpdate[]
 
   @@index([ambulanceId])
+  @@index([ambulanceId], unique: true, where: "status IN ('EN_ROUTE', 'ARRIVED', 'TRANSPORTING')", name: "trip_active_ambulance")
 }
 
 model LocationUpdate {

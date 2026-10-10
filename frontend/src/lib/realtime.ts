@@ -28,6 +28,8 @@ export type TripStatusEvent = {
   status: string;
   state: string;
   isSimulation?: boolean;
+  etaMinutes?: number | null;
+  etaApproximate?: boolean | null;
   ambulance?: {
     id: string;
     registrationNumber: string;
@@ -46,4 +48,5 @@ export type TripLocationEvent = {
   accuracy?: number | null;
   isSimulation?: boolean;
   etaMinutes?: number | null;
+  etaApproximate?: boolean | null;
 };

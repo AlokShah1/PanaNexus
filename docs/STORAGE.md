@@ -18,8 +18,10 @@ Selected with `STORAGE_DRIVER`:
 | `local` | Development / test / single self-hosted box | Backend streams the file from `UPLOAD_DIR/reports` behind an HMAC-signed, expiring URL |
 | `s3`    | Production | S3 presigned `GetObject` URL (default TTL 5 min) |
 
-`local` is the default. In production the server logs a warning if it is left
-on `local`; use `s3` for any real patient document.
+`local` is the default for development/test. **In production the API refuses
+to boot unless `STORAGE_DRIVER=s3` and the S3 variables below are set** — local
+disk on an ephemeral host would silently lose patient documents on redeploy.
+The startup check names any missing variable and never prints secret values.
 
 ## Configuration
 
@@ -35,9 +37,26 @@ REPORT_MAX_FILE_BYTES=15728640   # 15 MB (default)
 REPORT_URL_TTL_SECONDS=300       # signed download lifetime (default)
 ```
 
-When `STORAGE_DRIVER=s3`, `AWS_REGION` and `AWS_S3_BUCKET` are required. The
-access key pair is optional at validation time so an instance/profile role can
-be used instead; if one of the pair is set, both must be.
+When `STORAGE_DRIVER=s3`, `AWS_REGION` and `AWS_S3_BUCKET` are required. In
+production the access key pair (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`)
+is required too — an instance/profile role is accepted only outside production.
+Missing values abort startup with an actionable message that names the variables
+but never their values.
+
+## Production deployment steps
+
+1. Create the bucket and a least-privilege access key (see below).
+2. In the Render dashboard set `STORAGE_DRIVER=s3` plus `AWS_REGION`,
+   `AWS_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` as **secret**
+   environment variables (never commit them or expose them to the frontend).
+3. Deploy. The API refuses to boot in production while any of these is missing;
+   `render.yaml` already selects S3 and leaves the credentials to the dashboard.
+4. Enable a lifecycle/retention policy that matches your data policy.
+5. If the browser fetches the presigned URL in JavaScript, add the bucket CORS
+   rule from step 6 below.
+6. Migrating from `local`: copy existing `UPLOAD_DIR/reports` objects into the
+   bucket under their stored keys first. The app never migrates or deletes your
+   existing files automatically.
 
 ## Bucket setup (AWS S3)
 

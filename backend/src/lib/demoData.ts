@@ -1,7 +1,8 @@
 import { db } from '../../prisma/db.js';
 import { hashPassword } from './auth-core.js';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { getStorage } from './storage.js';
+import { demoMode } from '../config/env.js';
 
 /**
  * Synthetic demo data for presentation and testing ONLY.
@@ -16,6 +17,16 @@ import { getStorage } from './storage.js';
 export const DEMO_EMAIL_DOMAIN = 'pananexus.local';
 export const DEMO_NOTE = 'Demo data is synthetic and for presentation/testing only.';
 const LEDGER_KEY = 'demo.data.ledger';
+
+/**
+ * Demo tooling is destructive (it creates and removes rows), so it must be
+ * explicitly enabled. `DEMO_MODE` is forced off in production by env validation.
+ */
+export function assertDemoEnabled(): void {
+  if (!demoMode) {
+    throw new Error('Demo tooling is disabled. Set DEMO_MODE=true to enable demo seeding/clearing.');
+  }
+}
 
 type Ledger = Record<string, string[]>;
 
@@ -32,17 +43,17 @@ function newLedger(): Ledger {
     emergencies: [],
     trips: [],
     locations: [],
-    notifications: [],
-    feedback: [],
-    bloodUnits: [],
-    bloodRequests: [],
     bloodDonors: [],
     organDonors: [],
-    verifications: [],
-    facilities: [],
+    bloodRequests: [],
+    bloodUnits: [],
     bedCapacities: [],
+    feedback: [],
+    notifications: [],
+    verifications: [],
     conversations: [],
     messages: [],
+    facilities: [],
   };
 }
 
@@ -108,9 +119,12 @@ const FACILITIES = [
   { name: 'Kolar Road Clinic', type: 'HEALTH_POST' as const, lat: 23.235, lng: 77.365, address: 'Kolar Road, Bhopal', emergency: false, hours: '09:00 - 18:00', services: ['OPD', 'Diagnostics', 'Vaccination'] },
 ];
 
-async function ensureFacility(f: (typeof FACILITIES)[number]) {
+async function ensureFacility(ledger: Ledger, f: (typeof FACILITIES)[number]) {
   const existing = await db.orm.public.HealthcareFacility.where({ name: f.name, address: f.address }).first();
-  if (existing) return existing;
+  if (existing) {
+    if (!ledger.facilities.includes(existing.id)) ledger.facilities.push(existing.id);
+    return existing;
+  }
   const row = await db.orm.public.HealthcareFacility.create({
     name: f.name,
     type: f.type,
@@ -121,6 +135,7 @@ async function ensureFacility(f: (typeof FACILITIES)[number]) {
     operatingHours: f.hours,
     services: f.services,
   });
+  ledger.facilities.push(row.id);
   return row;
 }
 
@@ -151,14 +166,16 @@ const SPECIALTIES = [
 ] as const;
 
 export async function seedDemoData() {
+  assertDemoEnabled();
   await clearDemoData();
   const ledger = newLedger();
-  const password = process.env.DEMO_PASSWORD ?? process.env.SEED_PASSWORD ?? 'TestPass!123';
+  const password =
+    process.env.DEMO_PASSWORD ?? process.env.SEED_PASSWORD ?? randomBytes(12).toString('base64url');
   const passwordHash = await hashPassword(password);
 
   const facilities: { id: string; name: string }[] = [];
   for (const f of FACILITIES) {
-    const row = await ensureFacility(f);
+    const row = await ensureFacility(ledger, f);
     facilities.push(row);
   }
 
@@ -736,7 +753,6 @@ export async function seedDemoData() {
     note: DEMO_NOTE,
     password,
     credentials: {
-      admin: `admin@${DEMO_EMAIL_DOMAIN}`,
       patient: `patient.demo@${DEMO_EMAIL_DOMAIN}`,
       doctor: `doctor.demo@${DEMO_EMAIL_DOMAIN}`,
       operator: `ambulance.demo@${DEMO_EMAIL_DOMAIN}`,
@@ -747,83 +763,69 @@ export async function seedDemoData() {
 }
 
 export async function clearDemoData() {
+  assertDemoEnabled();
   const ledger = await readLedger();
-  const [allUsers, allPatients, allDoctors, allAmbulances, allAppointments, allRecords, allReportFiles, allEmergencies, allTrips, allLocations, allAvailability, allBloodDonors, allOrganDonors, allBloodRequests, allFeedback, allNotifications, allVerifications, allConversations, allMessages] =
-    await Promise.all([
-      db.orm.public.User.all(),
-      db.orm.public.Patient.all(),
-      db.orm.public.Doctor.all(),
-      db.orm.public.Ambulance.all(),
-      db.orm.public.Appointment.all(),
-      db.orm.public.MedicalRecord.all(),
-      db.orm.public.ReportFile.all(),
-      db.orm.public.EmergencyRequest.all(),
-      db.orm.public.Trip.all(),
-      db.orm.public.LocationUpdate.all(),
-      db.orm.public.DoctorAvailability.all(),
-      db.orm.public.BloodDonor.all(),
-      db.orm.public.OrganDonor.all(),
-      db.orm.public.BloodRequest.all(),
-      db.orm.public.Feedback.all(),
-      db.orm.public.Notification.all(),
-      db.orm.public.VerificationRequest.all(),
-      db.orm.public.Conversation.all(),
-      db.orm.public.Message.all(),
-    ]);
 
-  const userMatches = (email: string) => email.toLowerCase().endsWith(`@${DEMO_EMAIL_DOMAIN}`);
-  const userIds = allUsers.filter((u) => userMatches(u.email)).map((u) => u.id);
-  const userSet = new Set(userIds);
-
-  const patientIds = allPatients.filter((p) => userSet.has(p.userId)).map((p) => p.id);
-  const doctorIds = allDoctors.filter((d) => userSet.has(d.userId)).map((d) => d.id);
-  const ambulanceIds = allAmbulances.filter((a) => a.operatorId && userSet.has(a.operatorId)).map((a) => a.id);
-  const emergencyIds = allEmergencies.filter((e) => userSet.has(e.requesterId)).map((e) => e.id);
-
-  const patientSet = new Set(patientIds);
-  const doctorSet = new Set(doctorIds);
-  const emergencySet = new Set(emergencyIds);
-  const conversationIds = allConversations.filter((c) => patientSet.has(c.patientId) || doctorSet.has(c.doctorId)).map((c) => c.id);
-  const conversationSet = new Set(conversationIds);
-  const tripIds = allTrips.filter((t) => emergencySet.has(t.emergencyRequestId) || ambulanceIds.includes(t.ambulanceId)).map((t) => t.id);
-  const tripSet = new Set(tripIds);
-
-  const demoReportFiles = allReportFiles.filter(
-    (f) => f.isDemo || patientSet.has(f.patientId) || userSet.has(f.uploadedById),
-  );
-  for (const f of demoReportFiles) {
-    await getStorage().remove(f.storageKey).catch(() => undefined);
+  // Any location pings attached to tracked demo trips (including those written
+  // by the demo simulator, which never records into the ledger itself).
+  const locationIds = new Set(ledger.locations);
+  for (const tripId of ledger.trips) {
+    try {
+      const rows = (await db.orm.public.LocationUpdate.where({ tripId }).all()) as Array<{ id: string }>;
+      for (const row of rows) locationIds.add(row.id);
+    } catch {
+      // no location history for this trip
+    }
   }
 
-  const pick = <T,>(rows: T[], fn: (row: T) => boolean) => rows.filter(fn);
+  // Remove synthetic report blobs before their rows disappear.
+  for (const id of ledger.reportFiles) {
+    try {
+      const file = (await db.orm.public.ReportFile.where({ id }).first()) as { storageKey: string } | null;
+      if (file) await getStorage().remove(file.storageKey).catch(() => undefined);
+    } catch {
+      // row already gone
+    }
+  }
 
   const groups: Array<[keyof typeof db.orm.public, string[]]> = [
-    ['LocationUpdate', pick(allLocations, (u) => tripSet.has(u.tripId)).map((u) => u.id)],
-    ['Trip', tripIds],
-    ['EmergencyRequest', emergencyIds],
-    ['Notification', pick(allNotifications, (n) => userSet.has(n.userId)).map((n) => n.id)],
-    ['Feedback', pick(allFeedback, (f) => userSet.has(f.authorId)).map((f) => f.id)],
-    ['ReportFile', demoReportFiles.map((f) => f.id)],
-    ['MedicalRecord', pick(allRecords, (r) => patientSet.has(r.patientId) || (r.doctorId ? doctorSet.has(r.doctorId) : false)).map((r) => r.id)],
-    ['Appointment', pick(allAppointments, (a) => patientSet.has(a.patientId) || doctorSet.has(a.doctorId)).map((a) => a.id)],
-    ['DoctorAvailability', pick(allAvailability, (a) => doctorSet.has(a.doctorId)).map((a) => a.id)],
-    ['Message', pick(allMessages, (m) => conversationSet.has(m.conversationId)).map((m) => m.id)],
-    ['Conversation', conversationIds],
-    ['Doctor', doctorIds],
-    ['Patient', patientIds],
-    ['BloodDonor', pick(allBloodDonors, (d) => userSet.has(d.userId)).map((d) => d.id)],
-    ['OrganDonor', pick(allOrganDonors, (d) => userSet.has(d.userId)).map((d) => d.id)],
-    ['BloodRequest', pick(allBloodRequests, (r) => userSet.has(r.requesterId)).map((r) => r.id)],
+    ['LocationUpdate', [...locationIds]],
+    ['Trip', ledger.trips],
+    ['EmergencyRequest', ledger.emergencies],
+    ['Notification', ledger.notifications],
+    ['Feedback', ledger.feedback],
+    ['ReportFile', ledger.reportFiles],
+    ['MedicalRecord', ledger.records],
+    ['Appointment', ledger.appointments],
+    ['DoctorAvailability', ledger.availability],
+    ['BloodRequest', ledger.bloodRequests],
+    ['BloodDonor', ledger.bloodDonors],
+    ['OrganDonor', ledger.organDonors],
     ['BloodUnit', ledger.bloodUnits],
     ['BedCapacity', ledger.bedCapacities],
-    ['VerificationRequest', pick(allVerifications, (v) => userSet.has(v.userId)).map((v) => v.id)],
-    ['Ambulance', ambulanceIds],
-    ['User', userIds],
+    ['VerificationRequest', ledger.verifications],
+    ['Message', ledger.messages],
+    ['Conversation', ledger.conversations],
+    ['Doctor', ledger.doctors],
+    ['Patient', ledger.patients],
+    ['Ambulance', ledger.ambulances],
+    ['User', ledger.users],
+    // Facilities are shared with real data. This runs last and any failure
+    // (e.g. a real row still references it) is ignored, so real facilities are
+    // never removed.
+    ['HealthcareFacility', ledger.facilities],
   ];
 
   let removed = 0;
   for (const [model, ids] of groups) {
     for (const id of ids) {
+      if (model === 'User') {
+        // Extra safeguard: never delete a user whose email does not match the reserved demo domain.
+        const user = await db.orm.public.User.where({ id }).first();
+        if (!user || !user.email.toLowerCase().endsWith(`@${DEMO_EMAIL_DOMAIN}`)) {
+          continue; // Skip real/non-demo users regardless of ledger state.
+        }
+      }
       await (db.orm.public[model] as unknown as { where: (w: { id: string }) => { delete: () => Promise<unknown> } })
         .where({ id })
         .delete()

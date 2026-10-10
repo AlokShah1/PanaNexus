@@ -20,17 +20,24 @@ export function readSessionToken(req: Request): string | undefined {
 }
 
 function cookieOptions() {
-  const isProd = process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
-    secure: isProd,
+    sameSite: 'none' as const,
+    secure: true,
     path: '/',
   };
 }
 
-export function setSessionCookie(res: Response, token: string, maxAgeSeconds: number): void {
-  res.cookie(SESSION_COOKIE, token, { ...cookieOptions(), maxAge: maxAgeSeconds });
+/**
+ * Set the session cookie so its browser lifetime matches the server-side
+ * session expiry exactly. Express interprets `maxAge` as **milliseconds** (it
+ * derives `Expires` from `Date.now() + maxAge`), so we always pass milliseconds
+ * derived from the session's absolute expiry rather than a raw TTL.
+ */
+export function setSessionCookie(res: Response, token: string, expiresAt: Date | string): void {
+  const expiry = expiresAt instanceof Date ? expiresAt : new Date(expiresAt);
+  const maxAgeMs = Math.max(0, expiry.getTime() - Date.now());
+  res.cookie(SESSION_COOKIE, token, { ...cookieOptions(), maxAge: maxAgeMs });
 }
 
 export function clearSessionCookie(res: Response): void {

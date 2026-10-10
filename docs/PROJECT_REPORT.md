@@ -54,7 +54,7 @@ Emergency lifecycle: `PENDING→MATCHED→ASSIGNED→EN_ROUTE→ARRIVED→TRANSP
 
 ## 5. Test creds (dev/demo only)
 
-See `docs/DEPLOY.md`. Seed via `cd backend && npm run seed [-- --demo]`; demo accounts use `TestPass!123` (or `SEED_PASSWORD`).
+See `docs/DEPLOY.md`. Seed facilities with `cd backend && npm run seed`. Synthetic demo accounts require `DEMO_MODE=true` (dev/demo only) via `DEMO_MODE=true npm run seed -- --demo`, use the reserved `@pananexus.local` domain, and print one-time credentials (password from `DEMO_PASSWORD`, else generated).
 
 ## 6. Deployment
 

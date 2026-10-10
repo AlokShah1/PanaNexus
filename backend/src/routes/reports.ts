@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { db } from '../../prisma/db.js';
 import { fail, ok } from '../lib/api.js';
 import { env } from '../config/env.js';
-import { getUser, requireAuth, type SessionUser } from '../middleware/auth.js';
+import { getUser, requireAuth, requireVerified, type SessionUser } from '../middleware/auth.js';
 import { parsePage, pageMeta } from '../lib/pagination.js';
 import {
   getStorage,
@@ -180,7 +180,7 @@ async function audit(action: string, entityId: string, actorId: string, metadata
 /* Routes                                                                     */
 /* -------------------------------------------------------------------------- */
 
-router.post('/', requireAuth, handleUpload, async (req, res) => {
+router.post('/', requireAuth, requireVerified, handleUpload, async (req, res) => {
   const user = getUser(req);
   const file = req.file;
   if (!file) return fail(res, 'NO_FILE', 'Attach a file to upload.', 422);

@@ -5,11 +5,11 @@ import { clearSessionCookie, hashPassword, readSessionToken, setSessionCookie, v
 import {
   createSession,
   revokeSessionByToken,
-  sessionCookieMaxAge,
   sessionInfo,
   touchSession,
   type SessionRow,
 } from '../lib/session.js';
+import { DEMO_EMAIL_DOMAIN } from '../lib/demoData.js';
 import { notify } from '../lib/notify.js';
 import { env } from '../config/env.js';
 import { loginSchema, registerSchema } from '../validations/auth.js';
@@ -59,7 +59,7 @@ async function startSession(
     ip: req.ip ?? null,
     rotatedFrom: rotatedFrom ?? null,
   });
-  setSessionCookie(res, token, sessionCookieMaxAge(role));
+  setSessionCookie(res, token, session.absoluteExpiresAt);
   return session;
 }
 
@@ -69,6 +69,9 @@ router.post('/register', asyncRoute(async (req, res) => {
   const data = parsed.data;
   if (data.email === env.ADMIN_EMAIL.trim().toLowerCase()) {
     return fail(res, 'EMAIL_RESERVED', 'This email cannot be used to register.', 403);
+  }
+  if (data.email.toLowerCase().endsWith(`@${DEMO_EMAIL_DOMAIN}`)) {
+    return fail(res, 'EMAIL_RESERVED', 'This email domain is reserved for demo data.', 403);
   }
   const existing = await db.orm.public.User.where({ email: data.email }).first();
   if (existing) return fail(res, 'EMAIL_TAKEN', 'An account with this email already exists.', 409);
