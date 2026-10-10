@@ -75,6 +75,14 @@ export default function SiteHeader() {
               {n.label}
             </Link>
           ))}
+          {signedIn && (profile.role === 'PATIENT' || profile.role === 'DOCTOR') && (
+            <Link
+              href="/messages"
+              className="rounded-full px-3.5 py-2 text-sm font-medium text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-700"
+            >
+              Messages
+            </Link>
+          )}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
@@ -146,6 +154,15 @@ export default function SiteHeader() {
                 {n.label}
               </Link>
             ))}
+            {signedIn && (profile.role === 'PATIENT' || profile.role === 'DOCTOR') && (
+              <Link
+                href="/messages"
+                onClick={() => setOpen(false)}
+                className="rounded-xl px-3 py-2.5 text-sm font-medium text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-700"
+              >
+                Messages
+              </Link>
+            )}
             <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
               {signedIn && profile ? (
                 <>

@@ -99,6 +99,7 @@ model User {
   sessions     Session[]
   reportFiles  ReportFile[]
   bedCapacityUpdates BedCapacity[]
+  sentMessages Message[] @relation("MessageSender")
 
   @@index([role])
   @@index([verificationStatus])
@@ -171,6 +172,7 @@ model Patient {
   medicalRecords MedicalRecord[]
   emergencyRequests EmergencyRequest[]
   reportFiles    ReportFile[]
+  conversations  Conversation[]
 }
 
 model Doctor {
@@ -187,6 +189,7 @@ model Doctor {
   appointments   Appointment[]
   medicalRecords MedicalRecord[]
   availability   DoctorAvailability[]
+  conversations  Conversation[]
 
   @@index([facilityId])
   @@index([specialization])
@@ -543,4 +546,34 @@ model PlatformSetting {
   key       String   @id
   value     String
   updatedAt temporal.updatedAtString()
+}
+
+model Conversation {
+  id            String            @id @default(uuid())
+  patient       Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patientId     String
+  doctor        Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctorId      String
+  lastMessageAt TimestamptzString?
+  createdAt     TimestamptzString @default(now())
+  updatedAt     temporal.updatedAtString()
+  messages      Message[]
+
+  @@unique([patientId, doctorId])
+  @@index([doctorId])
+  @@index([patientId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
+  senderId       String
+  body           String
+  readAt         TimestamptzString?
+  createdAt      TimestamptzString @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
 }

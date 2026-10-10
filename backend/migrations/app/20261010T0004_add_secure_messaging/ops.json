@@ -1,0 +1,485 @@
+[
+  {
+    "id": "table.Conversation",
+    "label": "Create table \"Conversation\"",
+    "summary": "Creates table \"Conversation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Conversation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Conversation\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Conversation\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Conversation\"",
+        "sql": "CREATE TABLE \"public\".\"Conversation\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"doctorId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"lastMessageAt\" timestamptz,\n  \"patientId\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Conversation\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Conversation\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Message",
+    "label": "Create table \"Message\"",
+    "summary": "Creates table \"Message\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Message"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Message\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Message\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Message\"",
+        "sql": "CREATE TABLE \"public\".\"Message\" (\n  \"body\" text NOT NULL,\n  \"conversationId\" text NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"readAt\" timestamptz,\n  \"senderId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Message\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Message\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Conversation.Conversation_patientId_doctorId_key",
+    "label": "Add unique constraint on \"Conversation\" (patientId, doctorId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Conversation_patientId_doctorId_key",
+        "table": "Conversation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Conversation_patientId_doctorId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Conversation_patientId_doctorId_key",
+          "public",
+          "\"public\".\"Conversation\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Conversation_patientId_doctorId_key\"",
+        "sql": "ALTER TABLE \"public\".\"Conversation\" ADD CONSTRAINT \"Conversation_patientId_doctorId_key\" UNIQUE (\"patientId\", \"doctorId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Conversation_patientId_doctorId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Conversation_patientId_doctorId_key",
+          "public",
+          "\"public\".\"Conversation\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Conversation.Conversation_doctorId_idx_04369053",
+    "label": "Create index \"Conversation_doctorId_idx_04369053\" on \"Conversation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Conversation_doctorId_idx_04369053",
+        "table": "Conversation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Conversation_doctorId_idx_04369053\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Conversation_doctorId_idx_04369053\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Conversation_doctorId_idx_04369053\"",
+        "sql": "CREATE INDEX \"Conversation_doctorId_idx_04369053\" ON \"public\".\"Conversation\" (\"doctorId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Conversation_doctorId_idx_04369053\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Conversation_doctorId_idx_04369053\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Conversation.Conversation_patientId_idx_e5f07e88",
+    "label": "Create index \"Conversation_patientId_idx_e5f07e88\" on \"Conversation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Conversation_patientId_idx_e5f07e88",
+        "table": "Conversation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Conversation_patientId_idx_e5f07e88\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Conversation_patientId_idx_e5f07e88\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Conversation_patientId_idx_e5f07e88\"",
+        "sql": "CREATE INDEX \"Conversation_patientId_idx_e5f07e88\" ON \"public\".\"Conversation\" (\"patientId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Conversation_patientId_idx_e5f07e88\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Conversation_patientId_idx_e5f07e88\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Message.Message_conversationId_createdAt_idx_44d4ac61",
+    "label": "Create index \"Message_conversationId_createdAt_idx_44d4ac61\" on \"Message\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Message_conversationId_createdAt_idx_44d4ac61",
+        "table": "Message"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Message_conversationId_createdAt_idx_44d4ac61\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Message_conversationId_createdAt_idx_44d4ac61\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Message_conversationId_createdAt_idx_44d4ac61\"",
+        "sql": "CREATE INDEX \"Message_conversationId_createdAt_idx_44d4ac61\" ON \"public\".\"Message\" (\"conversationId\", \"createdAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Message_conversationId_createdAt_idx_44d4ac61\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Message_conversationId_createdAt_idx_44d4ac61\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Message.Message_conversationId_idx_669215a6",
+    "label": "Create index \"Message_conversationId_idx_669215a6\" on \"Message\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Message_conversationId_idx_669215a6",
+        "table": "Message"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Message_conversationId_idx_669215a6\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Message_conversationId_idx_669215a6\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Message_conversationId_idx_669215a6\"",
+        "sql": "CREATE INDEX \"Message_conversationId_idx_669215a6\" ON \"public\".\"Message\" (\"conversationId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Message_conversationId_idx_669215a6\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Message_conversationId_idx_669215a6\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Message.Message_senderId_idx_4689c490",
+    "label": "Create index \"Message_senderId_idx_4689c490\" on \"Message\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Message_senderId_idx_4689c490",
+        "table": "Message"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Message_senderId_idx_4689c490\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Message_senderId_idx_4689c490\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Message_senderId_idx_4689c490\"",
+        "sql": "CREATE INDEX \"Message_senderId_idx_4689c490\" ON \"public\".\"Message\" (\"senderId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Message_senderId_idx_4689c490\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Message_senderId_idx_4689c490\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Conversation.Conversation_patientId_fkey",
+    "label": "Add foreign key \"Conversation_patientId_fkey\" on \"Conversation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Conversation_patientId_fkey",
+        "table": "Conversation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Conversation_patientId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Conversation_patientId_fkey",
+          "public",
+          "\"public\".\"Conversation\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Conversation_patientId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Conversation\"\nADD CONSTRAINT \"Conversation_patientId_fkey\"\nFOREIGN KEY (\"patientId\")\nREFERENCES \"public\".\"Patient\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Conversation_patientId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Conversation_patientId_fkey",
+          "public",
+          "\"public\".\"Conversation\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Conversation.Conversation_doctorId_fkey",
+    "label": "Add foreign key \"Conversation_doctorId_fkey\" on \"Conversation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Conversation_doctorId_fkey",
+        "table": "Conversation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Conversation_doctorId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Conversation_doctorId_fkey",
+          "public",
+          "\"public\".\"Conversation\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Conversation_doctorId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Conversation\"\nADD CONSTRAINT \"Conversation_doctorId_fkey\"\nFOREIGN KEY (\"doctorId\")\nREFERENCES \"public\".\"Doctor\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Conversation_doctorId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Conversation_doctorId_fkey",
+          "public",
+          "\"public\".\"Conversation\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Message.Message_conversationId_fkey",
+    "label": "Add foreign key \"Message_conversationId_fkey\" on \"Message\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Message_conversationId_fkey",
+        "table": "Message"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Message_conversationId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Message_conversationId_fkey",
+          "public",
+          "\"public\".\"Message\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Message_conversationId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Message\"\nADD CONSTRAINT \"Message_conversationId_fkey\"\nFOREIGN KEY (\"conversationId\")\nREFERENCES \"public\".\"Conversation\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Message_conversationId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Message_conversationId_fkey",
+          "public",
+          "\"public\".\"Message\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Message.Message_senderId_fkey",
+    "label": "Add foreign key \"Message_senderId_fkey\" on \"Message\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Message_senderId_fkey",
+        "table": "Message"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Message_senderId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Message_senderId_fkey",
+          "public",
+          "\"public\".\"Message\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Message_senderId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Message\"\nADD CONSTRAINT \"Message_senderId_fkey\"\nFOREIGN KEY (\"senderId\")\nREFERENCES \"public\".\"User\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Message_senderId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Message_senderId_fkey",
+          "public",
+          "\"public\".\"Message\""
+        ]
+      }
+    ]
+  }
+]

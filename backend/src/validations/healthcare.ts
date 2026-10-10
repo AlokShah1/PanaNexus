@@ -84,3 +84,18 @@ export const bedCapacitySchema = z
     message: 'Occupied beds cannot exceed total beds.',
     path: ['occupiedBeds'],
   });
+
+export const MAX_MESSAGE_LENGTH = 2000;
+
+export const sendMessageSchema = z.object({
+  body: z.string().trim().min(1, 'Message cannot be empty.').max(MAX_MESSAGE_LENGTH, `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer.`),
+});
+
+export const startConversationSchema = z
+  .object({
+    doctorId: z.string().min(1).optional(),
+    patientId: z.string().min(1).optional(),
+  })
+  .refine((v) => Boolean(v.doctorId) !== Boolean(v.patientId), {
+    message: 'Provide exactly one of doctorId or patientId.',
+  });

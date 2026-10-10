@@ -572,3 +572,103 @@ describeIf(dbOk && !!adminJar, 'API integration — session revocation on admin 
     expect(after.status).toBe(401);
   });
 });
+
+describeIf(dbOk && !!adminJar, 'API integration — secure patient↔doctor messaging', () => {
+  let patientJar = '';
+  let doctorJar = '';
+  let strangerJar = '';
+  let doctorId = '';
+  let conversationId = '';
+
+  beforeAll(async () => {
+    const docEmail = `it.msg.doc.${UNIQ}@pananexus.local`;
+    const reg = await req('POST', '/api/v1/auth/register', {
+      name: 'IT Msg Doctor',
+      email: docEmail,
+      password: PASSWORD,
+      role: 'DOCTOR',
+      specialization: 'Dermatology',
+      licenseNumber: `IT-MSG-${UNIQ}`,
+    });
+    expect(reg.status).toBe(201);
+    doctorJar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email: docEmail, password: PASSWORD })).cookie;
+
+    const list = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
+    const item = list.json.data.items.find((v: any) => v.user?.email === docEmail);
+    expect(item).toBeTruthy();
+    const appr = await req('POST', `/api/v1/admin/verifications/${item.id}/approve`, {}, adminJar);
+    expect(appr.status).toBe(200);
+    const me = await req('GET', '/api/v1/doctors/me', undefined, doctorJar);
+    expect(me.status).toBe(200);
+    doctorId = me.json.data.id;
+
+    const patEmail = `it.msg.pat.${UNIQ}@pananexus.local`;
+    const preg = await req('POST', '/api/v1/auth/register', { name: 'IT Msg Patient', email: patEmail, password: PASSWORD, role: 'PATIENT' });
+    expect(preg.status).toBe(201);
+    patientJar = preg.cookie || (await req('POST', '/api/v1/auth/login', { email: patEmail, password: PASSWORD })).cookie;
+    const pprofile = await req('POST', '/api/v1/patients/me', { bloodGroup: 'O+' }, patientJar);
+    expect(pprofile.status).toBe(201);
+
+    const strangerEmail = `it.msg.other.${UNIQ}@pananexus.local`;
+    const sreg = await req('POST', '/api/v1/auth/register', { name: 'IT Msg Stranger', email: strangerEmail, password: PASSWORD, role: 'PATIENT' });
+    expect(sreg.status).toBe(201);
+    strangerJar = sreg.cookie || (await req('POST', '/api/v1/auth/login', { email: strangerEmail, password: PASSWORD })).cookie;
+  });
+
+  it('rejects an anonymous conversation start', async () => {
+    const r = await req('POST', '/api/v1/messages/conversations', { doctorId });
+    expect(r.status).toBe(401);
+  });
+
+  it('lets a patient start a conversation with a verified doctor', async () => {
+    const r = await req('POST', '/api/v1/messages/conversations', { doctorId }, patientJar);
+    expect(r.status).toBe(201);
+    conversationId = r.json.data.id;
+    expect(r.json.data.counterpart).toBeTruthy();
+  });
+
+  it('is idempotent — starting again returns the same conversation', async () => {
+    const r = await req('POST', '/api/v1/messages/conversations', { doctorId }, patientJar);
+    expect(r.status).toBe(201);
+    expect(r.json.data.id).toBe(conversationId);
+  });
+
+  it('rejects an empty message', async () => {
+    const r = await req('POST', `/api/v1/messages/conversations/${conversationId}/messages`, { body: '   ' }, patientJar);
+    expect(r.status).toBe(422);
+    expect(r.json.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('sends a message and notifies the doctor', async () => {
+    const r = await req('POST', `/api/v1/messages/conversations/${conversationId}/messages`, { body: 'Hello doctor, I have a rash.' }, patientJar);
+    expect(r.status).toBe(201);
+    expect(r.json.data.body).toBe('Hello doctor, I have a rash.');
+    const notes = await req('GET', '/api/v1/notifications', undefined, doctorJar);
+    expect(notes.json.data.some((n: any) => n.type === 'MESSAGE')).toBe(true);
+  });
+
+  it('shows the conversation in the doctor inbox with an unread count', async () => {
+    const r = await req('GET', '/api/v1/messages/conversations', undefined, doctorJar);
+    expect(r.status).toBe(200);
+    const hit = r.json.data.items.find((c: any) => c.id === conversationId);
+    expect(hit).toBeTruthy();
+    expect(hit.unread).toBeGreaterThanOrEqual(1);
+  });
+
+  it('lets the doctor reply and the patient read the thread', async () => {
+    const reply = await req('POST', `/api/v1/messages/conversations/${conversationId}/messages`, { body: 'Please share a photo of the affected area.' }, doctorJar);
+    expect(reply.status).toBe(201);
+    const read = await req('POST', `/api/v1/messages/conversations/${conversationId}/read`, {}, patientJar);
+    expect(read.status).toBe(200);
+    expect(read.json.data.read).toBeGreaterThanOrEqual(1);
+    const thread = await req('GET', `/api/v1/messages/conversations/${conversationId}/messages`, undefined, patientJar);
+    expect(thread.json.data.items.length).toBe(2);
+  });
+
+  it('denies a stranger from reading or posting to the conversation', async () => {
+    const thread = await req('GET', `/api/v1/messages/conversations/${conversationId}/messages`, undefined, strangerJar);
+    expect(thread.status).toBe(404);
+    const post = await req('POST', `/api/v1/messages/conversations/${conversationId}/messages`, { body: 'sneaky' }, strangerJar);
+    expect(post.status).toBe(404);
+  });
+});

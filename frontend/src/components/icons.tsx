@@ -240,3 +240,17 @@ export const IconTrash = (p: IconProps) => (
   </svg>
 );
 
+export const IconChat = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H9l-4 3.5v-3.5H5.5A1.5 1.5 0 0 1 4 14.5v-9Z" />
+    <path d="M8.5 9h7M8.5 12h4.5" />
+  </svg>
+);
+
+export const IconSend = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M20.5 3.5 3.5 10.5l6.5 2.5 2.5 6.5 8-16Z" />
+    <path d="m10 13 4-4" />
+  </svg>
+);
+

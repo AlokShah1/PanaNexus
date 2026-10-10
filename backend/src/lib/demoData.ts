@@ -41,6 +41,8 @@ function newLedger(): Ledger {
     verifications: [],
     facilities: [],
     bedCapacities: [],
+    conversations: [],
+    messages: [],
   };
 }
 
@@ -650,6 +652,85 @@ export async function seedDemoData() {
     ledger.verifications.push(row.id);
   }
 
+  /* ------------------------------------------------------ secure messages */
+  const msgLines = [
+    'Hello doctor, I have been feeling better since the new prescription.',
+    'Good to hear. Continue the medication and keep monitoring your readings.',
+    'Should I book a follow-up this month?',
+    'Yes, please book a follow-up in two weeks so we can review your progress.',
+    'Thank you, doctor. I will schedule it.',
+    'Your latest report looks stable — no change needed for now.',
+    'Got it, thanks for reviewing my reports.',
+    'Please avoid skipping doses and stay hydrated.',
+  ];
+  const seenConvos = new Set<string>();
+  for (let i = 0; i < 20; i += 1) {
+    const patient = patientUsers[(i * 3) % patientUsers.length];
+    const doctor = doctorUsers[(i * 5) % doctorUsers.length];
+    const key = `${patient.patientId}:${doctor.doctorId}`;
+    if (seenConvos.has(key)) continue;
+    seenConvos.add(key);
+    const count = 4 + (i % 4);
+    let lastAt = Date.now() - (60 - i * 2) * 3600000;
+    const convo = await db.orm.public.Conversation.create({
+      patientId: patient.patientId,
+      doctorId: doctor.doctorId,
+      lastMessageAt: null,
+    });
+    ledger.conversations.push(convo.id);
+    for (let m = 0; m < count; m += 1) {
+      const fromPatient = m % 2 === 0;
+      lastAt += (12 + (m % 5) * 7) * 60000;
+      const createdAt = new Date(lastAt).toISOString();
+      const msg = await db.orm.public.Message.create({
+        conversationId: convo.id,
+        senderId: fromPatient ? patient.id : doctor.id,
+        body: msgLines[(i + m) % msgLines.length],
+        readAt: m < count - 1 ? createdAt : null,
+        createdAt,
+      });
+      ledger.messages.push(msg.id);
+    }
+    await db.orm.public.Conversation.where({ id: convo.id }).update({ lastMessageAt: new Date(lastAt).toISOString() });
+  }
+
+  // Demo patient ↔ demo doctor thread with a couple of unread doctor replies.
+  {
+    const pUser = await db.orm.public.User.where({ email: `patient.demo@${DEMO_EMAIL_DOMAIN}` }).first();
+    const dUser = await db.orm.public.User.where({ email: `doctor.demo@${DEMO_EMAIL_DOMAIN}` }).first();
+    const pPat = pUser ? await db.orm.public.Patient.where({ userId: pUser.id }).first() : null;
+    const pDoc = dUser ? await db.orm.public.Doctor.where({ userId: dUser.id }).first() : null;
+    if (pUser && dUser && pPat && pDoc) {
+      const convo = await db.orm.public.Conversation.create({
+        patientId: pPat.id,
+        doctorId: pDoc.id,
+        lastMessageAt: null,
+      });
+      ledger.conversations.push(convo.id);
+      const thread: Array<['PATIENT' | 'DOCTOR', string, number, boolean]> = [
+        ['PATIENT', 'Hello Dr. Iyer, I have been taking the new tablets for a week now.', 26, true],
+        ['DOCTOR', 'That is good to hear. Any dizziness or stomach upset?', 25, true],
+        ['PATIENT', 'No side effects so far. My morning readings are around 128.', 5, true],
+        ['DOCTOR', 'Great progress. Keep the same dose and we will review next week.', 4, false],
+        ['DOCTOR', 'Also please share your latest lab report through the records section.', 3, false],
+      ];
+      let last = '';
+      for (const [who, body, hoursAgo, read] of thread) {
+        const createdAt = new Date(Date.now() - hoursAgo * 3600000).toISOString();
+        const msg = await db.orm.public.Message.create({
+          conversationId: convo.id,
+          senderId: who === 'PATIENT' ? pUser.id : dUser.id,
+          body,
+          readAt: read ? createdAt : null,
+          createdAt,
+        });
+        last = createdAt;
+        ledger.messages.push(msg.id);
+      }
+      await db.orm.public.Conversation.where({ id: convo.id }).update({ lastMessageAt: last });
+    }
+  }
+
   await writeLedger(ledger);
   return {
     note: DEMO_NOTE,
@@ -667,7 +748,7 @@ export async function seedDemoData() {
 
 export async function clearDemoData() {
   const ledger = await readLedger();
-  const [allUsers, allPatients, allDoctors, allAmbulances, allAppointments, allRecords, allReportFiles, allEmergencies, allTrips, allLocations, allAvailability, allBloodDonors, allOrganDonors, allBloodRequests, allFeedback, allNotifications, allVerifications] =
+  const [allUsers, allPatients, allDoctors, allAmbulances, allAppointments, allRecords, allReportFiles, allEmergencies, allTrips, allLocations, allAvailability, allBloodDonors, allOrganDonors, allBloodRequests, allFeedback, allNotifications, allVerifications, allConversations, allMessages] =
     await Promise.all([
       db.orm.public.User.all(),
       db.orm.public.Patient.all(),
@@ -686,6 +767,8 @@ export async function clearDemoData() {
       db.orm.public.Feedback.all(),
       db.orm.public.Notification.all(),
       db.orm.public.VerificationRequest.all(),
+      db.orm.public.Conversation.all(),
+      db.orm.public.Message.all(),
     ]);
 
   const userMatches = (email: string) => email.toLowerCase().endsWith(`@${DEMO_EMAIL_DOMAIN}`);
@@ -700,6 +783,8 @@ export async function clearDemoData() {
   const patientSet = new Set(patientIds);
   const doctorSet = new Set(doctorIds);
   const emergencySet = new Set(emergencyIds);
+  const conversationIds = allConversations.filter((c) => patientSet.has(c.patientId) || doctorSet.has(c.doctorId)).map((c) => c.id);
+  const conversationSet = new Set(conversationIds);
   const tripIds = allTrips.filter((t) => emergencySet.has(t.emergencyRequestId) || ambulanceIds.includes(t.ambulanceId)).map((t) => t.id);
   const tripSet = new Set(tripIds);
 
@@ -722,6 +807,8 @@ export async function clearDemoData() {
     ['MedicalRecord', pick(allRecords, (r) => patientSet.has(r.patientId) || (r.doctorId ? doctorSet.has(r.doctorId) : false)).map((r) => r.id)],
     ['Appointment', pick(allAppointments, (a) => patientSet.has(a.patientId) || doctorSet.has(a.doctorId)).map((a) => a.id)],
     ['DoctorAvailability', pick(allAvailability, (a) => doctorSet.has(a.doctorId)).map((a) => a.id)],
+    ['Message', pick(allMessages, (m) => conversationSet.has(m.conversationId)).map((m) => m.id)],
+    ['Conversation', conversationIds],
     ['Doctor', doctorIds],
     ['Patient', patientIds],
     ['BloodDonor', pick(allBloodDonors, (d) => userSet.has(d.userId)).map((d) => d.id)],

@@ -32,6 +32,10 @@
       "model": "BloodUnit",
       "namespace": "public"
     },
+    "Conversation": {
+      "model": "Conversation",
+      "namespace": "public"
+    },
     "Doctor": {
       "model": "Doctor",
       "namespace": "public"
@@ -58,6 +62,10 @@
     },
     "MedicalRecord": {
       "model": "MedicalRecord",
+      "namespace": "public"
+    },
+    "Message": {
+      "model": "Message",
       "namespace": "public"
     },
     "Notification": {
@@ -1416,6 +1424,125 @@
               "table": "BloodUnit"
             }
           },
+          "Conversation": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "doctorId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "lastMessageAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "patientId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "doctor": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "doctorId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Doctor",
+                  "namespace": "public"
+                }
+              },
+              "messages": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "conversationId"
+                  ]
+                },
+                "to": {
+                  "model": "Message",
+                  "namespace": "public"
+                }
+              },
+              "patient": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "patientId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Patient",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "doctorId": {
+                  "column": "doctorId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "lastMessageAt": {
+                  "column": "lastMessageAt"
+                },
+                "patientId": {
+                  "column": "patientId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "Conversation"
+            }
+          },
           "Doctor": {
             "fields": {
               "bio": {
@@ -1503,6 +1630,21 @@
                 },
                 "to": {
                   "model": "DoctorAvailability",
+                  "namespace": "public"
+                }
+              },
+              "conversations": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "doctorId"
+                  ]
+                },
+                "to": {
+                  "model": "Conversation",
                   "namespace": "public"
                 }
               },
@@ -2637,6 +2779,110 @@
               "table": "MedicalRecord"
             }
           },
+          "Message": {
+            "fields": {
+              "body": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "conversationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "readAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "senderId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "conversation": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "conversationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Conversation",
+                  "namespace": "public"
+                }
+              },
+              "sender": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "senderId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "body": {
+                  "column": "body"
+                },
+                "conversationId": {
+                  "column": "conversationId"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "readAt": {
+                  "column": "readAt"
+                },
+                "senderId": {
+                  "column": "senderId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "Message"
+            }
+          },
           "Notification": {
             "fields": {
               "body": {
@@ -2922,6 +3168,21 @@
                 },
                 "to": {
                   "model": "Appointment",
+                  "namespace": "public"
+                }
+              },
+              "conversations": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "patientId"
+                  ]
+                },
+                "to": {
+                  "model": "Conversation",
                   "namespace": "public"
                 }
               },
@@ -3857,6 +4118,21 @@
                 },
                 "to": {
                   "model": "VerificationRequest",
+                  "namespace": "public"
+                }
+              },
+              "sentMessages": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "senderId"
+                  ]
+                },
+                "to": {
+                  "model": "Message",
                   "namespace": "public"
                 }
               },
@@ -4932,6 +5208,111 @@
               },
               "uniques": []
             },
+            "Conversation": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "doctorId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "lastMessageAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "patientId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "patientId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Conversation"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Patient"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "doctorId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Conversation"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Doctor"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "doctorId"
+                  ],
+                  "name": "Conversation_doctorId_idx_04369053",
+                  "prefix": "Conversation_doctorId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "patientId"
+                  ],
+                  "name": "Conversation_patientId_idx_e5f07e88",
+                  "prefix": "Conversation_patientId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "patientId",
+                    "doctorId"
+                  ]
+                }
+              ]
+            },
             "Doctor": {
               "columns": {
                 "bio": {
@@ -5855,6 +6236,112 @@
                   ],
                   "name": "MedicalRecord_patientId_idx_e5f07e88",
                   "prefix": "MedicalRecord_patientId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "Message": {
+              "columns": {
+                "body": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "conversationId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "readAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "senderId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "conversationId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Message"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Conversation"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "senderId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Message"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "conversationId",
+                    "createdAt"
+                  ],
+                  "name": "Message_conversationId_createdAt_idx_44d4ac61",
+                  "prefix": "Message_conversationId_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "conversationId"
+                  ],
+                  "name": "Message_conversationId_idx_669215a6",
+                  "prefix": "Message_conversationId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "senderId"
+                  ],
+                  "name": "Message_senderId_idx_4689c490",
+                  "prefix": "Message_senderId_idx",
                   "unique": false
                 }
               ],
@@ -7111,10 +7598,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "34644c1394de0be468b59c8c95f608f9dc969e7bdf8d72b5f76d16514bad11f3"
+    "storageHash": "df732f015029f7610fe8ce3c119b65e4362006a4a186bd1a5e7f6022eb655cb1"
   },
   "execution": {
-    "executionHash": "419689baa64c87e9df7cfa68a71bc53d7ca1f467ddc49fb10858f8e0b314a832",
+    "executionHash": "a083a04779ba57f35da1572a3e2875542d8c3c44bbcebcd67a4c7b7dddb95db4",
     "mutations": {
       "defaults": [
         {
@@ -7290,6 +7777,32 @@
             "kind": "generator"
           },
           "ref": {
+            "entry": "Conversation",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Conversation",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
             "entry": "Doctor",
             "field": "id",
             "namespace": "public"
@@ -7433,6 +7946,17 @@
           "ref": {
             "entry": "MedicalRecord",
             "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Message",
+            "field": "id",
             "namespace": "public"
           }
         },
