@@ -4,6 +4,7 @@ import { fail, ok } from '../lib/api.js';
 import { notify } from '../lib/notify.js';
 import { getUser, requireAuth, requireRole } from '../middleware/auth.js';
 import { getAnalytics } from '../lib/analytics.js';
+import { revokeUserSessions } from '../lib/session.js';
 import { pageMeta, parsePage } from '../lib/pagination.js';
 
 const router = Router();
@@ -143,6 +144,7 @@ router.post('/verifications/:id/reject', async (req, res) => {
     reviewedAt: new Date().toISOString(),
   });
   await db.orm.public.User.where({ id: user.id }).update({ verificationStatus: 'REJECTED' });
+  await revokeUserSessions(user.id).catch(() => undefined);
   await db.orm.public.AuditLog.create({
     action: 'VERIFICATION_REJECTED',
     entity: 'VerificationRequest',
@@ -223,6 +225,7 @@ router.post('/users/:id/suspend', async (req, res) => {
   if (target.id === admin.id) return fail(res, 'FORBIDDEN', 'You cannot suspend your own account.', 403);
   if (target.verificationStatus === 'SUSPENDED') return fail(res, 'INVALID_STATE', 'User is already suspended.', 409);
   await db.orm.public.User.where({ id: target.id }).update({ verificationStatus: 'SUSPENDED' });
+  await revokeUserSessions(target.id).catch(() => undefined);
   await db.orm.public.AuditLog.create({
     action: 'USER_SUSPENDED',
     entity: 'User',

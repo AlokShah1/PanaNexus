@@ -521,3 +521,54 @@ describeIf(dbOk && !!adminJar, 'API integration — facility bed capacity', () =
     expect(again.status).toBe(404);
   });
 });
+
+describeIf(dbOk && !!adminJar, 'API integration — session revocation on admin action', () => {
+  it('revokes all live sessions when an admin suspends a user', async () => {
+    const email = `it.susp.${UNIQ}@pananexus.local`;
+    const reg = await req('POST', '/api/v1/auth/register', {
+      name: 'IT Suspendee',
+      email,
+      password: PASSWORD,
+      role: 'PATIENT',
+    });
+    expect(reg.status).toBe(201);
+    const userId = reg.json.data.profile.id as string;
+    const jar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email, password: PASSWORD })).cookie;
+
+    const before = await req('GET', '/api/v1/patients/me', undefined, jar);
+    expect(before.status).toBe(200);
+
+    const susp = await req('POST', `/api/v1/admin/users/${userId}/suspend`, { reason: 'policy violation' }, adminJar);
+    expect(susp.status).toBe(200);
+
+    const after = await req('GET', '/api/v1/patients/me', undefined, jar);
+    expect(after.status).toBe(401);
+    expect(after.json.error.code).toBe('SESSION_EXPIRED');
+
+    await req('POST', `/api/v1/admin/users/${userId}/unsuspend`, {}, adminJar);
+  });
+
+  it('revokes the session when an admin rejects a verification request', async () => {
+    const email = `it.rej.${UNIQ}@pananexus.local`;
+    const reg = await req('POST', '/api/v1/auth/register', {
+      name: 'IT Rejectee',
+      email,
+      password: PASSWORD,
+      role: 'DOCTOR',
+      specialization: 'Cardiology',
+      licenseNumber: `IT-REJ-${UNIQ}`,
+    });
+    expect(reg.status).toBe(201);
+    const jar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email, password: PASSWORD })).cookie;
+
+    const list = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
+    const item = list.json.data.items.find((v: any) => v.user?.email === email);
+    expect(item).toBeTruthy();
+
+    const rej = await req('POST', `/api/v1/admin/verifications/${item.id}/reject`, { reason: 'illegible documents' }, adminJar);
+    expect(rej.status).toBe(200);
+
+    const after = await req('GET', '/api/v1/auth/me', undefined, jar);
+    expect(after.status).toBe(401);
+  });
+});
