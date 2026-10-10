@@ -26,6 +26,15 @@ const schema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   REPORT_MAX_FILE_BYTES: z.coerce.number().int().positive().default(15 * 1024 * 1024),
   REPORT_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  // Map / place discovery providers (open data, no API key required by default).
+  MAP_PROVIDER: z.enum(['nominatim']).default('nominatim'),
+  MAP_BASE_URL: z.string().url().default('https://nominatim.openstreetmap.org'),
+  MAP_USER_AGENT: z.string().min(3).default('PanaNexus/1.0 (healthcare discovery)'),
+  MAP_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
+  MAP_CACHE_TTL_SECONDS: z.coerce.number().int().nonnegative().default(600),
+  MAP_MIN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(1000),
+  ROUTING_PROVIDER: z.enum(['osrm', 'straight-line']).default('osrm'),
+  OSRM_BASE_URL: z.string().url().default('https://router.project-osrm.org'),
 }).superRefine((value, ctx) => {
   if (value.STORAGE_DRIVER !== 's3') return;
   for (const key of ['AWS_REGION', 'AWS_S3_BUCKET'] as const) {

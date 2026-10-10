@@ -1,3 +1,7 @@
+import { haversineKm } from './geo.js';
+
+export { haversineKm };
+
 export type AmbulanceType = 'BASIC' | 'ADVANCED' | 'ICU';
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -20,16 +24,6 @@ export interface RankedAmbulance {
   id: string;
   distanceKm: number;
   score: number;
-}
-
-export function haversineKm(aLat: number, aLon: number, bLat: number, bLon: number): number {
-  const R = 6371;
-  const dLat = ((bLat - aLat) * Math.PI) / 180;
-  const dLon = ((bLon - aLon) * Math.PI) / 180;
-  const lat1 = (aLat * Math.PI) / 180;
-  const lat2 = (bLat * Math.PI) / 180;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
 }
 
 function typeSuitability(type: AmbulanceType, req: EmergencyRequestInput): number {

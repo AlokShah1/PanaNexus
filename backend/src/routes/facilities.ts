@@ -5,21 +5,9 @@ import { getUser, requireAuth, requireRole, requireVerified } from '../middlewar
 import { facilitySchema, bedCapacitySchema } from '../validations/healthcare.js';
 import { isOpenNow } from '../lib/hours.js';
 import { pageMeta, parsePage } from '../lib/pagination.js';
+import { computeRating, summarizeBeds, viewBed, type BedRow } from '../lib/facility-view.js';
 
 const router = Router();
-
-function computeRating(feedbacks: Array<{ rating: number; status: string }> | undefined | null) {
-  if (!feedbacks || feedbacks.length === 0) {
-    return { avg: null, count: 0 };
-  }
-  const approved = feedbacks.filter((f) => f.status === 'APPROVED');
-  if (approved.length === 0) {
-    return { avg: null, count: 0 };
-  }
-  const sum = approved.reduce((s, f) => s + (f.rating || 0), 0);
-  const avg = Math.round((sum / approved.length) * 10) / 10;
-  return { avg, count: approved.length };
-}
 
 router.get('/', async (req, res) => {
   const type = typeof req.query.type === 'string' ? req.query.type : undefined;
@@ -77,31 +65,6 @@ router.get('/', async (req, res) => {
   }));
   return ok(res, result);
 });
-
-function viewBed(b: {
-  ward: string;
-  label: string | null;
-  totalBeds: number;
-  occupiedBeds: number;
-  updatedAt: string;
-}) {
-  return {
-    ward: b.ward,
-    label: b.label,
-    totalBeds: b.totalBeds,
-    occupiedBeds: b.occupiedBeds,
-    availableBeds: Math.max(0, b.totalBeds - b.occupiedBeds),
-    updatedAt: b.updatedAt,
-  };
-}
-
-type BedRow = { facilityId: string; ward: string; label: string | null; totalBeds: number; occupiedBeds: number; updatedAt: string };
-
-function summarizeBeds(rows: BedRow[]) {
-  const totalBeds = rows.reduce((n, r) => n + r.totalBeds, 0);
-  const occupiedBeds = rows.reduce((n, r) => n + r.occupiedBeds, 0);
-  return { totalBeds, occupiedBeds, availableBeds: Math.max(0, totalBeds - occupiedBeds), wards: rows.length };
-}
 
 router.get('/:id', async (req, res) => {
   const { id } = req.params;

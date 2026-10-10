@@ -254,3 +254,19 @@ export const IconSend = (p: IconProps) => (
   </svg>
 );
 
+export const IconLocate = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="3.5" />
+    <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    <circle cx="12" cy="12" r="8" />
+  </svg>
+);
+
+export const IconRoute = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="5" cy="19" r="2.5" />
+    <path d="M7.5 19h5a3 3 0 0 0 3-3v-3a3 3 0 0 0-3-3h-3a3 3 0 0 1-3-3V5" />
+    <path d="M15 5h5M17 3l3 2-3 2" />
+  </svg>
+);
+
