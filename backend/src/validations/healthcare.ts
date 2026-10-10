@@ -61,3 +61,26 @@ export const availabilitySlotSchema = z.object({
 export const availabilitySchema = z.object({
   slots: z.array(availabilitySlotSchema).min(1).max(21),
 });
+
+export const WARD_TYPES = [
+  'GENERAL',
+  'ICU',
+  'PEDIATRIC',
+  'MATERNITY',
+  'EMERGENCY',
+  'SURGICAL',
+  'ISOLATION',
+  'OTHER',
+] as const;
+
+export const bedCapacitySchema = z
+  .object({
+    ward: z.enum(WARD_TYPES),
+    label: z.string().trim().max(80).optional(),
+    totalBeds: z.number().int().min(0).max(10000),
+    occupiedBeds: z.number().int().min(0).max(10000).default(0),
+  })
+  .refine((v) => v.occupiedBeds <= v.totalBeds, {
+    message: 'Occupied beds cannot exceed total beds.',
+    path: ['occupiedBeds'],
+  });

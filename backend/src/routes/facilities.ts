@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../../prisma/db.js';
 import { fail, ok } from '../lib/api.js';
 import { getUser, requireAuth, requireRole, requireVerified } from '../middleware/auth.js';
-import { facilitySchema } from '../validations/healthcare.js';
+import { facilitySchema, bedCapacitySchema } from '../validations/healthcare.js';
 import { isOpenNow } from '../lib/hours.js';
 import { pageMeta, parsePage } from '../lib/pagination.js';
 
@@ -52,6 +52,14 @@ router.get('/', async (req, res) => {
     });
   }
 
+  const allBeds = await db.orm.public.BedCapacity.all();
+  const bedsByFacility = new Map<string, BedRow[]>();
+  for (const b of allBeds) {
+    const list = bedsByFacility.get(b.facilityId) ?? [];
+    list.push(b as BedRow);
+    bedsByFacility.set(b.facilityId, list);
+  }
+
   const sliced = filtered.slice(p.offset, p.offset + p.limit);
   const result = sliced.map((f) => ({
     id: f.id,
@@ -65,15 +73,42 @@ router.get('/', async (req, res) => {
     latitude: f.latitude,
     longitude: f.longitude,
     rating: computeRating(f.feedback),
+    beds: summarizeBeds(bedsByFacility.get(f.id) ?? []),
   }));
   return ok(res, result);
 });
+
+function viewBed(b: {
+  ward: string;
+  label: string | null;
+  totalBeds: number;
+  occupiedBeds: number;
+  updatedAt: string;
+}) {
+  return {
+    ward: b.ward,
+    label: b.label,
+    totalBeds: b.totalBeds,
+    occupiedBeds: b.occupiedBeds,
+    availableBeds: Math.max(0, b.totalBeds - b.occupiedBeds),
+    updatedAt: b.updatedAt,
+  };
+}
+
+type BedRow = { facilityId: string; ward: string; label: string | null; totalBeds: number; occupiedBeds: number; updatedAt: string };
+
+function summarizeBeds(rows: BedRow[]) {
+  const totalBeds = rows.reduce((n, r) => n + r.totalBeds, 0);
+  const occupiedBeds = rows.reduce((n, r) => n + r.occupiedBeds, 0);
+  return { totalBeds, occupiedBeds, availableBeds: Math.max(0, totalBeds - occupiedBeds), wards: rows.length };
+}
 
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   const f = await db.orm.public.HealthcareFacility.where({ id }).include('feedback').first();
   if (!f) return fail(res, 'NOT_FOUND', 'Facility not found.', 404);
   const staff = await db.orm.public.User.where({ facilityId: f.id }).all();
+  const bedRows = (await db.orm.public.BedCapacity.where({ facilityId: f.id }).all()) as BedRow[];
   return ok(res, {
     id: f.id,
     name: f.name,
@@ -87,6 +122,10 @@ router.get('/:id', async (req, res) => {
     longitude: f.longitude,
     rating: computeRating(f.feedback),
     staff: staff.length,
+    beds: summarizeBeds(bedRows),
+    wards: bedRows
+      .map(viewBed)
+      .sort((a, b) => a.ward.localeCompare(b.ward)),
   });
 });
 
@@ -133,6 +172,80 @@ router.patch('/:id', requireAuth, requireRole('FACILITY_STAFF', 'ADMIN'), requir
   }).catch(() => undefined);
   const updated = await db.orm.public.HealthcareFacility.where({ id }).first();
   return ok(res, updated);
+});
+
+/* ---------------------------------------------------------- bed capacity */
+
+router.get('/:id/beds', async (req, res) => {
+  const { id } = req.params;
+  const facility = await db.orm.public.HealthcareFacility.where({ id }).first();
+  if (!facility) return fail(res, 'NOT_FOUND', 'Facility not found.', 404);
+  const rows = (await db.orm.public.BedCapacity.where({ facilityId: id }).all()) as BedRow[];
+  const wards = rows.map(viewBed).sort((a, b) => a.ward.localeCompare(b.ward));
+  return ok(res, { facilityId: id, summary: summarizeBeds(rows), wards });
+});
+
+router.put('/:id/beds', requireAuth, requireRole('FACILITY_STAFF', 'ADMIN'), requireVerified, async (req, res) => {
+  const user = getUser(req);
+  const { id } = req.params;
+  const facility = await db.orm.public.HealthcareFacility.where({ id }).first();
+  if (!facility) return fail(res, 'NOT_FOUND', 'Facility not found.', 404);
+  if (user.role === 'FACILITY_STAFF' && user.facilityId !== facility.id) {
+    return fail(res, 'FORBIDDEN', 'You cannot update beds for this facility.', 403);
+  }
+  const parsed = bedCapacitySchema.safeParse(req.body);
+  if (!parsed.success) return fail(res, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.', 422);
+  const { ward, label, totalBeds, occupiedBeds } = parsed.data;
+
+  const existing = await db.orm.public.BedCapacity.where({ facilityId: id, ward: ward as never }).first();
+  if (existing) {
+    await db.orm.public.BedCapacity.where({ id: existing.id }).update({
+      label: label ?? null,
+      totalBeds,
+      occupiedBeds,
+      updatedById: user.id,
+    });
+  } else {
+    await db.orm.public.BedCapacity.create({
+      facilityId: id,
+      ward: ward as never,
+      label: label ?? null,
+      totalBeds,
+      occupiedBeds,
+      updatedById: user.id,
+    });
+  }
+  await db.orm.public.AuditLog.create({
+    action: 'BED_CAPACITY_UPDATED',
+    entity: 'BedCapacity',
+    entityId: id,
+    actorId: user.id,
+    metadata: JSON.stringify({ ward, totalBeds, occupiedBeds }),
+  }).catch(() => undefined);
+  const fresh = (await db.orm.public.BedCapacity.where({ facilityId: id, ward: ward as never }).first()) as BedRow;
+  return ok(res, viewBed(fresh));
+});
+
+router.delete('/:id/beds/:ward', requireAuth, requireRole('FACILITY_STAFF', 'ADMIN'), requireVerified, async (req, res) => {
+  const user = getUser(req);
+  const { id } = req.params;
+  const ward = String(req.params.ward).toUpperCase();
+  const facility = await db.orm.public.HealthcareFacility.where({ id }).first();
+  if (!facility) return fail(res, 'NOT_FOUND', 'Facility not found.', 404);
+  if (user.role === 'FACILITY_STAFF' && user.facilityId !== facility.id) {
+    return fail(res, 'FORBIDDEN', 'You cannot update beds for this facility.', 403);
+  }
+  const existing = await db.orm.public.BedCapacity.where({ facilityId: id, ward: ward as never }).first();
+  if (!existing) return fail(res, 'NOT_FOUND', 'Ward not found.', 404);
+  await db.orm.public.BedCapacity.where({ id: existing.id }).delete();
+  await db.orm.public.AuditLog.create({
+    action: 'BED_CAPACITY_REMOVED',
+    entity: 'BedCapacity',
+    entityId: id,
+    actorId: user.id,
+    metadata: JSON.stringify({ ward }),
+  }).catch(() => undefined);
+  return ok(res, { deleted: true, ward });
 });
 
 export default router;

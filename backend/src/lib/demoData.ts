@@ -40,6 +40,7 @@ function newLedger(): Ledger {
     organDonors: [],
     verifications: [],
     facilities: [],
+    bedCapacities: [],
   };
 }
 
@@ -157,6 +158,39 @@ export async function seedDemoData() {
   for (const f of FACILITIES) {
     const row = await ensureFacility(f);
     facilities.push(row);
+  }
+
+  /* --------------------------------------------------------- bed capacity */
+  const HOSPITAL_BEDS = [
+    { ward: 'GENERAL', total: 72, occupied: 54 },
+    { ward: 'ICU', total: 14, occupied: 10 },
+    { ward: 'EMERGENCY', total: 10, occupied: 6 },
+    { ward: 'PEDIATRIC', total: 22, occupied: 13 },
+    { ward: 'MATERNITY', total: 18, occupied: 11 },
+    { ward: 'SURGICAL', total: 16, occupied: 7 },
+    { ward: 'ISOLATION', total: 6, occupied: 2 },
+  ] as const;
+  const HEALTH_POST_BEDS = [
+    { ward: 'GENERAL', total: 6, occupied: 2 },
+    { ward: 'MATERNITY', total: 4, occupied: 1 },
+  ] as const;
+  for (let i = 0; i < facilities.length; i += 1) {
+    const wards = FACILITIES[i].type === 'HOSPITAL' ? HOSPITAL_BEDS : HEALTH_POST_BEDS;
+    for (const w of wards) {
+      const existing = await db.orm.public.BedCapacity.where({
+        facilityId: facilities[i].id,
+        ward: w.ward as never,
+      }).first();
+      if (existing) continue;
+      const occupied = Math.max(0, Math.min(w.total, w.occupied + (i % 3) - 1));
+      const row = await db.orm.public.BedCapacity.create({
+        facilityId: facilities[i].id,
+        ward: w.ward as never,
+        totalBeds: w.total,
+        occupiedBeds: occupied,
+      });
+      ledger.bedCapacities.push(row.id);
+    }
   }
 
   /* ------------------------------------------------------------- patients */
@@ -694,6 +728,7 @@ export async function clearDemoData() {
     ['OrganDonor', pick(allOrganDonors, (d) => userSet.has(d.userId)).map((d) => d.id)],
     ['BloodRequest', pick(allBloodRequests, (r) => userSet.has(r.requesterId)).map((r) => r.id)],
     ['BloodUnit', ledger.bloodUnits],
+    ['BedCapacity', ledger.bedCapacities],
     ['VerificationRequest', pick(allVerifications, (v) => userSet.has(v.userId)).map((v) => v.id)],
     ['Ambulance', ambulanceIds],
     ['User', userIds],

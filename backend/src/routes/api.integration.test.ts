@@ -441,3 +441,83 @@ describeIf(dbOk, 'API integration — private medical reports', () => {
     expect(after.status).toBe(404);
   });
 });
+
+describeIf(dbOk && !!adminJar, 'API integration — facility bed capacity', () => {
+  let facilityId = '';
+  const ward = 'ISOLATION';
+
+  beforeAll(async () => {
+    const list = await req('GET', '/api/v1/facilities');
+    expect(list.status).toBe(200);
+    facilityId = list.json.data[0]?.id ?? '';
+    if (facilityId) {
+      await req('DELETE', `/api/v1/facilities/${facilityId}/beds/${ward}`, undefined, adminJar);
+    }
+  });
+
+  it('exposes bed availability publicly', async () => {
+    const r = await req('GET', `/api/v1/facilities/${facilityId}/beds`);
+    expect(r.status).toBe(200);
+    expect(typeof r.json.data.summary.availableBeds).toBe('number');
+    expect(Array.isArray(r.json.data.wards)).toBe(true);
+  });
+
+  it('includes bed availability in the public facility list and detail', async () => {
+    const list = await req('GET', '/api/v1/facilities');
+    const f = list.json.data.find((x: any) => x.id === facilityId);
+    expect(f.beds.availableBeds).toBeGreaterThanOrEqual(0);
+    const detail = await req('GET', `/api/v1/facilities/${facilityId}`);
+    expect(detail.status).toBe(200);
+    expect(typeof detail.json.data.beds.totalBeds).toBe('number');
+  });
+
+  it('rejects an anonymous bed update', async () => {
+    const r = await req('PUT', `/api/v1/facilities/${facilityId}/beds`, { ward, totalBeds: 4, occupiedBeds: 1 });
+    expect(r.status).toBe(401);
+  });
+
+  it('rejects a patient from updating beds', async () => {
+    const email = `it.bed.${UNIQ}@pananexus.local`;
+    const reg = await req('POST', '/api/v1/auth/register', {
+      name: 'IT Bed Patient',
+      email,
+      password: PASSWORD,
+      role: 'PATIENT',
+    });
+    const jar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email, password: PASSWORD })).cookie;
+    const r = await req('PUT', `/api/v1/facilities/${facilityId}/beds`, { ward, totalBeds: 4, occupiedBeds: 1 }, jar);
+    expect(r.status).toBe(403);
+  });
+
+  it('rejects occupied beds exceeding total beds', async () => {
+    const r = await req('PUT', `/api/v1/facilities/${facilityId}/beds`, { ward, totalBeds: 2, occupiedBeds: 5 }, adminJar);
+    expect(r.status).toBe(422);
+    expect(r.json.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('lets an admin upsert a ward and recompute availability', async () => {
+    const create = await req(
+      'PUT',
+      `/api/v1/facilities/${facilityId}/beds`,
+      { ward, label: 'Isolation bay', totalBeds: 6, occupiedBeds: 2 },
+      adminJar,
+    );
+    expect(create.status).toBe(200);
+    expect(create.json.data.availableBeds).toBe(4);
+
+    const update = await req('PUT', `/api/v1/facilities/${facilityId}/beds`, { ward, totalBeds: 6, occupiedBeds: 5 }, adminJar);
+    expect(update.status).toBe(200);
+    expect(update.json.data.availableBeds).toBe(1);
+
+    const row = await db.orm.public.BedCapacity.where({ facilityId, ward: ward as never }).first();
+    expect(row?.totalBeds).toBe(6);
+    expect(row?.occupiedBeds).toBe(5);
+  });
+
+  it('removes a ward and then reports it missing', async () => {
+    const del = await req('DELETE', `/api/v1/facilities/${facilityId}/beds/${ward}`, undefined, adminJar);
+    expect(del.status).toBe(200);
+    const again = await req('DELETE', `/api/v1/facilities/${facilityId}/beds/${ward}`, undefined, adminJar);
+    expect(again.status).toBe(404);
+  });
+});

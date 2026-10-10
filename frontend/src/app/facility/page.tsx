@@ -8,6 +8,7 @@ import { IconHospital } from '@/components/icons';
 import { Guest, PageSkeleton, VerificationBanner, WrongRole } from '@/components/facility/ui';
 import FacilityProfile from '@/components/facility/FacilityProfile';
 import AppointmentsPanel from '@/components/facility/AppointmentsPanel';
+import BedCapacityPanel from '@/components/facility/BedCapacityPanel';
 import BloodUnitsPanel from '@/components/facility/BloodUnitsPanel';
 import BloodRequestsPanel from '@/components/facility/BloodRequestsPanel';
 
@@ -48,6 +49,7 @@ export default function FacilityPage() {
       <div className="mt-6 space-y-6">
         <FacilityProfile profile={profile} onCreated={handleCreated} />
         {linked && <AppointmentsPanel />}
+        {linked && <BedCapacityPanel profile={profile} />}
         {linked && <BloodUnitsPanel profile={profile} />}
         {linked && <BloodRequestsPanel profile={profile} />}
       </div>

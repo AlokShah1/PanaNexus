@@ -16,6 +16,10 @@
       "model": "AuditLog",
       "namespace": "public"
     },
+    "BedCapacity": {
+      "model": "BedCapacity",
+      "namespace": "public"
+    },
     "BloodDonor": {
       "model": "BloodDonor",
       "namespace": "public"
@@ -497,6 +501,43 @@
                 "value": "SUSPENDED"
               }
             ]
+          },
+          "WardType": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "GENERAL",
+                "value": "GENERAL"
+              },
+              {
+                "name": "ICU",
+                "value": "ICU"
+              },
+              {
+                "name": "PEDIATRIC",
+                "value": "PEDIATRIC"
+              },
+              {
+                "name": "MATERNITY",
+                "value": "MATERNITY"
+              },
+              {
+                "name": "EMERGENCY",
+                "value": "EMERGENCY"
+              },
+              {
+                "name": "SURGICAL",
+                "value": "SURGICAL"
+              },
+              {
+                "name": "ISOLATION",
+                "value": "ISOLATION"
+              },
+              {
+                "name": "OTHER",
+                "value": "OTHER"
+              }
+            ]
           }
         },
         "models": {
@@ -917,6 +958,146 @@
               },
               "namespaceId": "public",
               "table": "AuditLog"
+            }
+          },
+          "BedCapacity": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "facilityId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "label": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "occupiedBeds": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "totalBeds": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "ward": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "WardType",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              }
+            },
+            "relations": {
+              "facility": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "facilityId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "HealthcareFacility",
+                  "namespace": "public"
+                }
+              },
+              "updatedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "updatedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "facilityId": {
+                  "column": "facilityId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "label": {
+                  "column": "label"
+                },
+                "occupiedBeds": {
+                  "column": "occupiedBeds"
+                },
+                "totalBeds": {
+                  "column": "totalBeds"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "updatedById": {
+                  "column": "updatedById"
+                },
+                "ward": {
+                  "column": "ward"
+                }
+              },
+              "namespaceId": "public",
+              "table": "BedCapacity"
             }
           },
           "BloodDonor": {
@@ -2013,6 +2194,21 @@
                 },
                 "to": {
                   "model": "Appointment",
+                  "namespace": "public"
+                }
+              },
+              "beds": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "facilityId"
+                  ]
+                },
+                "to": {
+                  "model": "BedCapacity",
                   "namespace": "public"
                 }
               },
@@ -3494,6 +3690,21 @@
                   "namespace": "public"
                 }
               },
+              "bedCapacityUpdates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "updatedById"
+                  ]
+                },
+                "to": {
+                  "model": "BedCapacity",
+                  "namespace": "public"
+                }
+              },
               "bloodDonor": {
                 "cardinality": "1:1",
                 "nullable": true,
@@ -4287,6 +4498,142 @@
                 ]
               },
               "uniques": []
+            },
+            "BedCapacity": {
+              "checks": [
+                {
+                  "expression": "\"ward\" IN ('GENERAL', 'ICU', 'PEDIATRIC', 'MATERNITY', 'EMERGENCY', 'SURGICAL', 'ISOLATION', 'OTHER')",
+                  "name": "BedCapacity_ward_check_11a48c15",
+                  "prefix": "BedCapacity_ward_check"
+                }
+              ],
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "facilityId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "label": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "occupiedBeds": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "totalBeds": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "updatedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "ward": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "WardType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "facilityId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "BedCapacity"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "HealthcareFacility"
+                  }
+                },
+                {
+                  "source": {
+                    "columns": [
+                      "updatedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "BedCapacity"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "facilityId"
+                  ],
+                  "name": "BedCapacity_facilityId_idx_3710d8c1",
+                  "prefix": "BedCapacity_facilityId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "updatedById"
+                  ],
+                  "name": "BedCapacity_updatedById_idx_d0517c24",
+                  "prefix": "BedCapacity_updatedById_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "facilityId",
+                    "ward"
+                  ]
+                }
+              ]
             },
             "BloodDonor": {
               "columns": {
@@ -6744,6 +7091,19 @@
                 "REJECTED",
                 "SUSPENDED"
               ]
+            },
+            "WardType": {
+              "kind": "valueSet",
+              "values": [
+                "GENERAL",
+                "ICU",
+                "PEDIATRIC",
+                "MATERNITY",
+                "EMERGENCY",
+                "SURGICAL",
+                "ISOLATION",
+                "OTHER"
+              ]
             }
           }
         },
@@ -6751,10 +7111,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a7e115b650e2643c5d15cbe082334fe1dce8537ccf85629a6a430f2062a98eeb"
+    "storageHash": "34644c1394de0be468b59c8c95f608f9dc969e7bdf8d72b5f76d16514bad11f3"
   },
   "execution": {
-    "executionHash": "793775b6f4c4bec907ddf96335e86499b44fc6c6030c3d89562f937ea41fc9a0",
+    "executionHash": "419689baa64c87e9df7cfa68a71bc53d7ca1f467ddc49fb10858f8e0b314a832",
     "mutations": {
       "defaults": [
         {
@@ -6817,6 +7177,32 @@
           "ref": {
             "entry": "AuditLog",
             "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "BedCapacity",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "BedCapacity",
+            "field": "updatedAt",
             "namespace": "public"
           }
         },

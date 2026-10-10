@@ -1,5 +1,6 @@
 import { apiGet } from '@/lib/api';
 import { isOpenNow } from '@/lib/hours';
+import { occupancyTone, type BedAvailability } from '@/lib/beds';
 import { Badge, Blob, StatusDot } from '@/components/ui';
 import { IconClock, IconHospital, IconPhone, IconPin, IconRefresh, IconSearch } from '@/components/icons';
 
@@ -12,6 +13,7 @@ type Facility = {
   address: string;
   phone: string | null;
   operatingHours: string | null;
+  beds: BedAvailability;
 };
 
 const FILTERS = [
@@ -175,6 +177,11 @@ export default async function HospitalsPage({ searchParams }: { searchParams: Pr
                     </Badge>
                   ) : (
                     <Badge tone="neutral">Hours not listed</Badge>
+                  )}
+                  {f.beds && f.beds.totalBeds > 0 && (
+                    <Badge tone={occupancyTone(f.beds.availableBeds, f.beds.totalBeds)}>
+                      {f.beds.availableBeds} beds free
+                    </Badge>
                   )}
                 </div>
 

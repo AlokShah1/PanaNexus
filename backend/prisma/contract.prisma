@@ -36,6 +36,17 @@ enum FacilityType {
   HEALTH_POST
 }
 
+enum WardType {
+  GENERAL
+  ICU
+  PEDIATRIC
+  MATERNITY
+  EMERGENCY
+  SURGICAL
+  ISOLATION
+  OTHER
+}
+
 enum AppointmentStatus {
   REQUESTED
   CONFIRMED
@@ -87,6 +98,7 @@ model User {
   reviewedRequests     VerificationRequest[] @relation("UserReviewedRequests")
   sessions     Session[]
   reportFiles  ReportFile[]
+  bedCapacityUpdates BedCapacity[]
 
   @@index([role])
   @@index([verificationStatus])
@@ -214,8 +226,26 @@ model HealthcareFacility {
   bloodUnits     BloodUnit[]
   bloodRequests  BloodRequest[]
   feedback      Feedback[]
+  beds          BedCapacity[]
 
   @@index([type])
+}
+
+model BedCapacity {
+  id           String             @id @default(uuid())
+  facility     HealthcareFacility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId   String
+  ward         WardType
+  label        String?
+  totalBeds    Int
+  occupiedBeds Int                @default(0)
+  updatedBy    User?              @relation(fields: [updatedById], references: [id])
+  updatedById  String?
+  createdAt    TimestamptzString  @default(now())
+  updatedAt    temporal.updatedAtString()
+
+  @@unique([facilityId, ward])
+  @@index([facilityId])
 }
 
 model Appointment {

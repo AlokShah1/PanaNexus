@@ -1,0 +1,245 @@
+[
+  {
+    "id": "table.BedCapacity",
+    "label": "Create table \"BedCapacity\"",
+    "summary": "Creates table \"BedCapacity\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "BedCapacity"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"BedCapacity\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BedCapacity\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"BedCapacity\"",
+        "sql": "CREATE TABLE \"public\".\"BedCapacity\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"facilityId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"label\" text,\n  \"occupiedBeds\" int4 DEFAULT 0 NOT NULL,\n  \"totalBeds\" int4 NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  \"updatedById\" text,\n  \"ward\" text NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"BedCapacity_ward_check_11a48c15\" CHECK (\"ward\" IN ('GENERAL', 'ICU', 'PEDIATRIC', 'MATERNITY', 'EMERGENCY', 'SURGICAL', 'ISOLATION', 'OTHER'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"BedCapacity\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BedCapacity\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.BedCapacity.BedCapacity_facilityId_ward_key",
+    "label": "Add unique constraint on \"BedCapacity\" (facilityId, ward)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "BedCapacity_facilityId_ward_key",
+        "table": "BedCapacity"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"BedCapacity_facilityId_ward_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BedCapacity_facilityId_ward_key",
+          "public",
+          "\"public\".\"BedCapacity\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"BedCapacity_facilityId_ward_key\"",
+        "sql": "ALTER TABLE \"public\".\"BedCapacity\" ADD CONSTRAINT \"BedCapacity_facilityId_ward_key\" UNIQUE (\"facilityId\", \"ward\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"BedCapacity_facilityId_ward_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BedCapacity_facilityId_ward_key",
+          "public",
+          "\"public\".\"BedCapacity\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.BedCapacity.BedCapacity_facilityId_idx_3710d8c1",
+    "label": "Create index \"BedCapacity_facilityId_idx_3710d8c1\" on \"BedCapacity\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "BedCapacity_facilityId_idx_3710d8c1",
+        "table": "BedCapacity"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"BedCapacity_facilityId_idx_3710d8c1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BedCapacity_facilityId_idx_3710d8c1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"BedCapacity_facilityId_idx_3710d8c1\"",
+        "sql": "CREATE INDEX \"BedCapacity_facilityId_idx_3710d8c1\" ON \"public\".\"BedCapacity\" (\"facilityId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"BedCapacity_facilityId_idx_3710d8c1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BedCapacity_facilityId_idx_3710d8c1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.BedCapacity.BedCapacity_updatedById_idx_d0517c24",
+    "label": "Create index \"BedCapacity_updatedById_idx_d0517c24\" on \"BedCapacity\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "BedCapacity_updatedById_idx_d0517c24",
+        "table": "BedCapacity"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"BedCapacity_updatedById_idx_d0517c24\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BedCapacity_updatedById_idx_d0517c24\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"BedCapacity_updatedById_idx_d0517c24\"",
+        "sql": "CREATE INDEX \"BedCapacity_updatedById_idx_d0517c24\" ON \"public\".\"BedCapacity\" (\"updatedById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"BedCapacity_updatedById_idx_d0517c24\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BedCapacity_updatedById_idx_d0517c24\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.BedCapacity.BedCapacity_facilityId_fkey",
+    "label": "Add foreign key \"BedCapacity_facilityId_fkey\" on \"BedCapacity\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "BedCapacity_facilityId_fkey",
+        "table": "BedCapacity"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"BedCapacity_facilityId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BedCapacity_facilityId_fkey",
+          "public",
+          "\"public\".\"BedCapacity\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"BedCapacity_facilityId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"BedCapacity\"\nADD CONSTRAINT \"BedCapacity_facilityId_fkey\"\nFOREIGN KEY (\"facilityId\")\nREFERENCES \"public\".\"HealthcareFacility\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"BedCapacity_facilityId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BedCapacity_facilityId_fkey",
+          "public",
+          "\"public\".\"BedCapacity\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.BedCapacity.BedCapacity_updatedById_fkey",
+    "label": "Add foreign key \"BedCapacity_updatedById_fkey\" on \"BedCapacity\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "BedCapacity_updatedById_fkey",
+        "table": "BedCapacity"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"BedCapacity_updatedById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BedCapacity_updatedById_fkey",
+          "public",
+          "\"public\".\"BedCapacity\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"BedCapacity_updatedById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"BedCapacity\"\nADD CONSTRAINT \"BedCapacity_updatedById_fkey\"\nFOREIGN KEY (\"updatedById\")\nREFERENCES \"public\".\"User\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"BedCapacity_updatedById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BedCapacity_updatedById_fkey",
+          "public",
+          "\"public\".\"BedCapacity\""
+        ]
+      }
+    ]
+  }
+]
