@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiGet, apiPost } from '@/lib/api';
 import { Badge, Button, StatusDot } from '@/components/ui';
 import { IconAlert, IconAmbulance, IconCheck, IconRefresh, IconSpark } from '@/components/icons';
-import { Card, SuccessNotice } from './ui';
+import { Card, SuccessNotice } from '@/components/dashboard/ui';
 
 type DemoStatus = {
   demoMode: boolean;
@@ -14,6 +14,17 @@ type DemoStatus = {
 };
 
 type EmergencyItem = { id: string; state: string; category: string; priority: string; createdAt: string };
+
+type Simulation = {
+  tripId: string;
+  ambulanceId: string;
+  emergencyRequestId: string;
+  state: 'running' | 'paused' | 'arrived';
+  etaMinutes: number;
+  progressPercent: number;
+  distanceKm: number;
+  approximate: boolean;
+};
 
 export default function DemoPanel() {
   const [status, setStatus] = useState<DemoStatus | null>(null);
@@ -26,7 +37,7 @@ export default function DemoPanel() {
   const [emergencies, setEmergencies] = useState<Array<{ id: string; label: string }>>([]);
   const [selected, setSelected] = useState('');
   const [simBusy, setSimBusy] = useState(false);
-  const [active, setActive] = useState<{ tripId: string; etaMinutes: number } | null>(null);
+  const [sims, setSims] = useState<Simulation[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,12 +57,24 @@ export default function DemoPanel() {
     setSelected((prev) => prev || options[0]?.id || '');
   }, []);
 
+  const loadSims = useCallback(async () => {
+    const res = await apiGet<{ simulations: Simulation[] }>('/admin/demo/simulations');
+    if (res.ok) setSims(res.data.simulations);
+  }, []);
+
   useEffect(() => {
     void (async () => {
       await load();
       await loadEmergencies();
+      await loadSims();
     })();
-  }, [load, loadEmergencies]);
+  }, [load, loadEmergencies, loadSims]);
+
+  useEffect(() => {
+    if (sims.length === 0) return;
+    const id = window.setInterval(() => void loadSims(), 3000);
+    return () => window.clearInterval(id);
+  }, [sims.length, loadSims]);
 
   async function act(kind: 'seed' | 'clear' | 'reset') {
     setBusy(kind);
@@ -76,6 +99,7 @@ export default function DemoPanel() {
     );
     await load();
     await loadEmergencies();
+    await loadSims();
   }
 
   async function startSim() {
@@ -83,28 +107,36 @@ export default function DemoPanel() {
     setSimBusy(true);
     setNotice(null);
     setErr(null);
-    const res = await apiPost<{ tripId: string; etaMinutes: number }>('/admin/demo/simulate/start', { emergencyRequestId: selected });
+    const res = await apiPost<{ tripId: string; etaMinutes: number; approximate: boolean; alreadyRunning: boolean }>(
+      '/admin/demo/simulate/start',
+      { emergencyRequestId: selected },
+    );
     setSimBusy(false);
     if (!res.ok) {
       setErr(res.message);
       return;
     }
-    setActive({ tripId: res.data.tripId, etaMinutes: res.data.etaMinutes });
-    setNotice('Simulated dispatch started — open the emergency tracking view to watch it move.');
+    await loadSims();
+    setNotice(
+      res.data.approximate
+        ? 'Simulated dispatch started (straight-line estimate — routing unavailable). Open the emergency tracking view to watch it move.'
+        : 'Simulated dispatch started — open the emergency tracking view to watch it move.',
+    );
   }
 
-  async function stopSim() {
-    if (!active) return;
+  async function control(action: 'pause' | 'resume' | 'stop' | 'reset', tripId: string) {
     setSimBusy(true);
+    setNotice(null);
     setErr(null);
-    const res = await apiPost<{ stopped: boolean }>('/admin/demo/simulate/stop', { tripId: active.tripId });
+    const res = await apiPost<Record<string, boolean>>(`/admin/demo/simulate/${action}`, { tripId });
     setSimBusy(false);
     if (!res.ok) {
       setErr(res.message);
       return;
     }
-    setActive(null);
-    setNotice('Simulation stopped.');
+    await loadSims();
+    if (action === 'reset') setNotice('Simulation reset — ambulance released and request reopened.');
+    else if (action === 'stop') setNotice('Simulation stopped.');
   }
 
   if (loading && !status) {
@@ -126,28 +158,22 @@ export default function DemoPanel() {
               Presentation mode
               <Badge tone={demoMode ? 'success' : 'neutral'}>{demoMode ? 'DEMO_MODE on' : 'DEMO_MODE off'}</Badge>
             </p>
-            <p className="mt-1 max-w-xl text-[13px] text-white/80">
-              Seed a fully synthetic dataset for demos and testing. Demo data is labelled in the ledger and can be cleared at any
-              time without touching real records.
+            <p className="mt-1 text-[13px] text-white/80">
+              Seeded demo records are synthetic and clearly flagged. Real records are never touched.
             </p>
           </div>
         </div>
-        <Button
-          type="button"
-          variant="dark"
-          className="bg-white/15 hover:bg-white/25"
-          onClick={() => void load()}
-        >
-          <IconRefresh size={14} /> Refresh
+        <Button type="button" variant="secondary" className="bg-white/15 text-white ring-white/20 hover:bg-white/25" onClick={() => void load()}>
+          <IconRefresh size={16} /> Refresh
         </Button>
       </div>
 
       {!demoMode && (
-        <div role="alert" className="flex items-start gap-2.5 rounded-3xl bg-amber-50 p-4 ring-1 ring-amber-200">
-          <IconAlert size={18} className="mt-0.5 shrink-0 text-amber-700" />
-          <p className="text-[13px] text-amber-800">
-            Ambulance simulation is disabled. Set <code className="rounded bg-white px-1">DEMO_MODE=true</code> in the backend
-            environment to enable live simulated tracking. Seeding and clearing are still available.
+        <div role="alert" className="flex items-start gap-3 rounded-2xl bg-warning-soft p-4 text-warning ring-1 ring-warning/20">
+          <IconAlert size={18} />
+          <p className="text-[13px] font-semibold">
+            Demo tooling is disabled. Set <code className="rounded bg-white/60 px-1">DEMO_MODE=true</code> in the backend env to
+            enable seeding and simulated tracking.
           </p>
         </div>
       )}
@@ -237,25 +263,55 @@ export default function DemoPanel() {
           </select>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {active ? (
-              <Button type="button" variant="emergency" disabled={simBusy} onClick={() => void stopSim()}>
-                <IconAmbulance size={16} /> {simBusy ? 'Stopping…' : 'Stop simulation'}
-              </Button>
-            ) : (
-              <Button type="button" variant="primary" disabled={!demoMode || simBusy || !selected} onClick={() => void startSim()}>
-                <IconAmbulance size={16} /> {simBusy ? 'Starting…' : 'Start demo tracking'}
-              </Button>
-            )}
-            {active && (
-              <Badge tone="warning">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-70" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-warning" />
-                </span>
-                Simulating · ETA ~{active.etaMinutes} min
-              </Badge>
-            )}
+            <Button type="button" variant="primary" disabled={!demoMode || simBusy || !selected} onClick={() => void startSim()}>
+              <IconAmbulance size={16} /> {simBusy ? 'Working…' : 'Start demo tracking'}
+            </Button>
           </div>
+
+          {sims.length > 0 && (
+            <ul className="mt-4 space-y-2">
+              {sims.map((sim) => (
+                <li key={sim.tripId} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Badge tone={sim.state === 'paused' ? 'warning' : 'success'}>
+                        {sim.state === 'paused' ? 'Paused' : 'Simulating'}
+                      </Badge>
+                      <span className="text-[13px] font-semibold text-ink">ETA ~{sim.etaMinutes} min</span>
+                      <span className="text-[12px] text-ink-muted">{sim.progressPercent}%</span>
+                    </div>
+                    <span className="font-mono text-[11px] text-ink-muted">{sim.tripId.slice(0, 8)}</span>
+                  </div>
+                  {sim.approximate && (
+                    <p className="mt-1 text-[11px] font-semibold text-warning">Straight-line estimate — road routing unavailable.</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {sim.state === 'paused' ? (
+                      <Button type="button" variant="secondary" disabled={simBusy} onClick={() => void control('resume', sim.tripId)}>
+                        Resume
+                      </Button>
+                    ) : (
+                      <Button type="button" variant="secondary" disabled={simBusy} onClick={() => void control('pause', sim.tripId)}>
+                        Pause
+                      </Button>
+                    )}
+                    <Button type="button" variant="secondary" disabled={simBusy} onClick={() => void control('stop', sim.tripId)}>
+                      Stop
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={simBusy}
+                      className="text-danger ring-danger/20 hover:bg-danger-soft"
+                      onClick={() => void control('reset', sim.tripId)}
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <p className="mt-4 flex items-center gap-2 text-[13px] text-ink-muted">
             <IconCheck size={15} className="text-brand-600" />

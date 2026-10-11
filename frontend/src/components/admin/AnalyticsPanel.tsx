@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiGet } from '@/lib/api';
 import { Button } from '@/components/ui';
 import { IconChart, IconRefresh, IconUsers } from '@/components/icons';
-import { Card, ErrorBanner, type ApiError } from './ui';
+import { Card, ErrorBanner, type ApiError } from '@/components/dashboard/ui';
 
 type AdminStats = {
   users: { total: number; byRole: Record<string, number> };

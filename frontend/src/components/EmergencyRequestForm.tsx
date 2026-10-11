@@ -7,10 +7,16 @@ import { reverseGeocode } from '@/lib/geo';
 import { getRealtime, type TripLocationEvent, type TripStatusEvent } from '@/lib/realtime';
 import { Badge, StatusDot } from '@/components/ui';
 import {
+  IconAlert,
   IconAmbulance,
+  IconBandage,
+  IconCar,
   IconCheck,
   IconClock,
+  IconHeart,
+  IconLungs,
   IconPin,
+  IconPregnant,
   IconRefresh,
   IconShield,
 } from '@/components/icons';
@@ -21,12 +27,12 @@ const EmergencyMap = dynamic(() => import('@/components/emergency/EmergencyMap')
 });
 
 const CATEGORIES = [
-  { value: 'MEDICAL', label: 'Medical emergency', emoji: '🟥' },
-  { value: 'ACCIDENT', label: 'Accident', emoji: '🚗' },
-  { value: 'INJURY', label: 'Injury', emoji: '🩹' },
-  { value: 'PREGNANCY', label: 'Pregnancy', emoji: '🤰' },
-  { value: 'BREATHING', label: 'Breathing difficulty', emoji: '🫁' },
-  { value: 'OTHER', label: 'Something else', emoji: '🆘' },
+  { value: 'MEDICAL', label: 'Medical emergency', icon: IconHeart },
+  { value: 'ACCIDENT', label: 'Accident', icon: IconCar },
+  { value: 'INJURY', label: 'Injury', icon: IconBandage },
+  { value: 'PREGNANCY', label: 'Pregnancy', icon: IconPregnant },
+  { value: 'BREATHING', label: 'Breathing difficulty', icon: IconLungs },
+  { value: 'OTHER', label: 'Something else', icon: IconAlert },
 ];
 
 const PRIORITIES = [
@@ -452,18 +458,17 @@ export default function EmergencyRequestForm() {
               <div className="mt-4 grid grid-cols-2 gap-2.5">
                 {CATEGORIES.map((t) => {
                   const active = category === t.value;
+                  const Icon = t.icon;
                   return (
                     <button
                       key={t.value}
                       onClick={() => setCategory(t.value)}
                       aria-pressed={active}
-                      className={`flex flex-col items-start gap-1 rounded-2xl border p-3.5 text-left transition-all duration-200 ${
+                      className={`flex flex-col items-start gap-1.5 rounded-2xl border p-3.5 text-left transition-all duration-200 ${
                         active ? 'border-danger/40 bg-danger-soft' : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/40'
                       }`}
                     >
-                      <span className="text-xl" aria-hidden>
-                        {t.emoji}
-                      </span>
+                      <Icon size={20} className={active ? 'text-danger' : 'text-ink-muted'} />
                       <span className="text-[13px] font-semibold text-ink">{t.label}</span>
                     </button>
                   );

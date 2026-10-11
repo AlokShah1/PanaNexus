@@ -270,3 +270,38 @@ export const IconRoute = (p: IconProps) => (
   </svg>
 );
 
+export const IconCar = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 16v-2.8l1.7-4A1.5 1.5 0 0 1 7.1 8.5h9.8a1.5 1.5 0 0 1 1.4 1L20 13.2V16" />
+    <path d="M4 13.2h16" />
+    <circle cx="7.5" cy="16" r="1.7" />
+    <circle cx="16.5" cy="16" r="1.7" />
+  </svg>
+);
+
+export const IconBandage = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="2.8" y="8.6" width="18.4" height="6.8" rx="3.4" transform="rotate(-45 12 12)" />
+    <path d="M10 10h.01M12 12h.01M14 14h.01" />
+  </svg>
+);
+
+export const IconPregnant = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="4.5" r="1.9" />
+    <path d="M12 6.4v6" />
+    <path d="M12 12.4c2.6 0 4.6 2 4.6 4.6" />
+    <path d="M12 12.4v6" />
+    <path d="M12 18.4l-2.2 2.6M12 18.4l2.2 2.6" />
+  </svg>
+);
+
+export const IconLungs = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 3v9" />
+    <path d="M12 8c-2 0-4 2-4 5v3.5a1.8 1.8 0 0 0 3.6 0" />
+    <path d="M12 8c2 0 4 2 4 5v3.5a1.8 1.8 0 0 1-3.6 0" />
+    <path d="M8 16.5V21M16 16.5V21" />
+  </svg>
+);
+

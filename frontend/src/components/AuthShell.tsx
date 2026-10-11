@@ -14,9 +14,7 @@ export default function AuthShell({
     <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[1.05fr_1fr]">
       {/* brand side */}
       <div className="relative hidden overflow-hidden bg-mesh lg:block">
-        <div aria-hidden className="absolute -left-16 top-10 h-72 w-72 rounded-full bg-brand-300/30 blur-3xl" />
-        <div aria-hidden className="absolute -bottom-10 right-10 h-64 w-64 rounded-full bg-teal-400/25 blur-3xl" />
-        <div aria-hidden className="absolute inset-0 bg-grid opacity-50" />
+        <div aria-hidden className="absolute -left-16 top-10 h-72 w-72 rounded-full bg-brand-300/25 blur-3xl" />
 
         <div className="relative flex h-full flex-col justify-between p-10 xl:p-14">
           <div className="flex items-center gap-2.5">

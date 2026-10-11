@@ -38,9 +38,19 @@ npm test
 - `src/app/admin`: verification approvals, analytics, settings.
 - `src/app/records`: medical record access and upload.
 - `src/components/admin`, `ambulance`: reusable admin components and ambulance UI.
+- `src/components/ui.tsx`: marketing primitives (buttons, cards, section headings).
+- `src/components/dashboard/ui.tsx`: shared dashboard shell primitives (header, nav, panels) used by every role. See `docs/design-system.md` for tokens and rules.
 - `src/lib/api.ts`: single API client (`fetch` with cookie header); handles auth, errors, session refresh.
-- `src/lib/realtime.ts`: socket singleton (`getRealtime()`); event types (`TripStatusEvent`, `TripLocationEvent`).
+- `src/lib/realtime.ts`: socket singleton (`getRealtime()`); event types (`TripStatusEvent`, `TripLocationEvent` with `etaApproximate`).
 - `src/lib/session.ts`: session helpers (cookie extraction, profile refresh).
+
+## Tests
+
+```bash
+npm test        # vitest, run once
+```
+
+Colocated as `*.test.ts` next to source (`src/lib/*.test.ts`, `src/components/**/*.test.ts`). Current: **44 passed across 6 files**. CI runs `lint → typecheck → build` for the frontend.
 
 ## Authentication state
 

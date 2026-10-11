@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiGet, type Paginated } from '@/lib/api';
 import { Badge, Button } from '@/components/ui';
 import { IconClipboard, IconRefresh } from '@/components/icons';
-import { Card, Empty, ErrorBanner, Pager, Skeleton, fmtDateTime, type ApiError } from './ui';
+import { Card, Empty, ErrorBanner, Pager, Skeleton, fmtDateTime, type ApiError } from '@/components/dashboard/ui';
 
 type AuditRow = {
   id: string;

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { API_BASE, apiGet, apiPost, type Paginated } from '@/lib/api';
 import { Badge, Button } from '@/components/ui';
 import { IconCheck, IconClipboard, IconClose, IconRefresh } from '@/components/icons';
-import { Card, Empty, ErrorBanner, Pager, Skeleton, SuccessNotice, fmtDateTime, type ApiError } from './ui';
+import { Card, Empty, ErrorBanner, Pager, Skeleton, SuccessNotice, fmtDateTime, type ApiError } from '@/components/dashboard/ui';
 
 type VerificationItem = {
   id: string;

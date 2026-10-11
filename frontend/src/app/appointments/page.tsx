@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import BookAppointmentForm from '@/components/BookAppointmentForm';
-import { Badge, Blob } from '@/components/ui';
+import { Badge } from '@/components/ui';
 import { IconCalendar, IconCheck, IconClock } from '@/components/icons';
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ doctor?: string }> }) {
@@ -8,7 +8,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
 
   return (
     <main className="relative overflow-hidden">
-      <Blob className="left-[-120px] top-[-60px] h-[300px] w-[300px] bg-brand-200/30" />
 
       <header className="border-b border-slate-200/70 bg-white/70 backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">

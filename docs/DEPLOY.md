@@ -36,7 +36,7 @@ Health: `GET /health`
 
 Required env vars: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NODE_ENV=production`, `FRONTEND_URL=https://<web-host>`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
 
-Private medical report storage **must** use S3 in production: set `STORAGE_DRIVER=s3` with `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`. The API refuses to boot otherwise (local disk on an ephemeral host would lose reports). See [STORAGE.md](./STORAGE.md) and `render.yaml` (credentials are declared but left unset — configure them as secret env vars in the dashboard).
+Private medical report storage **must** use S3 in production: set `STORAGE_DRIVER=s3` with `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`. For Filebase (free tier), also set `S3_ENDPOINT=https://s3.filebase.com` and `S3_REGION=us-east-1`. The API refuses to boot otherwise (local disk on an ephemeral host would lose reports). See [STORAGE.md](./STORAGE.md) and `render.yaml` (credentials are declared but left unset — configure them as secret env vars in the dashboard).
 
 - **The schema is applied at start time, before the server listens.** `npm start` runs
   npm's `prestart` hook first: `prisma db migrate` (replay-only; "nothing to run" when up

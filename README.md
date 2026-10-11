@@ -2,6 +2,8 @@
 
 A lightweight platform connecting patients, doctors, hospitals, health posts, blood/organ donors, and emergency services in one place. Sessions, verification, matching, and live trip tracking are handled server-side; the frontend is a thin, typed client.
 
+**Storage**: Structured data (PostgreSQL on Neon) + private medical PDFs (S3-compatible object storage — AWS S3 or Filebase free tier).
+
 ## Stack
 
 | App | Stack |
@@ -22,16 +24,19 @@ A lightweight platform connecting patients, doctors, hospitals, health posts, bl
 ```
 frontend/src/app/     pages + layouts (client components call the API via rewrites)
 frontend/src/lib/     API client, session helpers, realtime socket, formatting
-frontend/src/tests/   unit tests (vitest)
+frontend/src/**/*.test.ts  unit tests (vitest, colocated with source)
 backend/src/routes/   REST controllers grouped by resource
 backend/src/lib/      auth, matching, blood logic, intelligence, analytics
 backend/src/middleware/  auth/role/rate-limit middleware
 backend/src/validations/ zod schemas
 backend/prisma/       contract.prisma (Prisma 8), db.ts, emitted contract.json/d.ts
-backend/scripts/      seed.ts (idempotent facility + demo seeding)
+backend/scripts/      seed.ts + reset-demo.ts + bootstrap-admin.ts
 backend/src/routes/api.integration.test.ts  full HTTP integration suite
+frontend/src/components/dashboard/ui.tsx  shared dashboard shell primitives
+.github/workflows/ci.yml  CI: migrate → seed → typecheck → test → build (backend + frontend)
 shared/               safe contracts (no Prisma/secrets)
 render.yaml           Render Blueprint (API + Web)
+docs/design-system.md  tokens + reusable UI primitives
 docs/DEPLOY.md        Render + Neon runbook
 docs/PROJECT_REPORT.md  architecture, security, QA results
 ```
@@ -71,6 +76,19 @@ npm run dev                     # https://lvh.me:3000 (or http://localhost:3000 
 
 **Important:** Session cookies use `SameSite=None; Secure` in all environments. Local development requires HTTPS — use `mkcert` with `lvh.me` (resolves to 127.0.0.1) or a browser flag to allow insecure SameSite=None. See `backend/README.md` for detailed setup.
 
+**Filebase (S3-compatible object storage for medical PDFs)** — Free tier available:
+```bash
+# .env (backend)
+STORAGE_DRIVER=s3
+S3_REGION=us-east-1
+S3_BUCKET=pananexus-medical-reports
+S3_ENDPOINT=https://s3.filebase.com
+S3_ACCESS_KEY_ID=<your-filebase-access-key>
+S3_SECRET_ACCESS_KEY=<your-filebase-secret-key>
+# Filebase free tier: 5 GB storage, 1 GB/month egress, 100K requests/month.
+# Bucket must remain private; never enable public access.
+```
+
 Admin auto-bootstraps on first boot from `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Demo data is dev/demo-only: it requires `DEMO_MODE=true` (rejected in production) and uses the reserved `@pananexus.local` domain. The seed prints one-time demo credentials; set `DEMO_PASSWORD` to choose the password.
 
 In production the backend requires `FRONTEND_URL` (CORS origin) and `ADMIN_PASSWORD`,
@@ -86,7 +104,9 @@ cd backend && npm run typecheck && npm test && npm run build
 cd frontend && npm run typecheck && npm run lint && npm test && npm run build
 ```
 
-Current: backend **100 tests / 16 files**, frontend **36 tests / 5 files** — all green, plus the live browser QA harness (60 route×viewport loads, full emergency E2E incl. live socket verification; see `docs/PROJECT_REPORT.md` §4).
+Current (local run, seeded DB): backend **155 passed (155) across 18 files**, frontend **44 passed across 6 files**. Running the full backend suite requires the database migrated, the synthetic demo dataset seeded, and the admin bootstrapped (the integration suites gate on a live admin session — see `backend/README.md`). CI (`.github/workflows/ci.yml`) runs exactly this against a fresh Postgres: migrate → seed → bootstrap → typecheck → test → build for the backend, and lint → typecheck → build for the frontend.
+
+> Note: earlier docs referenced an automated browser QA harness (`check.js`, route×viewport sweeps). That script is **not present in this repository**, so the claim is removed — treat browser/viewport behaviour as manually verified, not automated.
 
 ## Security
 

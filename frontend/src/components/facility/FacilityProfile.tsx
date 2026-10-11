@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { apiGet, apiPatch, apiPost } from '@/lib/api';
 import { Badge, Button, StatusDot } from '@/components/ui';
 import { IconHospital } from '@/components/icons';
-import { Card, ErrorBanner, Skeleton, SuccessNotice, type ApiError, blockReason } from './ui';
+import { Card, ErrorBanner, Skeleton, SuccessNotice, type ApiError, blockReason } from '@/components/dashboard/ui';
 import type { SessionProfile } from '@/lib/session';
 
 export type FacilityDetail = {

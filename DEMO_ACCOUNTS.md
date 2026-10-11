@@ -27,3 +27,24 @@ npm run db:reset:demo  # clear synthetic rows only and re-seed
 
 `db:reset:demo` only touches rows identified as demo/synthetic (the `@pananexus.local`
 domain plus the `demo.data.ledger` PlatformSetting). It must never delete real data.
+
+## Simulated ambulance tracking (admin UI)
+
+With `DEMO_MODE=true`, the **Admin → Demo** panel can drive a demo ambulance toward a
+pending emergency and stream its movement over Socket.IO. Trips are flagged
+`isSimulation` and labelled “Demo tracking" in the patient and ambulance views; the
+vehicle follows road geometry from the routing provider, or an explicitly-labelled
+straight-line estimate when routing is unavailable. Controls: start, pause, resume,
+stop, and reset. Reset releases the ambulance and reopens the request. Endpoints:
+
+```
+GET  /admin/demo/simulations          # list running/paused simulations
+POST /admin/demo/simulate/start       # { emergencyRequestId }
+POST /admin/demo/simulate/pause       # { tripId }
+POST /admin/demo/simulate/resume      # { tripId }
+POST /admin/demo/simulate/stop        # { tripId }
+POST /admin/demo/simulate/reset       # { tripId }
+```
+
+Simulations run in-memory only and never contact real emergency services; they are
+disabled whenever `DEMO_MODE` is off and cannot be enabled in production.

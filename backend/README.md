@@ -64,7 +64,7 @@ chrome.exe --user-data-dir=/tmp/chrome-dev --unsafely-treat-insecure-origin-as-s
 - `middleware/auth.ts`: session management (`readSessionToken`, `touchSession`, cookie `SameSite=None; Secure` in all environments); `requireAuth`, `requireVerified`, `requireRole`.
 - `middleware/origin.ts`: CSRF protection (`originGuard`) — allows `GET`/`HEAD`/`OPTIONS` unconditionally; for mutating requests, requires `Origin` header to match `FRONTEND_URL` (production only allows production origin; dev also allows localhost).
 - `middleware/auth-core.ts`: `hashPassword` (scrypt), `verifyPassword`, session token reading.
-- `lib/storage.ts`: `StorageAdapter` interface; `local` driver (`localReportsDir`, signed download tokens with HMAC); `s3` adapter (AES256 server-side encryption, `S3Client` with optional explicit credentials, `PutObjectCommand`/`DeleteObjectCommand`/`HeadObjectCommand`/`GetObjectCommand` via `@aws-sdk/s3-request-presigner`). Production requires `STORAGE_DRIVER=s3` with `AWS_REGION`, `AWS_S3_BUCKET`, and `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` paired; missing vars cause safe startup failure (`env.ts`).
+- `lib/storage.ts`: `StorageAdapter` interface; `local` driver (`localReportsDir`, signed download tokens with HMAC); `s3` adapter (AES256 server-side encryption, `S3Client` with optional explicit credentials, `PutObjectCommand`/`DeleteObjectCommand`/`HeadObjectCommand`/`GetObjectCommand` via `@aws-sdk/s3-request-presigner`). Production requires `STORAGE_DRIVER=s3` with `S3_REGION`, `S3_BUCKET`, and `S3_ACCESS_KEY_ID` + `S3_SECRET_ACCESS_KEY` paired; missing vars cause safe startup failure (`env.ts`).
 - `lib/auth.ts`: cookie options (`httpOnly: true`, `path: '/'`); **all environments use `sameSite: 'none'`, `secure: true`** (requires HTTPS; for local development use `lvh.me` with a self-signed cert via `mkcert`, or configure browser to allow insecure SameSite=None).
 - `routes/reports.ts`: private file uploads (reports) with audit logs; downloads served via signed URLs; authorization enforced by doctor/patient relationship checks.
 - `routes/medicalRecords.ts`: doctor uploads for related patients; `requireVerified` + relationship checks.
@@ -94,7 +94,7 @@ Migration applied: `add_admission_model` (`hash 928229...`); partial unique inde
 - **Session cookies use `SameSite=None; Secure` in all environments**; local development requires HTTPS (use `lvh.me` with `mkcert` or browser flag for insecure SameSite=None).
 - `originGuard` rejects mutating requests from unlisted origins with 403 `CSRF_ORIGIN_REJECTED`; allows safe methods unconditionally; server-to-server requests (no `Origin` header) untouched.
 - Audit logs (`AuditLog`) created for mutations (`ACTION_ENTITY`), tracking `entity`, `entityId`, `actorId`, `metadata`. Failures caught (`.catch(() => undefined)`) so audit creation never crashes the main operation.
-- Sensitive production info never exposed: `productionStorageError` names missing variables (e.g., `AWS_REGION`, `AWS_S3_BUCKET`) without values; cookie settings never expose `AUTH_SECRET`.
+- Sensitive production info never exposed: `productionStorageError` names missing variables (e.g., `S3_REGION`, `S3_BUCKET`) without values; cookie settings never expose `AUTH_SECRET`.
 
 ## Health and readiness
 
@@ -104,9 +104,38 @@ Migration applied: `add_admission_model` (`hash 928229...`); partial unique inde
 
 ## Tests
 
-- Integration (`api.integration.test.ts`): full HTTP test suite covering auth, verification, emergency lifecycle, patient resources, private medical reports, facility bed capacity, appointment availability/booking integrity, ambulance dispatch integrity, admission integrity (skipped due to admin-approval dependency in test env but route implemented with transaction + capacity checks), session revocation, messaging, analytics.
-- Unit (`lib/*.test.ts`): `auth`, `demoData`, `hours`, `appointments`, `dispatch`, `maps`, `geo`, `blood`, `matching`, `notification`, etc.
-- Focused regression tests performed: `auth.test.ts` (cookie lifetime), `hours.test.ts` (timezone mapping), `dispatch.test.ts` (escalation/state), `demoData.test.ts` (defensive cleanup filter), `api.integration.test.ts` (appointment availability/book integrity, ambulance dispatch, admission integrity — admission skipped in this env due to admin dependency but verified separately with reproduction).
+Run `npm test`. Current: **155 passed across 18 files** on a migrated + seeded database with a bootstrapped admin. Integration tests need a migrated database and, for full coverage, seeded demo data plus a bootstrapped admin (see the CI steps); without those, the admin-gated suites self-skip.
+
+```bash
+docker start pn-pg                 # local Postgres
+npm run db:migrate                 # apply committed migrations
+DEMO_MODE=true npm run db:seed:demo   # synthetic dataset the suite assumes
+ADMIN_PASSWORD=TestPass!123 npm run db:bootstrap   # admin for admin-gated routes
+npm test
+```
+
+- Integration (`api.integration.test.ts`): HTTP suite covering auth, verification, emergency lifecycle, patient resources, private medical reports, facility bed capacity, appointment availability/booking integrity, ambulance dispatch integrity, session revocation, messaging, analytics.
+- Unit (`lib/*.test.ts`, `config/*`): `auth`, `auth-core`, `demoData`, `demoSimulation` (marker interpolation), `hours`, `appointments`, `dispatch`, `maps` (nominatim + osrm route **and geometry**), `discovery`, `geo`, `blood`, `matching`, `intelligence`, `notification`, `env`.
+- Admission integrity: verifies capacity checks, duplicate-admission rejection, discharge, and repeat-discharge conflict via the real HTTP route (a bootstrapped admin approves a facility, which provisions its facility + staff linkage).
+
+### Test gating
+
+`routes/api.integration.test.ts` gates on the environment so it degrades cleanly without a database:
+
+- an env/db readiness gate (`ok ? describe : describe.skip`) — the whole file skips when the database is not migrated;
+- `describe.skipIf(adminJar === '' || !dbOk)` around admin-only suites (verification approval, ambulance dispatch, admission, bed capacity, revocation, messaging, appointments) — they run only when `ADMIN_EMAIL`/`ADMIN_PASSWORD` are set and `db:bootstrap` has run.
+
+Run the gated suites locally with the migrate → seed → bootstrap steps above.
+
+## Demo simulation
+
+When `DEMO_MODE=true`, the admin surface exposes an in-memory, demo-only ambulance simulation. It never writes to production and every emitted event/entity is labelled `isSimulation` / "Demo tracking" so the UI can distinguish it from real traffic.
+
+- `GET  /admin/demo/simulations` — active simulations.
+- `POST /admin/demo/simulate/start` — start a trip from a request (returns a `Simulation`).
+- `POST /admin/demo/simulate/pause|resume|stop|reset` — control a running simulation.
+- Movement interpolates a constant speed along a routing-provider geometry (`osrm`, or a straight-line fallback flagged `approximate`); ticks update ambulance position + `LocationUpdate` and emit `trip:location` with `etaMinutes` and `etaApproximate`.
+- All simulations are stopped on `SIGTERM`/`SIGINT` alongside the dispatch loop.
 
 ## Environment variables
 
@@ -117,15 +146,33 @@ See `.env.example`. Key variables explained:
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` (admin auto-bootstraps; `ADMIN_PASSWORD` required and min 8 chars in production; missing = startup failure).
 - `DEMO_MODE` (default `false`; `true` enables destructive demo seeding/reset; production rejects if `true`).
 - `NODE_ENV`: `development` (cookies `SameSite=None; Secure` — requires HTTPS via `lvh.me`/`mkcert`), `test` (rate limits disabled), `production` (`SameSite=None`/secure cookies; requires S3; rejects `DEMO_MODE=true`).
-- `STORAGE_DRIVER`: `local` (dev/default) or `s3` (production; requires `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`; production fails safe without them).
+- `STORAGE_DRIVER`: `local` (dev/default) or `s3` (production; requires `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`; production fails safe without them).
+- `S3_ENDPOINT`: Optional custom S3 endpoint (e.g., `https://s3.filebase.com` for Filebase). If unset, uses AWS default endpoint.
 - `TZ`: `Asia/Kolkata` (fixed IST offset; no DST).
 - `PORT`, `RATE_LIMIT`, `AUTH_RATE_LIMIT`, `SESSION_*`, `MAP_*`, `OSRM_*`, etc.
 
-## Deployment (`render.yaml`)
+## Filebase Configuration (S3-compatible)
 
-- Two services: `pananexus-api` (Express + Socket.IO) and `pananexus-web` (Next.js).
-- Build uses `NODE_ENV=development` for install to include devDependencies; runtime is `production`.
-- Health check: `/health`; readiness: `/ready`.
-- Migration + verification runs at start (not in `preDeployCommand`) because Prisma CLI must be installed first.
-- `STORAGE_DRIVER=s3` is required in production; credentials are `sync: false` (secret env vars, never committed).
-- `ADMIN_PASSWORD` must be set in production; never committed.
+For development and testing, Filebase provides a free-tier S3-compatible object store:
+
+1. **Create a Filebase account** at https://filebase.com/ and create a bucket (e.g., `pananexus-medical-reports`).
+2. **Generate access keys** in the Filebase dashboard (Access Keys → Create Access Key).
+3. **Configure environment variables**:
+   ```bash
+   STORAGE_DRIVER=s3
+   S3_REGION=us-east-1
+   S3_BUCKET=pananexus-medical-reports
+   S3_ENDPOINT=https://s3.filebase.com
+   S3_ACCESS_KEY_ID=<your-filebase-access-key>
+   S3_SECRET_ACCESS_KEY=<your-filebase-secret-key>
+   ```
+3. **Free tier limits**: 5 GB storage, 1 GB/month egress, 100,000 requests/month.
+4. **Bucket must remain private** — Filebase buckets are private by default; never enable public access.
+5. **CORS**: Add a bucket CORS rule in Filebase dashboard if browser fetches presigned URLs directly:
+   ```json
+   [
+     { "AllowedMethods": ["GET"], "AllowedOrigins": ["https://<your-web-host>"], "AllowedHeaders": ["*"], "MaxAgeSeconds": 3000 }
+   ]
+   ```
+
+## Deployment (`render.yaml`)

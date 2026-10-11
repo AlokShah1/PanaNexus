@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { apiGet, apiPatch } from '@/lib/api';
 import { Badge, Button, StatusDot } from '@/components/ui';
 import { IconAmbulance, IconPin } from '@/components/icons';
-import { Card, ErrorBanner, Empty, Skeleton, SuccessNotice, type ApiError, blockReason, fmtDateTime } from './ui';
+import { Card, ErrorBanner, Empty, Skeleton, SuccessNotice, type ApiError, blockReason, fmtDateTime } from '@/components/dashboard/ui';
 import { useLocationShare } from './useLocationShare';
 import type { AmbulanceRow } from './types';
 import type { SessionProfile } from '@/lib/session';

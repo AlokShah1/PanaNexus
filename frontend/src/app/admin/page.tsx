@@ -5,7 +5,7 @@ import { useSession } from '@/lib/session';
 import { roleLabel } from '@/lib/format';
 import { Badge, StatusDot } from '@/components/ui';
 import { IconBolt, IconChart, IconClipboard, IconShield, IconSpark, IconStar, IconUsers } from '@/components/icons';
-import { Guest, PageSkeleton, WrongRole } from '@/components/admin/ui';
+import { Guest, PageSkeleton, WrongRole } from '@/components/dashboard/ui';
 import VerificationQueue from '@/components/admin/VerificationQueue';
 import UsersPanel from '@/components/admin/UsersPanel';
 import FeedbackPanel from '@/components/admin/FeedbackPanel';

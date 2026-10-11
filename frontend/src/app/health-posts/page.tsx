@@ -1,5 +1,5 @@
 import { apiGet } from '@/lib/api';
-import { Badge, Blob, StatusDot } from '@/components/ui';
+import { Badge, StatusDot } from '@/components/ui';
 import { IconHospital, IconPin, IconRefresh } from '@/components/icons';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,6 @@ export default async function Page() {
 
   return (
     <main className="relative overflow-hidden">
-      <Blob className="right-[-120px] top-[-60px] h-[300px] w-[300px] bg-teal-400/25" />
 
       <header className="border-b border-slate-200/70 bg-white/70 backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
@@ -51,7 +50,7 @@ export default async function Page() {
           {rows.map((f) => (
             <article
               key={f.id}
-              className="group rounded-3xl bg-white p-5 shadow-soft ring-1 ring-slate-200/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift"
+              className="group rounded-3xl bg-white p-5 shadow-soft ring-1 ring-slate-200/70 transition-shadow duration-300 hover:shadow-lift"
             >
               <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-brand-600 text-white shadow-soft">
                 <IconHospital size={22} />

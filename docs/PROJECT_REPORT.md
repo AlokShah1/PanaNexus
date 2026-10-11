@@ -33,24 +33,34 @@ Emergency lifecycle: `PENDING→MATCHED→ASSIGNED→EN_ROUTE→ARRIVED→TRANSP
 ## 4. Verification & QA results
 
 ### Automated tests — backend
-- **100 tests / 16 files** pass (`npm test`), e.g. hours parsing, matching/ranking, intelligence scoring, auth-core, appointment slot logic, and a full HTTP integration suite (`src/routes/api.integration.test.ts`) that boots the app on an ephemeral port and exercises: health, registration/PENDING, license uniqueness, public-directory privacy, login, wrong-password 401, admin approval → Doctor-row sync → VERIFIED → public list **without** license, geo-enriched facilities, emergency create → detail → cancel → double-cancel conflict → unauthenticated 401, blood availability + city filter, notifications authz.
+- **155 passed across 18 files** (`npm test`) on a migrated + seeded database with a bootstrapped admin. Coverage includes hours parsing, matching/ranking, intelligence scoring, auth-core, appointment slot logic, demo-simulation geometry interpolation, routing-provider route **and geometry** parsing, and a full HTTP integration suite (`src/routes/api.integration.test.ts`) that boots the app on an ephemeral port and exercises: health, registration/PENDING, license uniqueness, public-directory privacy, login, wrong-password 401, admin approval → Doctor-row sync → VERIFIED → public list **without** license, geo-enriched facilities, emergency create → detail → cancel → double-cancel conflict → unauthenticated 401, admission capacity/duplicate/discharge, blood availability + city filter, notifications authz.
+- Admin-gated suites self-skip when `ADMIN_EMAIL`/`ADMIN_PASSWORD` are unset or the admin is not bootstrapped; run the migrate → seed → bootstrap steps for full coverage.
 - `npm run typecheck` clean; `npm run build` clean.
 
+### Bug found and fixed by re-enabling the admission suite
+Enabling the previously-skipped admission suite exposed a **real production bug**: `routes/admissions.ts` called `.count()` directly on a filtered query, which Prisma 8 rejects at runtime (`ORM.INCLUDE_INVALID: count() is only available inside include() refinement callbacks`). Both call sites — the admission capacity check and the transfer target capacity check — now use the supported `aggregate((a) => ({ total: a.count() }))` form. Before the fix, `POST /admissions` returned a 500 in production.
+
 ### Automated tests — frontend
-- **36 tests / 5 files** pass (`npm test`): formatting/roles, hours, verification payloads, API client contract (envelope unwrap, server-message priority, friendly fallbacks, JSON vs FormData headers, network-failure), session role helpers.
+- **44 passed across 6 files** (`npm test`): formatting/roles, hours, verification payloads, API client contract (envelope unwrap, server-message priority, friendly fallbacks, JSON vs FormData headers, network-failure), session role helpers.
 - `npm run typecheck`, `npm run lint`, `npm run build` clean.
 
-### Live browser QA (Playwright harness, `/tmp/opencode/shots`)
-- `check.js` — **60 route × viewport loads** (desktop/tablet/mobile/narrow across 15 routes): no horizontal overflow, no console errors, no 500s.
-- `emergency.js` — full end-to-end: render/font checks, browser geolocation → reverse geocode, pin drag → reset, guest submit → **sign-in prompt**, login with `?next` redirect, request creation, operator accept (API), UI assignment, vehicle + driver + live ETA, polling flips to EN_ROUTE, **live socket proven** (the "Live tracking connected" badge only renders from socket `trip:status` handlers), pin locks during an active trip, responsive across 768/375/320, zero console errors, and a self-cleaning step that completes the trip to free the ambulance. **ALL PASS.**
-- The realtime round-trip was hardened: the requester previously subscribed with the emergency **request id** while the server resolved rooms by **trip id**; the server now accepts either id (with owner/operator authorization) and the client re-subscribes when polling confirms a trip — wired and verified live.
+### Browser QA (manual)
+There is **no automated browser/e2e harness committed to this repository** (no Playwright/Puppeteer; the earlier `check.js` / `emergency.js` scripts are not present). Browser behaviour — responsive layout (e.g. 375 px), reduced-motion, and loading/empty/error/success/forbidden states — was reviewed **manually** during development and is **not** re-verifiable from the repo. Do not treat viewport/responsive claims as automated coverage.
 
-### Issues found and fixed during QA
-- Global rate limiter exhausted by legitimate QA traffic → made `RATE_LIMIT` env-configurable (was hardcoded 300).
-- Auth endpoints (`/auth/*`) saturated by page-load `/auth/me` calls during full-page sweeps → `AUTH_RATE_LIMIT` env-configurable (was hardcoded 30).
-- Stale production server on :3000 served an old build → rebuilt, restarted (`next start`).
+Known manual-QA findings that were fixed:
+- Global rate limiter could be exhausted by page-load traffic → `RATE_LIMIT` is env-configurable.
+- Auth endpoints (`/auth/*`) saturated by page-load `/auth/me` calls during full-page sweeps → `AUTH_RATE_LIMIT` env-configurable.
 - 320 px header overflow → `SignOutButton` is icon-only below `sm`; brand wordmark hides below 400 px (logo stays).
-- (Earlier) stale `hc_session` cookies from restarted servers caused spurious 401s in smoke tests — re-login flows used in all QA.
+- (Earlier) stale `hc_session` cookies from restarted servers caused spurious 401s — re-login flows are used in all QA.
+
+### Realtime hardening
+The requester previously subscribed with the emergency **request id** while the server resolved realtime rooms by **trip id**. The server now accepts either id (with owner/operator authorization) and the client re-subscribes when polling confirms a trip.
+
+### Demo simulation
+When `DEMO_MODE=true`, an admin can run an in-memory ambulance simulation (`/admin/demo/simulate/*`). Movement interpolates constant speed along routing geometry (OSRM, or straight-line flagged `approximate`), emits `trip:location` with `etaMinutes`/`etaApproximate`, and every entity/event is labelled `isSimulation` / "Demo tracking". It never touches production and is torn down on shutdown. See `backend/README.md`.
+
+### CI
+`.github/workflows/ci.yml` runs the whole check on every push/PR against a fresh `postgres:16` service and is the reproducible source of truth: backend `db:migrate → db:seed:demo → db:bootstrap → typecheck → test → build`; frontend `npm ci → lint → typecheck → build`.
 
 ## 5. Test creds (dev/demo only)
 
@@ -63,7 +73,7 @@ See `docs/DEPLOY.md`. Seed facilities with `cd backend && npm run seed`. Synthet
 Schema lifecycle (Prisma 8 migrations, not startup auto-sync):
 
 - Migrations are authored from `contract.prisma` (`prisma migration plan`), committed to git under `backend/migrations/app/`, and replayed to the database with `prisma db migrate` (replay-only, idempotent).
-- The commit baseline (`20261007T0416_baseline`) creates all 20 tables + indexes/constraints from empty; verified against a scratch database (99 operations, marker hash `8fd0bad7…` = contract hash) and re-running reports "nothing to run".
+- The commit baseline (`20261007T0416_baseline`) creates all 20 tables + indexes/constraints from empty (99 operations); the full set is **9 migrations / 146 operations** and was replayed cleanly onto a fresh database (`pananexus_ci`) as part of CI-parity validation, after which `db:verify` reports the contract matches and re-running reports "nothing to run".
 - Migration + schema verification run inside the API's start chain: `npm start` → npm `prestart` (`prisma db migrate` then `prisma db verify`) → `node dist/src/server.js`. Render startCommand is `cd backend && npm start`, so every boot is install → build → migrate → verify → admin bootstrap → listen. Render `preDeployCommand` is intentionally **not** used — it executes before the build installs `node_modules`, so the Prisma CLI is unavailable there (the original cause of the `relation "public.User" does not exist` on Neon).
 - The server refuses to boot against an uninitialized schema (pre-boot `User` table probe with an actionable error) — a fail-fast guard, not a silent `db push`.
 - Admin auto-bootstrap runs after the schema check and is idempotent (promotes or creates `ADMIN_EMAIL`; never logs the password).
@@ -77,5 +87,9 @@ Schema lifecycle (Prisma 8 migrations, not startup auto-sync):
 - [x] Admin verification workflow with PENDING → VERIFIED + specialised row sync
 - [x] Role-based redirects + guards; guest → sign-in UX on emergency
 - [x] No fake data/placeholders; all screens read live API; seeds are real, idempotent facilities + demo accounts
-- [x] Backend unit + integration tests, frontend unit tests, browser QA
+- [x] Backend unit + integration tests (155, incl. admission integrity), frontend unit tests (44)
+- [x] Manual browser review (responsive + states) — automated e2e harness is not committed
+- [x] Design system documented (`docs/design-system.md`) + duplicated UI primitives consolidated
+- [x] Demo-only ambulance simulation with clearly-labelled synthetic tracking
 - [x] Deploy configs (Render), Neon migration/seed plan, env examples, docs
+- [x] CI workflow for a clean-database backend + frontend check

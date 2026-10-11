@@ -28,6 +28,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
               <a href="/services" className="hover:text-brand-700">Services</a>
               <a href="/organ-donation" className="hover:text-brand-700">Organ donation</a>
               <a href="/notifications" className="hover:text-brand-700">Notifications</a>
+              <a href="/privacy" className="hover:text-brand-700">Privacy</a>
+              <a href="/terms" className="hover:text-brand-700">Terms</a>
             </nav>
           </div>
           <div className="border-t border-slate-100 px-4 py-4 text-center text-xs text-ink-subtle sm:px-6">

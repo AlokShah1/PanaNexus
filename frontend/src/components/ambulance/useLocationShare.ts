@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiPost } from '@/lib/api';
-import { failText } from './ui';
+import { failText } from '@/components/dashboard/ui';
 
 export type LocState = {
   status: 'idle' | 'sharing' | 'denied' | 'unsupported' | 'blocked' | 'error';

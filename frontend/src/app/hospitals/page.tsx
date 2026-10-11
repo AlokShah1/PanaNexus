@@ -1,4 +1,4 @@
-import { Blob, Badge, StatusDot } from '@/components/ui';
+import { Badge, StatusDot } from '@/components/ui';
 import HospitalsExplorer from '@/components/healthcare/HospitalsExplorer';
 
 export const dynamic = 'force-dynamic';
@@ -6,7 +6,6 @@ export const dynamic = 'force-dynamic';
 export default function Page() {
   return (
     <main className="relative overflow-hidden">
-      <Blob className="right-[-120px] top-[-60px] h-[320px] w-[320px] bg-brand-200/35" />
 
       <header className="border-b border-slate-200/70 bg-white/70 backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">

@@ -68,12 +68,12 @@ router.post('/', requireAuth, requireRole('ADMIN', 'FACILITY_STAFF', 'DOCTOR'), 
   if (!bed) return fail(res, 'NOT_FOUND', 'Bed category not configured for this facility.', 404);
   if (bed.totalBeds <= 0) return fail(res, 'CAPACITY_INVALID', 'No beds configured.', 400);
 
-  const activeCountRaw = await db.orm.public.Admission.where({
+  const activeCountRow = await db.orm.public.Admission.where({
     facilityId: data.facilityId,
     ward: data.ward as any,
     status: 'ADMITTED',
-  }).count();
-  const activeCount = typeof activeCountRaw === 'number' ? activeCountRaw : 0;
+  }).aggregate((a) => ({ total: a.count() }));
+  const activeCount = Number((activeCountRow as { total?: number } | undefined)?.total ?? 0);
   if (activeCount >= bed.totalBeds) return fail(res, 'CAPACITY_EXHAUSTED', 'No available beds in this category.', 409);
 
   const existing = await db.orm.public.Admission.where({
@@ -149,8 +149,8 @@ router.post('/:id/transfer', requireAuth, requireRole('ADMIN', 'FACILITY_STAFF',
     if (!canManageFacility(user, targetFacility)) return fail(res, 'FORBIDDEN', 'No access to target facility.', 403);
     const bed = await db.orm.public.BedCapacity.where({ facilityId: targetFacility, ward: targetWard as any }).first();
     if (!bed) return fail(res, 'NOT_FOUND', 'Target bed category not found.', 404);
-    const countRaw = await db.orm.public.Admission.where({ facilityId: targetFacility, ward: targetWard as any, status: 'ADMITTED' }).count();
-    const count = typeof countRaw === 'number' ? countRaw : 0;
+    const countRow = await db.orm.public.Admission.where({ facilityId: targetFacility, ward: targetWard as any, status: 'ADMITTED' }).aggregate((a) => ({ total: a.count() }));
+    const count = Number((countRow as { total?: number } | undefined)?.total ?? 0);
     if (count >= bed.totalBeds) return fail(res, 'CAPACITY_EXHAUSTED', 'Target category has no capacity.', 409);
     const duplicate = await db.orm.public.Admission.where({ patientId: admission.patientId, facilityId: targetFacility, ward: targetWard as any, status: 'ADMITTED' }).first();
     if (duplicate && duplicate.id !== admission.id) return fail(res, 'DUPLICATE_ADMISSION', 'Active admission already exists at target.', 409);

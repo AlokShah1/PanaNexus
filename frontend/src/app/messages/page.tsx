@@ -3,7 +3,7 @@
 import { useSession } from '@/lib/session';
 import { Badge } from '@/components/ui';
 import { IconChat } from '@/components/icons';
-import { Guest, PageSkeleton, WrongRole } from '@/components/facility/ui';
+import { Guest, PageSkeleton, WrongRole } from '@/components/dashboard/ui';
 import Inbox from '@/components/messages/Inbox';
 
 export default function MessagesPage() {

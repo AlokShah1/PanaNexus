@@ -5,7 +5,7 @@ import { useSession } from '@/lib/session';
 import { roleLabel } from '@/lib/format';
 import { Badge, StatusDot } from '@/components/ui';
 import { IconAmbulance } from '@/components/icons';
-import { Guest, PageSkeleton, VerificationBanner, WrongRole } from '@/components/ambulance/ui';
+import { Guest, PageSkeleton, VerificationBanner, WrongRole } from '@/components/dashboard/ui';
 import { useFleet } from '@/components/ambulance/useFleet';
 import FleetPanel from '@/components/ambulance/FleetPanel';
 import DispatchBoard from '@/components/ambulance/DispatchBoard';

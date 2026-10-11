@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiGet, apiPost } from '@/lib/api';
 import { Button } from '@/components/ui';
 import { IconClock, IconClose } from '@/components/icons';
-import { Card, ErrorBanner, SuccessNotice, type ApiError, blockReason } from './ui';
+import { Card, ErrorBanner, SuccessNotice, type ApiError, blockReason } from '@/components/dashboard/ui';
 import { WEEKDAYS, formatMinute, timeToMinutes } from './time';
 import type { SessionProfile } from '@/lib/session';
 

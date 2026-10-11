@@ -5,7 +5,7 @@ import { apiGet, apiPost, type Paginated } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
 import { Badge, Button } from '@/components/ui';
 import { IconSearch, IconUsers } from '@/components/icons';
-import { Card, Empty, ErrorBanner, Pager, Skeleton, SuccessNotice, fmtDateTime, type ApiError } from './ui';
+import { Card, Empty, ErrorBanner, Pager, Skeleton, SuccessNotice, fmtDateTime, type ApiError } from '@/components/dashboard/ui';
 
 type UserRow = {
   id: string;

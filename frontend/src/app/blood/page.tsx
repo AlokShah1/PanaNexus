@@ -1,12 +1,11 @@
 import BloodSearch from '@/components/BloodSearch';
 import BloodDonorForm from '@/components/BloodDonorForm';
-import { Badge, Blob } from '@/components/ui';
+import { Badge } from '@/components/ui';
 import { IconShield } from '@/components/icons';
 
 export default function Page() {
   return (
     <main className="relative overflow-hidden">
-      <Blob className="right-[-140px] top-[-80px] h-[320px] w-[320px] bg-danger/15" />
 
       <header className="border-b border-slate-200/70 bg-white/70 backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">

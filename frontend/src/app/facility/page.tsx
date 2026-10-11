@@ -5,7 +5,7 @@ import { useSession } from '@/lib/session';
 import { roleLabel } from '@/lib/format';
 import { Badge, StatusDot } from '@/components/ui';
 import { IconHospital } from '@/components/icons';
-import { Guest, PageSkeleton, VerificationBanner, WrongRole } from '@/components/facility/ui';
+import { Guest, PageSkeleton, VerificationBanner, WrongRole } from '@/components/dashboard/ui';
 import FacilityProfile from '@/components/facility/FacilityProfile';
 import AppointmentsPanel from '@/components/facility/AppointmentsPanel';
 import BedCapacityPanel from '@/components/facility/BedCapacityPanel';

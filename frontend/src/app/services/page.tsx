@@ -1,4 +1,4 @@
-import { Badge, Blob, SectionHeading } from '@/components/ui';
+import { Badge, SectionHeading } from '@/components/ui';
 import { ButtonLink } from '@/components/ui';
 import {
   IconAmbulance,
@@ -58,7 +58,6 @@ const SERVICES = [
 export default function Page() {
   return (
     <main className="relative overflow-hidden">
-      <Blob className="right-[-120px] top-[-80px] h-[320px] w-[320px] bg-teal-400/25" />
 
       <header className="border-b border-slate-200/70 bg-white/70 backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6">
@@ -76,7 +75,7 @@ export default function Page() {
             <a
               key={s.title}
               href={s.href}
-              className="group rounded-3xl bg-white p-6 shadow-soft ring-1 ring-slate-200/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift"
+              className="group rounded-3xl bg-white p-6 shadow-soft ring-1 ring-slate-200/70 transition-shadow duration-300 hover:shadow-lift"
             >
               <span className={`grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br ${s.accent} text-white shadow-soft`}>
                 <s.Icon size={20} />

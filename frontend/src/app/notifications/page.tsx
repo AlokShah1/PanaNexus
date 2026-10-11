@@ -1,11 +1,10 @@
 import NotificationsPanel from '@/components/NotificationsPanel';
-import { Badge, Blob } from '@/components/ui';
+import { Badge } from '@/components/ui';
 import { IconBell } from '@/components/icons';
 
 export default function Page() {
   return (
     <main className="relative overflow-hidden">
-      <Blob className="right-[-120px] top-[-80px] h-[300px] w-[300px] bg-brand-200/30" />
 
       <header className="border-b border-slate-200/70 bg-white/70 backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">

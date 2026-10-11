@@ -1,4 +1,4 @@
-import { Blob, ButtonLink, SectionHeading, WaveDivider } from '@/components/ui';
+import { ButtonLink, SectionHeading } from '@/components/ui';
 import { IconAmbulance, IconClipboard, IconDroplet, IconHospital, IconShield, IconSpark } from '@/components/icons';
 
 const PILLARS = [
@@ -43,8 +43,6 @@ const PILLARS = [
 export default function Page() {
   return (
     <main className="relative overflow-hidden">
-      <Blob className="left-[-100px] top-[-60px] h-[320px] w-[320px] bg-brand-200/30" />
-
       <section className="bg-mesh">
         <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <SectionHeading
@@ -61,16 +59,12 @@ export default function Page() {
         </div>
       </section>
 
-      <div className="bg-white">
-        <WaveDivider />
-      </div>
-
-      <section className="bg-white pb-16">
+      <section className="bg-white py-16">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {PILLARS.map((p) => (
-              <article key={p.title} className="rounded-3xl bg-white p-6 shadow-soft ring-1 ring-slate-200/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift">
-                <span className={`grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br ${p.accent} text-white shadow-soft`}>
+              <article key={p.title} className="rounded-3xl bg-white p-6 shadow-soft ring-1 ring-slate-200/70 transition-shadow duration-300 hover:shadow-lift">
+                <span className={`grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br ${p.accent} text-white`}>
                   <p.Icon size={20} />
                 </span>
                 <h2 className="mt-4 text-[15px] font-bold text-ink">{p.title}</h2>

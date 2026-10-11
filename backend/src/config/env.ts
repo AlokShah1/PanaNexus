@@ -20,10 +20,10 @@ const schema = z.object({
   ADMIN_PASSWORD: z.string().min(8).optional(),
   UPLOAD_DIR: z.string().default('uploads'),
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
-  AWS_REGION: z.string().min(1).optional(),
-  AWS_S3_BUCKET: z.string().min(1).optional(),
-  AWS_ACCESS_KEY_ID: z.string().min(1).optional(),
-  AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  S3_REGION: z.string().min(1).optional(),
+  S3_BUCKET: z.string().min(1).optional(),
+  S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+  S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   REPORT_MAX_FILE_BYTES: z.coerce.number().int().positive().default(15 * 1024 * 1024),
   REPORT_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   // Map / place discovery providers (open data, no API key required by default).
@@ -35,18 +35,20 @@ const schema = z.object({
   MAP_MIN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(1000),
   ROUTING_PROVIDER: z.enum(['osrm', 'straight-line']).default('osrm'),
   OSRM_BASE_URL: z.string().url().default('https://router.project-osrm.org'),
+  // S3-compatible endpoint (for Filebase and other S3-compatible providers)
+  S3_ENDPOINT: z.string().url().optional(),
 }).superRefine((value, ctx) => {
   if (value.STORAGE_DRIVER !== 's3') return;
-  for (const key of ['AWS_REGION', 'AWS_S3_BUCKET'] as const) {
+  for (const key of ['S3_REGION', 'S3_BUCKET'] as const) {
     if (!value[key]) {
       ctx.addIssue({ code: 'custom', path: [key], message: `${key} is required when STORAGE_DRIVER=s3.` });
     }
   }
-  if (Boolean(value.AWS_ACCESS_KEY_ID) !== Boolean(value.AWS_SECRET_ACCESS_KEY)) {
+  if (Boolean(value.S3_ACCESS_KEY_ID) !== Boolean(value.S3_SECRET_ACCESS_KEY)) {
     ctx.addIssue({
       code: 'custom',
-      path: ['AWS_ACCESS_KEY_ID'],
-      message: 'AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be set together.',
+      path: ['S3_ACCESS_KEY_ID'],
+      message: 'S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must be set together.',
     });
   }
 });
@@ -70,10 +72,10 @@ const env = parsed.data;
 export function productionStorageError(value: {
   NODE_ENV?: string;
   STORAGE_DRIVER?: string;
-  AWS_REGION?: string;
-  AWS_S3_BUCKET?: string;
-  AWS_ACCESS_KEY_ID?: string;
-  AWS_SECRET_ACCESS_KEY?: string;
+  S3_REGION?: string;
+  S3_BUCKET?: string;
+  S3_ACCESS_KEY_ID?: string;
+  S3_SECRET_ACCESS_KEY?: string;
 }): string | null {
   if (value.NODE_ENV !== 'production') return null;
   if (value.STORAGE_DRIVER !== 's3') {
@@ -82,7 +84,7 @@ export function productionStorageError(value: {
       '(local disk is ephemeral and would lose uploaded reports on redeploy).'
     );
   }
-  const required = ['AWS_REGION', 'AWS_S3_BUCKET', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'] as const;
+  const required = ['S3_REGION', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const;
   const missing = required.filter((key) => !value[key]);
   if (missing.length > 0) {
     return (

@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { apiDelete, apiPatch, apiPost } from '@/lib/api';
 import { Badge, Button } from '@/components/ui';
 import { IconAmbulance, IconClose } from '@/components/icons';
-import { Card, ErrorBanner, Empty, Skeleton, SuccessNotice, type ApiError, blockReason } from './ui';
+import { Card, ErrorBanner, Empty, Skeleton, SuccessNotice, type ApiError, blockReason } from '@/components/dashboard/ui';
 import { AMBULANCE_TYPES, type AmbulanceRow } from './types';
 import type { SessionProfile } from '@/lib/session';
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/lib/session';
 import { apiGet, apiPatch, Paginated } from '@/lib/api';
-import { Badge, Blob, SectionHeading } from '@/components/ui';
+import { Badge, SectionHeading } from '@/components/ui';
 import { IconFileText, IconRefresh } from '@/components/icons';
 import RecordForm from '@/components/records/RecordForm';
 import ReportFiles from '@/components/records/ReportFiles';
@@ -139,7 +139,6 @@ export default function Page() {
 
   return (
     <main className="relative overflow-hidden">
-      <Blob className="left-[-120px] top-[-60px] h-[300px] w-[300px] bg-brand-200/30" />
       <header className="border-b border-slate-200/70 bg-white/70 backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
           <Badge tone="brand">

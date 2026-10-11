@@ -3,7 +3,6 @@ import {
   Badge,
   Blob,
   ButtonLink,
-  CrossMark,
   Divider,
   LinkArrow,
   SectionHeading,
@@ -117,9 +116,7 @@ export default function Home() {
     <>
       {/* ------------------------------------------------------------ hero */}
       <section className="relative overflow-hidden bg-mesh">
-        <Blob className="left-[-120px] top-[-80px] h-[380px] w-[380px] bg-brand-300/35" />
-        <Blob className="right-[-100px] top-[120px] h-[320px] w-[320px] bg-teal-400/25" />
-        <CrossMark className="-right-10 top-24 h-40 w-40 text-brand-200/40" />
+        <Blob className="right-[-140px] top-[140px] h-[320px] w-[320px] bg-brand-200/30" />
 
         <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:py-20">
           <div className="animate-fade-up">
@@ -129,7 +126,7 @@ export default function Home() {
             </Badge>
 
             <h1 className="mt-5 text-[2.1rem] font-bold leading-[1.08] tracking-tight text-ink sm:text-5xl">
-              Healthcare, connected <span className="text-gradient">around you.</span>
+              Healthcare, connected <span className="text-brand-600">around you.</span>
             </h1>
 
             <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-ink-muted sm:text-base">
@@ -177,7 +174,7 @@ export default function Home() {
             <a
               key={q.href}
               href={q.href}
-              className={`group animate-fade-up relative overflow-hidden rounded-3xl bg-gradient-to-br ${q.ring} p-5 shadow-soft ring-1 ring-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lift`}
+              className={`group animate-fade-up relative overflow-hidden rounded-3xl bg-gradient-to-br ${q.ring} p-5 shadow-soft ring-1 ring-slate-200/70 transition-shadow duration-300 hover:shadow-lift`}
               style={{ animationDelay: `${i * 70}ms` }}
             >
               <div className="flex items-start gap-3">
@@ -215,7 +212,7 @@ export default function Home() {
             {FLOW.map((step, i) => (
               <div key={step.label} className="contents">
                 <div
-                  className={`animate-fade-up rounded-3xl p-6 text-center shadow-soft ring-1 transition-all duration-300 hover:-translate-y-1 ${
+                  className={`animate-fade-up rounded-3xl p-6 text-center shadow-soft ring-1 transition-shadow duration-300 hover:shadow-lift ${
                     step.core
                       ? 'bg-gradient-to-br from-brand-600 to-brand-800 text-white ring-brand-700'
                       : 'bg-white ring-slate-200'
@@ -264,14 +261,10 @@ export default function Home() {
           {FEATURES.map((f, i) => (
             <article
               key={f.title}
-              className="group animate-fade-up relative overflow-hidden rounded-3xl bg-white p-6 shadow-soft ring-1 ring-slate-200/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift"
+              className="animate-fade-up rounded-3xl bg-white p-6 shadow-soft ring-1 ring-slate-200/70 transition-shadow duration-300 hover:shadow-lift"
               style={{ animationDelay: `${i * 60}ms` }}
             >
-              <div
-                aria-hidden
-                className={`absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br ${f.accent} opacity-[0.08] transition-transform duration-500 group-hover:scale-150`}
-              />
-              <span className={`grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br ${f.accent} text-white shadow-soft`}>
+              <span className={`grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br ${f.accent} text-white`}>
                 <f.Icon size={20} />
               </span>
               <h3 className="mt-4 text-[15px] font-bold text-ink">{f.title}</h3>
@@ -297,12 +290,11 @@ export default function Home() {
 
           <div className="order-1 lg:order-2">
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 to-white p-6 shadow-soft ring-1 ring-slate-200/70">
-              <div aria-hidden className="absolute inset-0 bg-dots-fine opacity-40" />
               <svg aria-hidden viewBox="0 0 320 200" className="relative h-44 w-full">
                 <g stroke="#bcd2ff" strokeWidth="1">
                   <path d="M0 60h320M0 120h320M60 0v200M140 0v200M220 0v200" />
                 </g>
-                <path d="M20 170 C 90 150, 120 70, 200 60 S 290 40, 310 30" stroke="#8eb4ff" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeDasharray="7 8" className="animate-dash" />
+                <path d="M20 170 C 90 150, 120 70, 200 60 S 290 40, 310 30" stroke="#8eb4ff" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeDasharray="7 8" />
                 {[
                   { x: 60, y: 140 },
                   { x: 130, y: 96 },
@@ -332,9 +324,7 @@ export default function Home() {
       </section>
 
       {/* --------------------------------------------------------- emergency */}
-      <section className="relative overflow-hidden py-16">
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-danger-soft via-white to-white" />
-        <Blob className="left-[8%] top-6 h-[300px] w-[300px] bg-danger/15" />
+      <section className="relative overflow-hidden bg-danger-soft/50 py-16">
         <div className="relative mx-auto w-full max-w-4xl px-4 text-center sm:px-6">
           <span className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-danger text-white shadow-[0_18px_40px_-16px_rgba(225,29,72,0.8)]">
             <IconAmbulance size={30} />

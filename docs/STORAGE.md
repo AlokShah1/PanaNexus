@@ -29,46 +29,83 @@ Backend environment variables (never expose these to the frontend):
 
 ```
 STORAGE_DRIVER=s3
-AWS_REGION=ap-south-1
-AWS_S3_BUCKET=pananexus-medical-reports
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
+S3_REGION=us-east-1
+S3_BUCKET=pananexus-medical-reports
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_ENDPOINT=https://s3.filebase.com
 REPORT_MAX_FILE_BYTES=15728640   # 15 MB (default)
 REPORT_URL_TTL_SECONDS=300       # signed download lifetime (default)
 ```
 
-When `STORAGE_DRIVER=s3`, `AWS_REGION` and `AWS_S3_BUCKET` are required. In
-production the access key pair (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`)
+When `STORAGE_DRIVER=s3`, `S3_REGION` and `S3_BUCKET` are required. In
+production the access key pair (`S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY`)
 is required too — an instance/profile role is accepted only outside production.
 Missing values abort startup with an actionable message that names the variables
 but never their values.
 
+**Filebase-specific notes:**
+- Set `S3_ENDPOINT=https://s3.filebase.com` for Filebase.
+- Use `S3_REGION=us-east-1` (Filebase primary region).
+- Create the bucket in the Filebase dashboard (e.g. `pananexus-medical-reports`).
+- The bucket **must remain private** — never enable public access.
+- Filebase free tier: 5 GB storage, 1 GB/month egress, 100,000 requests/month.
+- Exceeding free-tier limits will cause uploads/downloads to fail; the API returns
+  clear errors and does not delete existing files.
+
 ## Production deployment steps
 
 1. Create the bucket and a least-privilege access key (see below).
-2. In the Render dashboard set `STORAGE_DRIVER=s3` plus `AWS_REGION`,
-   `AWS_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` as **secret**
+2. In the Render dashboard set `STORAGE_DRIVER=s3` plus `S3_REGION`,
+   `S3_BUCKET`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY` as **secret**
    environment variables (never commit them or expose them to the frontend).
-3. Deploy. The API refuses to boot in production while any of these is missing;
+3. Set `S3_ENDPOINT=https://s3.filebase.com` when using Filebase (omit it for AWS S3).
+4. Deploy. The API refuses to boot in production while any of these is missing;
    `render.yaml` already selects S3 and leaves the credentials to the dashboard.
-4. Enable a lifecycle/retention policy that matches your data policy.
-5. If the browser fetches the presigned URL in JavaScript, add the bucket CORS
-   rule from step 6 below.
-6. Migrating from `local`: copy existing `UPLOAD_DIR/reports` objects into the
+5. Enable a lifecycle/retention policy that matches your data policy.
+6. If the browser fetches the presigned URL in JavaScript, add the bucket CORS
+   rule from the "Bucket setup" section below.
+7. Migrating from `local`: copy existing `UPLOAD_DIR/reports` objects into the
    bucket under their stored keys first. The app never migrates or deletes your
    existing files automatically.
 
-## Bucket setup (AWS S3)
+## Bucket setup (Filebase / AWS S3 compatible)
+
+### Filebase (recommended for free-tier development)
+
+1. **Create a Filebase account** at https://filebase.com/ and create a bucket (e.g. `pananexus-medical-reports`).
+2. **Keep the bucket private** — Filebase buckets are private by default. Never enable public access.
+3. **Create an access key** in the Filebase dashboard (Access Keys → Create Access Key).
+4. **Configure environment variables**:
+   ```
+   STORAGE_DRIVER=s3
+   S3_REGION=us-east-1
+   S3_BUCKET=pananexus-medical-reports
+   S3_ENDPOINT=https://s3.filebase.com
+   S3_ACCESS_KEY_ID=<your-filebase-access-key>
+   S3_SECRET_ACCESS_KEY=<your-filebase-secret-key>
+   ```
+5. **Enable versioning** (recommended) in the Filebase dashboard so accidental deletes are recoverable.
+6. **CORS** — if the web app downloads the report by fetching the presigned URL in JavaScript (blob download), add a bucket CORS rule allowing `GET` from the web origin (Filebase dashboard → Bucket → CORS):
+   ```json
+   [
+     {
+       "AllowedMethods": ["GET"],
+       "AllowedOrigins": ["https://<your-web-host>"],
+       "AllowedHeaders": ["*"],
+       "MaxAgeSeconds": 3000
+     }
+   ]
+   ```
+7. **Lifecycle / retention** — set lifecycle rules that match your data policy. Deleted reports are soft-deleted in the database and the object is removed; enable versioning + a noncurrent-version expiry rule if you keep backups.
+
+### AWS S3 (alternative)
 
 1. **Create the bucket** in your region, e.g. `pananexus-medical-reports`.
-2. **Block all public access** — leave "Block all public access" enabled. Never
-   add a public bucket policy or ACL; objects are reached only through presigned
-   URLs.
-3. **Encrypt by default** — the API requests `ServerSideEncryption=AES256`
-   (SSE-S3) on every upload. You may instead enable SSE-KMS or a bucket default.
+2. **Block all public access** — leave "Block all public access" enabled. Never add a public bucket policy or ACL; objects are reached only through presigned URLs.
+3. **Encrypt by default** — the API requests `ServerSideEncryption=AES256` (SSE-S3) on every upload. You may instead enable SSE-KMS or a bucket default.
 4. **Enable versioning** (recommended) so accidental deletes are recoverable.
 5. **Create a least-privilege IAM user** used only by the API:
-
    ```json
    {
      "Version": "2012-10-17",
@@ -86,31 +123,9 @@ but never their values.
      ]
    }
    ```
-
-   Put the resulting key/secret in `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
-   as backend env vars only.
-
-6. **CORS** — if the web app downloads the report by fetching the presigned URL
-   in JavaScript (blob download), add a bucket CORS rule allowing `GET` from the
-   web origin:
-
-   ```json
-   [
-     {
-       "AllowedMethods": ["GET"],
-       "AllowedOrigins": ["https://<your-web-host>"],
-       "AllowedHeaders": ["*"],
-       "MaxAgeSeconds": 3000
-     }
-   ]
-   ```
-
-   If the browser instead navigates to / downloads the URL directly, CORS is not
-   required.
-
-7. **Lifecycle / retention** — set lifecycle rules that match your data policy.
-   Deleted reports are soft-deleted in the database and the object is removed;
-   enable versioning + a noncurrent-version expiry rule if you keep backups.
+   Put the resulting key/secret in `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` as backend env vars only.
+6. **CORS** — if the web app downloads the report by fetching the presigned URL in JavaScript (blob download), add a bucket CORS rule allowing `GET` from the web origin.
+7. **Lifecycle / retention** — set lifecycle rules that match your data policy. Deleted reports are soft-deleted in the database and the object is removed; enable versioning + a noncurrent-version expiry rule if you keep backups.
 
 ## Security properties
 

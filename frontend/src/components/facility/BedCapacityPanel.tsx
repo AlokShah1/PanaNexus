@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { apiDelete, apiGet, apiPut } from '@/lib/api';
 import { Badge, Button } from '@/components/ui';
 import { IconCheck, IconHospital, IconTrash } from '@/components/icons';
-import { Card, Empty, ErrorBanner, Skeleton, SuccessNotice, type ApiError, blockReason } from './ui';
+import { Card, Empty, ErrorBanner, Skeleton, SuccessNotice, type ApiError, blockReason } from '@/components/dashboard/ui';
 import type { SessionProfile } from '@/lib/session';
 import { WARD_TYPES, occupancyTone, wardLabel, type BedSummary, type WardRow } from '@/lib/beds';
 

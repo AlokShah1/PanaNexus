@@ -1,5 +1,5 @@
 import OrganDonorForm from '@/components/OrganDonorForm';
-import { Badge, Blob } from '@/components/ui';
+import { Badge } from '@/components/ui';
 import { IconShield, IconCheck } from '@/components/icons';
 
 const POINTS = [
@@ -20,8 +20,6 @@ const POINTS = [
 export default function Page() {
   return (
     <main className="relative overflow-hidden">
-      <Blob className="left-[-100px] top-[-80px] h-[320px] w-[320px] bg-brand-200/30" />
-      <Blob className="right-[-120px] bottom-0 h-[280px] w-[280px] bg-teal-400/20" />
 
       <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
         <div className="grid gap-10 lg:grid-cols-[1fr_1fr]">

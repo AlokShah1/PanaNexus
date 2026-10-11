@@ -6,7 +6,7 @@ import { roleLabel } from '@/lib/format';
 import { apiGet } from '@/lib/api';
 import { Badge, StatusDot } from '@/components/ui';
 import { IconStethoscope } from '@/components/icons';
-import { Guest, PageSkeleton, VerificationBanner, WrongRole, type ApiError } from '@/components/doctor/ui';
+import { Guest, PageSkeleton, VerificationBanner, WrongRole, type ApiError } from '@/components/dashboard/ui';
 import ProfileCard, { type DoctorMe, type DoctorState } from '@/components/doctor/ProfileCard';
 import AvailabilityEditor from '@/components/doctor/AvailabilityEditor';
 import AppointmentsPanel from '@/components/doctor/AppointmentsPanel';

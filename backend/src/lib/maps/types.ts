@@ -36,6 +36,16 @@ export interface RouteResult {
   approximate: boolean;
 }
 
+export interface RouteGeometry {
+  /** Ordered path from origin to destination. Two points when approximated. */
+  coordinates: LatLng[];
+  /** True when this is a straight-line fallback rather than road-network geometry. */
+  approximate: boolean;
+  provider: string;
+  distanceKm: number;
+  durationMinutes: number;
+}
+
 export interface GeocodeQuery {
   query: string;
   limit?: number;
@@ -65,6 +75,8 @@ export interface MapProvider {
 export interface RoutingProvider {
   readonly name: string;
   route(query: RouteQuery): Promise<RouteResult>;
+  /** Ordered path used by map animation; may be an explicitly-labelled straight line. */
+  geometry(query: RouteQuery): Promise<RouteGeometry>;
 }
 
 export const OSM_ATTRIBUTION = '© OpenStreetMap contributors';

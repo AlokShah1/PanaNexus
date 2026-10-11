@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiGet } from '@/lib/api';
-import type { ApiError } from './ui';
+import type { ApiError } from '@/components/dashboard/ui';
 import type { AmbulanceRow } from './types';
 
 export function useFleet(authed: boolean, refreshKey: number): { fleet: AmbulanceRow[] | null; error: ApiError | null } {

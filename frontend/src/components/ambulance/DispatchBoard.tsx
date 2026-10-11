@@ -5,7 +5,7 @@ import { apiGet, apiPost } from '@/lib/api';
 import { getRealtime } from '@/lib/realtime';
 import { Badge, Button } from '@/components/ui';
 import { IconAmbulance, IconHeart } from '@/components/icons';
-import { Card, Empty, ErrorBanner, Skeleton, SuccessNotice, type ApiError, blockReason, fmtDateTime } from './ui';
+import { Card, Empty, ErrorBanner, Skeleton, SuccessNotice, type ApiError, blockReason, fmtDateTime } from '@/components/dashboard/ui';
 import type { AmbulanceRow } from './types';
 import type { SessionProfile } from '@/lib/session';
 

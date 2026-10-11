@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { apiGet, apiPost, type Paginated } from '@/lib/api';
 import { IconChat, IconRefresh, IconSend } from '@/components/icons';
-import { Card, Empty } from '@/components/facility/ui';
+import { Card, Empty } from '@/components/dashboard/ui';
 import { getRealtime } from '@/lib/realtime';
 import { relativeTime } from '@/lib/format';
 import { MAX_MESSAGE_LENGTH, type ChatMessage, type ConversationSummary, type ProviderOption } from '@/lib/messages';

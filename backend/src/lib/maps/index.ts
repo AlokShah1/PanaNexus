@@ -2,7 +2,7 @@ import type { LatLng } from '../geo.js';
 import { env } from '../../config/env.js';
 import { createNominatimProvider } from './nominatim.js';
 import { createOsrmRouter, createStraightLineRouter } from './osrm.js';
-import type { MapProvider, PlaceCategory, RouteResult, RoutingProvider } from './types.js';
+import type { MapProvider, PlaceCategory, RouteGeometry, RouteResult, RoutingProvider } from './types.js';
 
 export { OSM_ATTRIBUTION } from './types.js';
 
@@ -44,6 +44,19 @@ export async function routeWithFallback(from: LatLng, to: LatLng): Promise<Route
     return await getRoutingProvider().route({ from, to, mode: 'driving' });
   } catch {
     return createStraightLineRouter().route({ from, to, mode: 'driving' });
+  }
+}
+
+/**
+ * Ordered path for map animation. Uses road-network geometry when the provider
+ * returns it; otherwise an explicitly-labelled two-point straight-line fallback
+ * (never silently presented as a road route).
+ */
+export async function routeGeometryWithFallback(from: LatLng, to: LatLng): Promise<RouteGeometry> {
+  try {
+    return await getRoutingProvider().geometry({ from, to, mode: 'driving' });
+  } catch {
+    return createStraightLineRouter().geometry({ from, to, mode: 'driving' });
   }
 }
 

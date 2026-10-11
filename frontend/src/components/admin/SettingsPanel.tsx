@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { apiFetch, apiGet } from '@/lib/api';
 import { Button } from '@/components/ui';
 import { IconBolt } from '@/components/icons';
-import { Card, ErrorBanner, Skeleton, SuccessNotice, type ApiError } from './ui';
+import { Card, ErrorBanner, Skeleton, SuccessNotice, type ApiError } from '@/components/dashboard/ui';
 
 type SettingsBody = { settings: Record<string, string> };
 

@@ -4,7 +4,7 @@ import { IconAlert } from '@/components/icons';
 
 export default function Page() {
   return (
-    <main className="relative overflow-hidden bg-mesh">
+    <main className="relative overflow-hidden bg-surface">
       <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
         <div className="flex flex-wrap items-center gap-3">
           <Badge tone="danger">

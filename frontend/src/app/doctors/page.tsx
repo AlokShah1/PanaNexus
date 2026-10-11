@@ -1,5 +1,5 @@
 import { apiGet } from '@/lib/api';
-import { Badge, Blob, StatusDot } from '@/components/ui';
+import { Badge, StatusDot } from '@/components/ui';
 import { IconRefresh, IconSearch, IconStethoscope } from '@/components/icons';
 
 export const dynamic = 'force-dynamic';
@@ -40,7 +40,6 @@ export default async function DoctorsPage({ searchParams }: { searchParams: Prom
 
   return (
     <main className="relative overflow-hidden">
-      <Blob className="left-[-120px] top-[-80px] h-[300px] w-[300px] bg-teal-400/25" />
 
       <header className="border-b border-slate-200/70 bg-white/70 backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
@@ -120,7 +119,7 @@ export default async function DoctorsPage({ searchParams }: { searchParams: Prom
           {doctors.map((d) => (
             <article
               key={d.id}
-              className="group overflow-hidden rounded-3xl bg-white shadow-soft ring-1 ring-slate-200/70 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift"
+              className="group overflow-hidden rounded-3xl bg-white shadow-soft ring-1 ring-slate-200/70 transition-shadow duration-300 hover:shadow-lift"
             >
               <div className="flex items-start gap-4 p-5">
                 <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-brand-600 to-teal-500 text-base font-bold text-white shadow-soft">

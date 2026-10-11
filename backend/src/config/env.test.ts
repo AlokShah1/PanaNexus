@@ -4,10 +4,10 @@ import { productionStorageError } from './env.js';
 const s3Configured = {
   NODE_ENV: 'production',
   STORAGE_DRIVER: 's3',
-  AWS_REGION: 'ap-south-1',
-  AWS_S3_BUCKET: 'pananexus-reports',
-  AWS_ACCESS_KEY_ID: 'AKIAEXAMPLE',
-  AWS_SECRET_ACCESS_KEY: 'super-secret-value',
+  S3_REGION: 'ap-south-1',
+  S3_BUCKET: 'pananexus-reports',
+  S3_ACCESS_KEY_ID: 'AKIAEXAMPLE',
+  S3_SECRET_ACCESS_KEY: 'super-secret-value',
 };
 
 describe('productionStorageError', () => {
@@ -24,11 +24,11 @@ describe('productionStorageError', () => {
     const reason = productionStorageError({
       NODE_ENV: 'production',
       STORAGE_DRIVER: 's3',
-      AWS_REGION: 'ap-south-1',
-      AWS_S3_BUCKET: 'pananexus-reports',
+      S3_REGION: 'ap-south-1',
+      S3_BUCKET: 'pananexus-reports',
     });
-    expect(reason).toContain('AWS_ACCESS_KEY_ID');
-    expect(reason).toContain('AWS_SECRET_ACCESS_KEY');
+    expect(reason).toContain('S3_ACCESS_KEY_ID');
+    expect(reason).toContain('S3_SECRET_ACCESS_KEY');
     expect(reason).not.toContain('super-secret-value');
   });
 

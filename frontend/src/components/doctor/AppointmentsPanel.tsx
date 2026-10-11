@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiGet, apiPatch, type Paginated } from '@/lib/api';
 import { Badge, Button } from '@/components/ui';
 import { IconCalendar } from '@/components/icons';
-import { Card, Empty, ErrorBanner, Pager, Skeleton, SuccessNotice, type ApiError } from './ui';
+import { Card, Empty, ErrorBanner, Pager, Skeleton, SuccessNotice, type ApiError } from '@/components/dashboard/ui';
 
 type AppointmentItem = {
   id: string;

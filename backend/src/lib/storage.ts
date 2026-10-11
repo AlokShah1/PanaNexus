@@ -140,15 +140,22 @@ class S3StorageAdapter implements StorageAdapter {
   private readonly bucket: string;
 
   constructor() {
-    if (!env.AWS_REGION || !env.AWS_S3_BUCKET) {
-      throw new Error('S3 storage requires AWS_REGION and AWS_S3_BUCKET.');
+    if (!env.S3_REGION || !env.S3_BUCKET) {
+      throw new Error('S3 storage requires S3_REGION and S3_BUCKET.');
     }
-    this.bucket = env.AWS_S3_BUCKET;
+    this.bucket = env.S3_BUCKET;
     const credentials =
-      env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
-        ? { accessKeyId: env.AWS_ACCESS_KEY_ID, secretAccessKey: env.AWS_SECRET_ACCESS_KEY }
+      env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY
+        ? { accessKeyId: env.S3_ACCESS_KEY_ID, secretAccessKey: env.S3_SECRET_ACCESS_KEY }
         : undefined;
-    this.client = new S3Client({ region: env.AWS_REGION, credentials });
+    const clientConfig: { region: string; credentials?: { accessKeyId: string; secretAccessKey: string }; endpoint?: string } = {
+      region: env.S3_REGION,
+      credentials,
+    };
+    if (env.S3_ENDPOINT) {
+      clientConfig.endpoint = env.S3_ENDPOINT;
+    }
+    this.client = new S3Client(clientConfig);
   }
 
   async put(key: string, body: Buffer, contentType: string): Promise<void> {

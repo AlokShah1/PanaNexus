@@ -5,7 +5,7 @@ import { apiGet, apiPatch, apiPost } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
 import { Badge, Button } from '@/components/ui';
 import { IconStethoscope } from '@/components/icons';
-import { Card, ErrorBanner, Skeleton, SuccessNotice, type ApiError, blockReason } from './ui';
+import { Card, ErrorBanner, Skeleton, SuccessNotice, type ApiError, blockReason } from '@/components/dashboard/ui';
 import type { SessionProfile } from '@/lib/session';
 
 export type DoctorMe = {

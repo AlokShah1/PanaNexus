@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Badge, Button } from '@/components/ui';
-import { Empty, ErrorBanner, Pager, Skeleton, type ApiError } from '@/components/facility/ui';
+import { Empty, ErrorBanner, Pager, Skeleton, type ApiError } from '@/components/dashboard/ui';
 import {
   IconAlert,
   IconHospital,

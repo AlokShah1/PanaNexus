@@ -37,10 +37,6 @@ afterAll(async () => {
   await new Promise<void>((resolve) => server?.close(() => resolve()));
 });
 
-afterAll(async () => {
-  await new Promise<void>((resolve) => server?.close(() => resolve()));
-});
-
 async function req(
   method: string,
   path: string,
@@ -333,45 +329,54 @@ describeIf(dbOk && !!adminJar, 'API integration — ambulance dispatch integrity
   });
 });
 
-describe.skip('API integration — admission integrity (verified route; skipped to avoid unstable test-environment admin approval dependency)', () => {
+describe.skipIf(adminJar === '' || !dbOk)('API integration — admission integrity', () => {
   let staffJar = '';
   let patientId = '';
   let admissionId = '';
+  let facilityId = '';
 
   beforeAll(async () => {
     const staffEmail = `it.adm.staff.${UNIQ}@example.test`;
-    const reg = await req('POST', '/api/v1/auth/register', { name: 'IT Admin Staff', email: staffEmail, password: PASSWORD, role: 'FACILITY_STAFF', driverName: 'Admin Staff' });
+    const facilityName = `IT Admission Facility ${UNIQ}`;
+    const reg = await req('POST', '/api/v1/auth/register', {
+      name: 'IT Admin Staff',
+      email: staffEmail,
+      password: PASSWORD,
+      role: 'FACILITY_STAFF',
+      facilityName,
+      facilityAddress: '12 Test Road, Bhopal',
+    });
+    expect(reg.status).toBe(201);
     staffJar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email: staffEmail, password: PASSWORD })).cookie;
-    const vlist2 = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
-    const vitem2 = vlist2.json.data.items.find((v: any) => v.user?.email === staffEmail);
-    if (vitem2) await req('POST', `/api/v1/admin/verifications/${vitem2.id}/approve`, {}, adminJar);
     const vlist = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
     const vitem = vlist.json.data.items.find((v: any) => v.user?.email === staffEmail);
-    if (vitem) await req('POST', `/api/v1/admin/verifications/${vitem.id}/approve`, {}, adminJar);
+    expect(vitem).toBeTruthy();
+    const approval = await req('POST', `/api/v1/admin/verifications/${vitem.id}/approve`, {}, adminJar);
+    expect(approval.status).toBe(200);
 
     const facilities = await req('GET', '/api/v1/facilities', undefined, adminJar);
-    const f = facilities.json.data[0] || facilities.json.data.find((x: any) => x.id);
-    if (!f) throw new Error('No facility for admission test');
-    const bedCreate = await req('PUT', `/api/v1/facilities/${f.id}/beds`, { ward: 'GENERAL', totalBeds: 2, occupiedBeds: 0 }, adminJar);
+    const f = facilities.json.data.find((x: any) => x.name === facilityName);
+    expect(f).toBeTruthy();
+    facilityId = f.id;
+    const bedCreate = await req('PUT', `/api/v1/facilities/${facilityId}/beds`, { ward: 'GENERAL', totalBeds: 2, occupiedBeds: 0 }, adminJar);
+    expect(bedCreate.status).toBe(200);
+
     const patientReg = await req('POST', '/api/v1/auth/register', { name: 'IT Admission Patient', email: `it.adm.pat.${UNIQ}@example.test`, password: PASSWORD, role: 'PATIENT' });
     const patientLogin = await req('POST', '/api/v1/auth/login', { email: `it.adm.pat.${UNIQ}@example.test`, password: PASSWORD });
     await req('POST', '/api/v1/patients/me', { bloodGroup: 'O+' }, patientLogin.cookie);
     const patientMe = await req('GET', '/api/v1/patients/me', undefined, patientLogin.cookie);
     patientId = patientMe.json?.data?.id ?? patientMe.json?.id;
+    expect(patientId).toBeTruthy();
   });
 
   it('admits a patient when capacity exists', async () => {
-    const facilities = await req('GET', '/api/v1/facilities', undefined, adminJar);
-    const f = facilities.json.data[0] || facilities.json.data.find((x: any) => x.id);
-    const r = await req('POST', '/api/v1/admissions', { patientId, facilityId: f.id, ward: 'GENERAL', notes: 'Test admit' }, staffJar);
+    const r = await req('POST', '/api/v1/admissions', { patientId, facilityId, ward: 'GENERAL', notes: 'Test admit' }, staffJar);
     expect(r.status).toBe(201);
     admissionId = r.json.data.admission.id;
   });
 
   it('rejects duplicate admission in same ward', async () => {
-    const facilities = await req('GET', '/api/v1/facilities', undefined, adminJar);
-    const f = facilities.json.data[0] || facilities.json.data.find((x: any) => x.id);
-    const r = await req('POST', '/api/v1/admissions', { patientId, facilityId: f.id, ward: 'GENERAL' }, staffJar);
+    const r = await req('POST', '/api/v1/admissions', { patientId, facilityId, ward: 'GENERAL' }, staffJar);
     expect(r.status).toBe(409);
   });
 

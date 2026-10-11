@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { apiGet, apiPatch, apiPost, type Paginated } from '@/lib/api';
 import { Badge, Button } from '@/components/ui';
 import { IconDroplet } from '@/components/icons';
-import { Card, Empty, ErrorBanner, Pager, Skeleton, SuccessNotice, type ApiError, blockReason, fmtDateTime } from './ui';
+import { Card, Empty, ErrorBanner, Pager, Skeleton, SuccessNotice, type ApiError, blockReason, fmtDateTime } from '@/components/dashboard/ui';
 import type { SessionProfile } from '@/lib/session';
 
 type BloodRequestRow = {

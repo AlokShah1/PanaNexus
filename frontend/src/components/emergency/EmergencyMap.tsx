@@ -134,7 +134,7 @@ export default function EmergencyMap({
     const ll: [number, number] = [ambulance.lat, ambulance.lng];
     const icon = L.divIcon({
       className: 'pn-ambulance-marker',
-      html: '<div style="display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#e11d48;color:#fff;font-size:15px;font-weight:700;box-shadow:0 4px 10px rgba(225,29,72,.45);border:2px solid #fff">✚</div>',
+      html: '<div style="display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#e11d48;box-shadow:0 4px 10px rgba(225,29,72,.45);border:2px solid #fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>',
       iconSize: [30, 30],
       iconAnchor: [15, 15],
     });
