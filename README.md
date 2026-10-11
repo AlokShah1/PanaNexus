@@ -112,7 +112,7 @@ cd backend && npm run typecheck && npm test && npm run build
 cd frontend && npm run typecheck && npm run lint && npm test && npm run build
 ```
 
-Current (local run, seeded DB): backend **159 passed (159) across 19 files**, frontend **44 passed across 6 files**. Running the full backend suite requires the database migrated, the synthetic demo dataset seeded, and the admin bootstrapped (the integration suites gate on a live admin session — see `backend/README.md`). CI (`.github/workflows/ci.yml`) runs exactly this against a fresh Postgres: migrate → seed → bootstrap → typecheck → test → build for the backend, and lint → typecheck → build for the frontend.
+Current (local run, seeded DB): backend **163 passed (163) across 19 files**, frontend **44 passed across 6 files**. Running the full backend suite requires the database migrated, the synthetic demo dataset seeded, and the admin bootstrapped (the integration suites gate on a live admin session — see `backend/README.md`). CI (`.github/workflows/ci.yml`) runs exactly this against a fresh Postgres: migrate → seed → bootstrap → typecheck → test → build for the backend, and lint → typecheck → build for the frontend.
 
 > Note: earlier docs referenced an automated browser QA harness (`check.js`, route×viewport sweeps). That script is **not present in this repository**, so the claim is removed — treat browser/viewport behaviour as manually verified, not automated.
 

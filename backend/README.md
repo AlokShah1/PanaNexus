@@ -104,7 +104,7 @@ Migration applied: `add_admission_model` (`hash 928229...`); partial unique inde
 
 ## Tests
 
-Run `npm test`. Current: **159 passed across 19 files** on a migrated + seeded database with a bootstrapped admin. Integration tests need a migrated database and, for full coverage, seeded demo data plus a bootstrapped admin (see the CI steps); without those, the admin-gated suites self-skip.
+Run `npm test`. Current: **163 passed across 19 files** on a migrated + seeded database with a bootstrapped admin. Integration tests need a migrated database and, for full coverage, seeded demo data plus a bootstrapped admin (see the CI steps); without those, the admin-gated suites self-skip.
 
 ```bash
 docker start pn-pg                 # local Postgres

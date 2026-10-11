@@ -44,9 +44,9 @@ export const facilitySchema = z.object({
 export const medicalRecordSchema = z.object({
   patientId: z.string().min(1),
   recordType: z.enum(['CONSULTATION', 'PRESCRIPTION', 'LAB_RESULT', 'IMAGING', 'VACCINATION', 'OTHER']).default('CONSULTATION'),
-  diagnosis: z.string().max(500).optional(),
-  treatment: z.string().max(500).optional(),
-  notes: z.string().max(1000).optional(),
+  diagnosis: z.string().max(500).nullish(),
+  treatment: z.string().max(500).nullish(),
+  notes: z.string().max(1000).nullish(),
   prescriptions: z.array(z.string().trim().min(1).max(200)).max(50).default([]),
   attachments: z.array(z.string().trim().min(1).max(300)).max(50).default([]),
 });

@@ -77,10 +77,13 @@ router.get('/', requireAuth, async (req, res) => {
   }
 
   const p = parsePage(req.query as Record<string, unknown>, 20, 100);
-  const whereClause: any = effectivePatientId ? { patientId: effectivePatientId } : {};
-  if (user.role === 'FACILITY_STAFF' && !effectivePatientId) {
-    whereClause.facilityId = user.facilityId;
-  }
+  const recordType = typeof req.query.recordType === 'string' ? req.query.recordType : undefined;
+  const whereClause: any = {};
+  if (effectivePatientId) whereClause.patientId = effectivePatientId;
+  // Facility staff are always scoped to their own facility: never let a single
+  // in-facility record grant read access to a patient's records held elsewhere.
+  if (user.role === 'FACILITY_STAFF') whereClause.facilityId = user.facilityId;
+  if (recordType) whereClause.recordType = recordType;
 
   const rows = await db.orm.public.MedicalRecord.where(whereClause)
     .include('doctor')

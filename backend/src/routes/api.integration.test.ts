@@ -965,6 +965,16 @@ describeIf(dbOk && !!adminJar, 'API integration — appointment availability & b
     expect(r.json.error.code).toBe('APPOINTMENT_CONFLICT');
   });
 
+  it('does not hide a slot on another date that shares the same weekday', async () => {
+    const [y, mo, da] = futureDate.split('-').map(Number);
+    const nextWeekDate = new Date(Date.UTC(y, mo - 1, da + 7));
+    const nextWeek = localDate.format(nextWeekDate);
+    const r = await req('GET', `/api/v1/appointments/slots?doctorId=${doctorId}&date=${nextWeek}`, undefined, patientJar);
+    expect(r.status).toBe(200);
+    // The same weekday of the following week is independent of the booked date.
+    expect(r.json.data.slots.length).toBe(2);
+  });
+
   it('rejects a booking outside the doctor’s consultation window', async () => {
     const outside = new Date(new Date(bookedStartsAt).getTime() + 12 * 60 * 60 * 1000).toISOString(); // 21:00 local, after 20:00 close
     const r = await req('POST', '/api/v1/appointments', { doctorId, startsAt: outside }, otherJar);
@@ -985,5 +995,118 @@ describeIf(dbOk && !!adminJar, 'API integration — appointment availability & b
     const r = await req('POST', '/api/v1/medical-records', { patientId: treatedId, recordType: 'CONSULTATION', diagnosis: 'Routine' }, doctorJar);
     expect(r.status).toBe(201);
     expect(r.json.data.id).toBeTruthy();
+  });
+
+  it('accepts an edit that clears optional fields (null)', async () => {
+    const me = await req('GET', '/api/v1/patients/me', undefined, patientJar);
+    const list = await req('GET', `/api/v1/medical-records?patientId=${me.json.data.id}`, undefined, doctorJar);
+    const rec = list.json.data.items[0];
+    expect(rec).toBeTruthy();
+    const r = await req('PATCH', `/api/v1/medical-records/${rec.id}`, { diagnosis: null, treatment: null, notes: null }, doctorJar);
+    expect(r.status).toBe(200);
+  });
+});
+
+describeIf(dbOk && !!adminJar, 'API integration — medical record facility scoping', () => {
+  let patientJar = '';
+  let patientId = '';
+  let staffAJar = '';
+  let facilityAId = '';
+  let doctorAJar = '';
+  let doctorAId = '';
+  let doctorB_Jar = '';
+  let doctorBId = '';
+
+  async function makeVerifiedFacility(tag: string): Promise<{ jar: string; facilityId: string }> {
+    const email = `it.mrec.fac.${tag}.${UNIQ}@example.test`;
+    const facilityName = `IT MRec Facility ${tag} ${UNIQ}`;
+    const reg = await req('POST', '/api/v1/auth/register', {
+      name: `IT MRec Staff ${tag}`,
+      email,
+      password: PASSWORD,
+      role: 'FACILITY_STAFF',
+      facilityName,
+      facilityAddress: `${tag} Test Road, Pokhara`,
+    });
+    expect(reg.status).toBe(201);
+    const jar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email, password: PASSWORD })).cookie;
+    const vlist = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
+    const vitem = vlist.json.data.items.find((v: any) => v.user?.email === email);
+    expect(vitem).toBeTruthy();
+    const appr = await req('POST', `/api/v1/admin/verifications/${vitem.id}/approve`, {}, adminJar);
+    expect(appr.status).toBe(200);
+    const facilities = await req('GET', '/api/v1/facilities', undefined, adminJar);
+    const f = facilities.json.data.find((x: any) => x.name === facilityName);
+    expect(f).toBeTruthy();
+    return { jar, facilityId: f.id };
+  }
+
+  async function makeVerifiedDoctor(tag: string, facilityId: string): Promise<{ jar: string; doctorId: string }> {
+    const email = `it.mrec.doc.${tag}.${UNIQ}@example.test`;
+    const reg = await req('POST', '/api/v1/auth/register', {
+      name: `IT MRec Doctor ${tag}`,
+      email,
+      password: PASSWORD,
+      role: 'DOCTOR',
+      specialization: 'General Medicine',
+      licenseNumber: `IT-MREC-${tag}-${UNIQ}`,
+    });
+    expect(reg.status).toBe(201);
+    const jar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email, password: PASSWORD })).cookie;
+    const vlist = await req('GET', '/api/v1/admin/verifications?status=PENDING', undefined, adminJar);
+    const vitem = vlist.json.data.items.find((v: any) => v.user?.email === email);
+    expect(vitem).toBeTruthy();
+    await req('POST', `/api/v1/admin/verifications/${vitem.id}/approve`, {}, adminJar);
+    const link = await req('PATCH', '/api/v1/doctors/me', { facilityId }, jar);
+    expect(link.status).toBe(200);
+    const me = await req('GET', '/api/v1/doctors/me', undefined, jar);
+    expect(me.json.data.id).toBeTruthy();
+    return { jar, doctorId: me.json.data.id };
+  }
+
+  beforeAll(async () => {
+    const facA = await makeVerifiedFacility('a');
+    staffAJar = facA.jar;
+    facilityAId = facA.facilityId;
+    const facB = await makeVerifiedFacility('b');
+    const docA = await makeVerifiedDoctor('a', facilityAId);
+    doctorAJar = docA.jar;
+    doctorAId = docA.doctorId;
+    const docB = await makeVerifiedDoctor('b', facB.facilityId);
+    doctorB_Jar = docB.jar;
+    doctorBId = docB.doctorId;
+
+    const email = `it.mrec.pat.${UNIQ}@example.test`;
+    const reg = await req('POST', '/api/v1/auth/register', { name: 'IT MRec Patient', email, password: PASSWORD, role: 'PATIENT' });
+    patientJar = reg.cookie || (await req('POST', '/api/v1/auth/login', { email, password: PASSWORD })).cookie;
+    const prof = await req('POST', '/api/v1/patients/me', {}, patientJar);
+    expect(prof.status).toBe(201);
+    const me = await req('GET', '/api/v1/patients/me', undefined, patientJar);
+    patientId = me.json.data.id;
+
+    const future = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const bookA = await req('POST', '/api/v1/appointments', { doctorId: doctorAId, startsAt: future }, patientJar);
+    expect(bookA.status).toBe(201);
+    const bookB = await req('POST', '/api/v1/appointments', { doctorId: doctorBId, startsAt: future }, patientJar);
+    expect(bookB.status).toBe(201);
+
+    const recA = await req('POST', '/api/v1/medical-records', { patientId, recordType: 'CONSULTATION', diagnosis: 'Facility A finding' }, doctorAJar);
+    expect(recA.status).toBe(201);
+    const recB = await req('POST', '/api/v1/medical-records', { patientId, recordType: 'LAB_RESULT', diagnosis: 'Facility B lab' }, doctorB_Jar);
+    expect(recB.status).toBe(201);
+  });
+
+  it('scopes facility staff to their own facility even with a patientId', async () => {
+    const r = await req('GET', `/api/v1/medical-records?patientId=${patientId}`, undefined, staffAJar);
+    expect(r.status).toBe(200);
+    expect(r.json.data.items.length).toBeGreaterThan(0);
+    expect(r.json.data.items.every((x: any) => x.facilityId === facilityAId)).toBe(true);
+    expect(r.json.data.items.some((x: any) => x.recordType === 'LAB_RESULT')).toBe(false);
+  });
+
+  it('filters records by recordType', async () => {
+    const r = await req('GET', `/api/v1/medical-records?patientId=${patientId}&recordType=CONSULTATION`, undefined, adminJar);
+    expect(r.status).toBe(200);
+    expect(r.json.data.items.every((i: any) => i.recordType === 'CONSULTATION')).toBe(true);
   });
 });

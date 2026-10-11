@@ -6,17 +6,9 @@ import { slotTaken, isUniqueViolation } from '../lib/appointments.js';
 import { createAppointmentSchema, updateAppointmentSchema, availabilitySchema } from '../validations/healthcare.js';
 import { notify } from '../lib/notify.js';
 import { pageMeta, parsePage } from '../lib/pagination.js';
-import { TIME_ZONE, nowZone, zoneWallClockToUtc } from '../lib/hours.js';
+import { TIME_ZONE, nowZone, zoneDateKey, zoneDateString, zoneWallClockToUtc } from '../lib/hours.js';
 
 const router = Router();
-
-function getIstDateKey(dateStr: string): number {
-  const d = new Date(dateStr + 'T00:00:00Z');
-  if (isNaN(d.getTime())) {
-    return nowZone().day;
-  }
-  return nowZone(d).day;
-}
 
 /**
  * A requested start time is bookable when it aligns with one of the doctor's
@@ -174,7 +166,7 @@ router.get('/slots', async (req, res) => {
   }
   const doctor = await db.orm.public.Doctor.where({ id: doctorId }).first();
   if (!doctor) return fail(res, 'DOCTOR_NOT_FOUND', 'Doctor not found.', 404);
-  const weekday = getIstDateKey(date);
+  const weekday = zoneDateKey(date);
   const availability = await db.orm.public.DoctorAvailability.where({ doctorId, weekday }).all();
   const slots: Array<{ startsAt: string; endsAt: string }> = [];
   if (availability.length === 0) {
@@ -183,7 +175,7 @@ router.get('/slots', async (req, res) => {
   const allAppts = await db.orm.public.Appointment.where({ doctorId }).all();
   const bookedMinuteStarts = allAppts
     .filter((a: any) => a.status === 'REQUESTED' || a.status === 'CONFIRMED')
-    .filter((a: any) => nowZone(new Date(a.startsAt)).day === weekday)
+    .filter((a: any) => zoneDateString(new Date(a.startsAt)) === date)
     .map((a: any) => nowZone(new Date(a.startsAt)).minutes);
 
   const [y, mo, da] = date.split('-');

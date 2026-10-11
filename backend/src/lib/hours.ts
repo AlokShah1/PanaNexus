@@ -99,3 +99,23 @@ export function zoneDateKey(dateStr: string, now: Date = new Date()): number {
 export function zoneMinutes(date: Date = new Date()): number {
   return nowZone(date).minutes;
 }
+
+/**
+ * Calendar date (YYYY-MM-DD) in the product timezone for a given instant.
+ * Used to match an appointment's instant to the calendar day a user selected,
+ * so slots are never hidden by a booking on a different day that shares the
+ * same weekday.
+ */
+export function zoneDateString(date: Date = new Date()): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .formatToParts(date)
+      .map((p) => [p.type, p.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}

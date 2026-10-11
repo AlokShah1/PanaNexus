@@ -169,9 +169,6 @@ router.post('/units', requireAuth, requireRole('FACILITY_STAFF', 'ADMIN'), requi
     }
     facilityId = user.facilityId;
   } else {
-    if (!parsed.data.bloodGroup && !req.body.bloodGroup) {
-      // bloodGroup is there; but facilityId required
-    }
     facilityId = typeof req.body.facilityId === 'string' ? req.body.facilityId : null;
     if (!facilityId) {
       return fail(res, 'VALIDATION_ERROR', 'facilityId is required.', 422);
