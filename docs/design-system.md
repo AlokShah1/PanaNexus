@@ -106,6 +106,22 @@ Motion: `animate-float`, `-float-slow`, `-fade-up[-delay[-2]]`, `-pulse-ring`,
 - **`VerificationBanner`** — unverified/suspended/rejected professional notice.
 - **Helpers** — `failText(error)`, `fmtDateTime(iso)`, `blockReason(profile)`.
 
+## Data-view state checklist
+
+Every component that fetches data must render all of these, and the fetch
+callback must inspect `res.ok` (the API client resolves `{ ok: false }` rather
+than throwing):
+
+1. **Loading** — `Skeleton` (or an inline `aria-busy` placeholder). Never render
+   the empty state before the first response resolves.
+2. **Empty** — `Empty`, only after a successful response returned zero rows.
+3. **Error** — `ErrorBanner` with a working retry. Retry must actually re-run the
+   fetch (a reload key/token or a new page value), never a no-op `setState`.
+4. **Success** — render only from confirmed API data; optimistic updates must
+   check `ok` first.
+5. **Forbidden/conflict** — surface 403/409/422 messages; do not collapse them
+   into the generic empty or the network-error copy.
+
 ## Rules for new UI
 
 1. Reuse a primitive before writing markup; extend the primitive if a variant is

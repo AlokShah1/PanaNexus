@@ -33,7 +33,7 @@ Emergency lifecycle: `PENDING→MATCHED→ASSIGNED→EN_ROUTE→ARRIVED→TRANSP
 ## 4. Verification & QA results
 
 ### Automated tests — backend
-- **155 passed across 18 files** (`npm test`) on a migrated + seeded database with a bootstrapped admin. Coverage includes hours parsing, matching/ranking, intelligence scoring, auth-core, appointment slot logic, demo-simulation geometry interpolation, routing-provider route **and geometry** parsing, and a full HTTP integration suite (`src/routes/api.integration.test.ts`) that boots the app on an ephemeral port and exercises: health, registration/PENDING, license uniqueness, public-directory privacy, login, wrong-password 401, admin approval → Doctor-row sync → VERIFIED → public list **without** license, geo-enriched facilities, emergency create → detail → cancel → double-cancel conflict → unauthenticated 401, admission capacity/duplicate/discharge, blood availability + city filter, notifications authz.
+- **159 passed across 19 files** (`npm test`) on a migrated + seeded database with a bootstrapped admin. Coverage includes hours parsing / timezone conversion, matching/ranking, intelligence scoring, auth-core, appointment slot logic, async-error bridge, demo-simulation geometry interpolation, routing-provider route **and geometry** parsing, and a full HTTP integration suite (`src/routes/api.integration.test.ts`) that boots the app on an ephemeral port and exercises: health, registration/PENDING, license uniqueness, public-directory privacy, login, wrong-password 401, admin approval → Doctor-row sync → VERIFIED → public list **without** license, geo-enriched facilities, emergency create → detail → cancel → double-cancel conflict → unauthenticated 401, admission capacity/duplicate/discharge, blood availability + city filter, blood-request facility-spoof prevention, medical-record authoring authorization (relationship guard), notifications authz.
 - Admin-gated suites self-skip when `ADMIN_EMAIL`/`ADMIN_PASSWORD` are unset or the admin is not bootstrapped; run the migrate → seed → bootstrap steps for full coverage.
 - `npm run typecheck` clean; `npm run build` clean.
 
@@ -62,6 +62,18 @@ When `DEMO_MODE=true`, an admin can run an in-memory ambulance simulation (`/adm
 ### CI
 `.github/workflows/ci.yml` runs the whole check on every push/PR against a fresh `postgres:16` service and is the reproducible source of truth: backend `db:migrate → db:seed:demo → db:bootstrap → typecheck → test → build`; frontend `npm ci → lint → typecheck → build`.
 
+### Security & correctness hardening (this pass)
+- **Async errors**: Express 4 does not forward rejected promises from `async` handlers to the error middleware. `src/lib/asyncErrors.ts` (imported first in `app.ts`) bridges them, so a rejected DB call returns a 500 instead of terminating the whole process.
+- **Timezone**: a single fixed product zone (`Asia/Kathmandu`, UTC+5:45, no DST) is a code constant used for slot generation, open/closed checks and display, so behaviour is identical on a UTC host and a developer machine.
+- **Authorization tightening**: medical records may only be authored by a doctor with an existing appointment/record relationship; blood requests cannot be attributed to another facility; ambulance fleet status cannot be flipped mid-trip; the emergency PENDING→MATCHED write cannot clobber an operator-set status; admin availability edits require a valid `doctorId`; the duplicated unauthenticated `/appointments/availability` route was removed.
+
+### Known limitations / backlog (not fixed in this pass)
+- **Concurrency**: several check-then-write paths remain non-atomic and only partially protected by unique constraints (blood-unit increments, admission capacity, discharge, doctor/ambulance uniqueness pre-checks). Under concurrent writes these can return 500/409 inconsistently; a transaction, conditional update or DB constraint is recommended.
+- **Broad operator read scope**: a verified ambulance operator can read any emergency request by id. The public `GET /` list already exposes open requests; tightening to "open OR assigned to my fleet" is recommended but was deferred to avoid changing the operator-marketplace semantics.
+- Some sensitive routes omit `requireVerified`; some list endpoints do N+1 / unbounded in-memory queries (acceptable at demo scale).
+- **Storage**: S3/Filebase production upload/download and denied-access paths are unverified (no production credentials). `STORAGE_DRIVER=s3` is still required in production (fails safe). Backup/restore verified locally only.
+- **No browser/e2e harness**: responsive layout (375 px), reduced-motion, and loading/empty/error/success/forbidden screens are not automatically verified.
+
 ## 5. Test creds (dev/demo only)
 
 See `docs/DEPLOY.md`. Seed facilities with `cd backend && npm run seed`. Synthetic demo accounts require `DEMO_MODE=true` (dev/demo only) via `DEMO_MODE=true npm run seed -- --demo`, use the reserved `@pananexus.local` domain, and print one-time credentials (password from `DEMO_PASSWORD`, else generated).
@@ -87,7 +99,7 @@ Schema lifecycle (Prisma 8 migrations, not startup auto-sync):
 - [x] Admin verification workflow with PENDING → VERIFIED + specialised row sync
 - [x] Role-based redirects + guards; guest → sign-in UX on emergency
 - [x] No fake data/placeholders; all screens read live API; seeds are real, idempotent facilities + demo accounts
-- [x] Backend unit + integration tests (155, incl. admission integrity), frontend unit tests (44)
+- [x] Backend unit + integration tests (159, incl. admission integrity + authorization), frontend unit tests (44)
 - [x] Manual browser review (responsive + states) — automated e2e harness is not committed
 - [x] Design system documented (`docs/design-system.md`) + duplicated UI primitives consolidated
 - [x] Demo-only ambulance simulation with clearly-labelled synthetic tracking
