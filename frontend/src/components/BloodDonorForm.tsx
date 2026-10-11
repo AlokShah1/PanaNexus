@@ -25,15 +25,9 @@ export default function BloodDonorForm() {
           setBloodGroup(r.data.bloodGroup);
           setIsAvailable(r.data.isAvailable);
           if (r.data.lastDonationDate) {
-            try {
-              const d = new Date(r.data.lastDonationDate);
-              const y = d.getFullYear();
-              const m = String(d.getMonth() + 1).padStart(2, '0');
-              const day = String(d.getDate()).padStart(2, '0');
-              setLastDonationDate(`${y}-${m}-${day}`);
-            } catch {
-              /* ignore */
-            }
+            // Date-only field: take the calendar date verbatim (UTC) rather than
+            // re-deriving it from the browser's local timezone.
+            setLastDonationDate(new Date(r.data.lastDonationDate).toISOString().slice(0, 10));
           }
         }
       })
@@ -71,6 +65,16 @@ export default function BloodDonorForm() {
     setIsAvailable(res.data.isAvailable);
     setMsg(`Availability ${res.data.isAvailable ? 'enabled' : 'disabled'}.`);
     setPending(false);
+  }
+
+  if (status === 'loading') {
+    return (
+      <div className="flex max-w-md flex-col gap-3 rounded-lg border border-slate-200 bg-white p-6 shadow-sm" aria-busy="true" aria-label="Loading">
+        <div className="h-6 w-52 animate-pulse rounded-full bg-slate-200" />
+        <div className="h-10 w-full animate-pulse rounded-md bg-slate-100" />
+        <div className="h-10 w-32 animate-pulse rounded-md bg-slate-100" />
+      </div>
+    );
   }
 
   if (status !== 'authed') {
@@ -119,7 +123,7 @@ export default function BloodDonorForm() {
           {error}
         </p>
       )}
-      {msg && <p className="text-sm text-green-700">{msg}</p>}
+      {msg && <p role="status" className="text-sm text-green-700">{msg}</p>}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
           {pending ? 'Saving…' : hasProfile ? 'Update' : 'Save'}

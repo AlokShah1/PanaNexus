@@ -14,12 +14,16 @@ export default function Inbox({ role }: { role: string }) {
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thread, setThread] = useState<ChatMessage[] | null>(null);
+  const [threadError, setThreadError] = useState<string | null>(null);
   const [counterpart, setCounterpart] = useState<ConversationSummary['counterpart'] | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
 
   const [providers, setProviders] = useState<ProviderOption[] | null>(null);
+  const [providersError, setProvidersError] = useState<string | null>(null);
+  const [providersReload, setProvidersReload] = useState(0);
   const [newTarget, setNewTarget] = useState('');
   const [starting, setStarting] = useState(false);
 
@@ -32,9 +36,11 @@ export default function Inbox({ role }: { role: string }) {
   const loadConversations = useCallback(async () => {
     const res = await apiGet<{ items: ConversationSummary[] }>('/messages/conversations');
     if (!res.ok) {
-      setError(res.message);
+      setListError(res.message);
+      setConversations([]);
       return null;
     }
+    setListError(null);
     setConversations(res.data.items);
     return res.data.items;
   }, []);
@@ -44,9 +50,11 @@ export default function Inbox({ role }: { role: string }) {
       `/messages/conversations/${id}/messages`,
     );
     if (!res.ok) {
-      setError(res.message);
+      setThreadError(res.message);
+      setThread([]);
       return;
     }
+    setThreadError(null);
     setThread(res.data.items);
     setCounterpart(res.data.counterpart);
     await apiPost(`/messages/conversations/${id}/read`, {});
@@ -86,19 +94,33 @@ export default function Inbox({ role }: { role: string }) {
     void (async () => {
       if (isPatient) {
         const res = await apiGet<ProviderOption[]>('/doctors');
-        if (res.ok) setProviders(res.data.map((d) => ({ id: d.id, name: d.name, specialization: d.specialization })));
+        if (!res.ok) {
+          setProvidersError(res.message);
+          setProviders([]);
+          return;
+        }
+        setProviders(res.data.map((d) => ({ id: d.id, name: d.name, specialization: d.specialization })));
         return;
       }
       const res = await apiGet<Paginated<{ patient: { id: string; name: string | null } | null }>>('/appointments?limit=100');
-      if (res.ok) {
-        const map = new Map<string, ProviderOption>();
-        res.data.items.forEach((a) => {
-          if (a.patient) map.set(a.patient.id, { id: a.patient.id, name: a.patient.name ?? 'Patient' });
-        });
-        setProviders([...map.values()]);
+      if (!res.ok) {
+        setProvidersError(res.message);
+        setProviders([]);
+        return;
       }
+      const map = new Map<string, ProviderOption>();
+      res.data.items.forEach((a) => {
+        if (a.patient) map.set(a.patient.id, { id: a.patient.id, name: a.patient.name ?? 'Patient' });
+      });
+      setProviders([...map.values()]);
     })();
-  }, [isPatient]);
+  }, [isPatient, providersReload]);
+
+  function reloadProviders() {
+    setProviders(null);
+    setProvidersError(null);
+    setProvidersReload((k) => k + 1);
+  }
 
   async function startConversation(e: FormEvent) {
     e.preventDefault();
@@ -157,17 +179,25 @@ export default function Inbox({ role }: { role: string }) {
               {error}
             </p>
           )}
+          {listError && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-danger-soft px-4 py-3 ring-1 ring-danger/20">
+              <p role="alert" className="text-[13px] font-semibold text-danger">{listError}</p>
+              <button
+                type="button"
+                onClick={() => void loadConversations()}
+                className="text-xs font-semibold text-danger underline"
+              >
+                Try again
+              </button>
+            </div>
+          )}
           {conversations === null ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="h-16 animate-pulse rounded-2xl bg-slate-100" />
               ))}
             </div>
-          ) : conversations.length === 0 ? (
-            <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-[13px] text-ink-muted">
-              No conversations yet. Start one below.
-            </p>
-          ) : (
+          ) : conversations.length > 0 ? (
             <ul className="space-y-2">
               {conversations.map((c) => (
                 <li key={c.id}>
@@ -197,12 +227,23 @@ export default function Inbox({ role }: { role: string }) {
                 </li>
               ))}
             </ul>
-          )}
+          ) : !listError ? (
+            <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-[13px] text-ink-muted">
+              No conversations yet. Start one below.
+            </p>
+          ) : null}
 
           <form onSubmit={(e) => void startConversation(e)} className="rounded-2xl bg-slate-50 p-4" aria-label="Start a conversation">
             <p className="text-xs font-bold text-ink">New conversation</p>
             {providers === null ? (
-              <p className="mt-2 text-[12px] text-ink-muted">Loading contacts…</p>
+              <p className="mt-2 text-[12px] text-ink-muted" aria-busy="true">Loading contacts…</p>
+            ) : providersError ? (
+              <p role="alert" className="mt-2 text-[12px] font-medium text-danger">
+                {providersError}{' '}
+                <button type="button" onClick={reloadProviders} className="underline">
+                  Retry
+                </button>
+              </p>
             ) : providers.length === 0 ? (
               <p className="mt-2 text-[12px] text-ink-muted">
                 {isPatient ? 'No verified doctors are available yet.' : 'No patients to message yet.'}
@@ -241,13 +282,20 @@ export default function Inbox({ role }: { role: string }) {
         ) : (
           <div className="flex flex-col">
             <div className="max-h-[420px] min-h-[220px] space-y-2 overflow-y-auto pr-1">
-              {!thread ? (
+              {threadError ? (
+                <p role="alert" className="rounded-2xl bg-danger-soft px-4 py-3 text-[13px] font-semibold text-danger">
+                  {threadError}{' '}
+                  <button type="button" onClick={() => activeId && void loadThread(activeId)} className="underline">
+                    Retry
+                  </button>
+                </p>
+              ) : thread === null ? (
                 <div className="space-y-2">
                   {Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="h-12 animate-pulse rounded-2xl bg-slate-100" />
                   ))}
                 </div>
-              ) : thread && thread.length > 0 ? (
+              ) : thread.length > 0 ? (
                 thread.map((m) => (
                   <div key={m.id} className={`flex ${m.mine ? 'justify-end' : 'justify-start'}`}>
                     <div

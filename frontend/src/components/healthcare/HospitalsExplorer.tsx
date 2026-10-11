@@ -46,6 +46,7 @@ export default function HospitalsExplorer() {
   const [sort, setSort] = useState<SortKey>('relevance');
   const [wantRoute, setWantRoute] = useState(false);
   const [page, setPage] = useState(1);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [data, setData] = useState<HealthcareSearchResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,7 +90,7 @@ export default function HospitalsExplorer() {
       window.clearTimeout(handle);
       controller.abort();
     };
-  }, [submitted, origin, category, radiusKm, emergency, openNow, verifiedOnly, sort, wantRoute, page]);
+  }, [submitted, origin, category, radiusKm, emergency, openNow, verifiedOnly, sort, wantRoute, page, reloadKey]);
 
   function useMyLocation() {
     if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
@@ -264,7 +265,7 @@ export default function HospitalsExplorer() {
           <MapPanel points={mapPoints} origin={origin} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
 
-        {error && <ErrorBanner error={error} onRetry={() => setPage((p) => p)} />}
+        {error && <ErrorBanner error={error} onRetry={() => setReloadKey((k) => k + 1)} />}
 
         {data?.providerError && (
           <div className="rounded-2xl bg-amber-50 px-4 py-3 text-[13px] font-medium text-amber-900 ring-1 ring-amber-200">

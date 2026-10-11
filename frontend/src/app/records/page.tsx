@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/lib/session';
 import { apiGet, apiPatch, Paginated } from '@/lib/api';
 import { Badge, SectionHeading } from '@/components/ui';
@@ -207,8 +207,8 @@ export default function Page() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((i) => (
-                  <>
-                    <tr key={i.id} className="hover:bg-slate-50/50">
+                  <Fragment key={i.id}>
+                    <tr className="hover:bg-slate-50/50">
                       <td className="px-6 py-4 text-ink-muted">{formatDate(i.createdAt)}</td>
                       <td className="px-6 py-4 text-ink">{i.patient?.name ?? '-'}</td>
                       <td className="px-6 py-4 text-ink">{i.doctor?.name ?? '-'}</td>
@@ -268,10 +268,10 @@ export default function Page() {
                           </div>
                         </td>
                       </tr>
-                    )}
-                  </>
-                ))}
-              </tbody>
+                     )}
+                   </Fragment>
+                 ))}
+               </tbody>
             </table>
           </div>
           {filtered.length === 0 && (

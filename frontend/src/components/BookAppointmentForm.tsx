@@ -15,21 +15,23 @@ type SlotsResponse = {
   slots: Array<{ startsAt: string; endsAt: string }>;
 };
 
+const DATE_ONLY = new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
+
 function getToday() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return DATE_ONLY.format(new Date());
 }
 
 export default function BookAppointmentForm({ preselectDoctor }: { preselectDoctor?: string }) {
   const { status, profile } = useSession();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
+  const [doctorsError, setDoctorsError] = useState<string | null>(null);
+  const [doctorsReload, setDoctorsReload] = useState(0);
   const [doctorId, setDoctorId] = useState(preselectDoctor ?? '');
   const [date, setDate] = useState('');
   const [slot, setSlot] = useState('');
   const [slots, setSlots] = useState<Array<{ startsAt: string; endsAt: string }>>([]);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [notes, setNotes] = useState('');
   const [stage, setStage] = useState(1);
@@ -38,26 +40,50 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    apiGet<Doctor[]>('/doctors').then((r) => {
-      if (r.ok) setDoctors(r.data);
-    }).catch(() => undefined);
-  }, []);
+    let active = true;
+    apiGet<Doctor[]>('/doctors')
+      .then((r) => {
+        if (!active) return;
+        if (r.ok) setDoctors(r.data);
+        else setDoctorsError(r.message);
+        setDoctorsLoading(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setDoctorsError('Something went wrong while loading doctors.');
+        setDoctorsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [doctorsReload]);
+
+  function retryDoctors() {
+    setDoctorsLoading(true);
+    setDoctorsError(null);
+    setDoctorsReload((k) => k + 1);
+  }
 
   useEffect(() => {
     let active = true;
     void (async () => {
       if (!doctorId || !date) {
         setSlots([]);
+        setSlotsError(null);
         return;
       }
       setSlotsLoading(true);
+      setSlotsError(null);
       setSlot('');
       const res = await apiGet<SlotsResponse>(
         `/appointments/slots?doctorId=${encodeURIComponent(doctorId)}&date=${encodeURIComponent(date)}`,
       );
       if (!active) return;
       if (res.ok) setSlots(res.data.slots);
-      else setSlots([]);
+      else {
+        setSlots([]);
+        setSlotsError(res.message);
+      }
       setSlotsLoading(false);
     })();
     return () => {
@@ -82,13 +108,11 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
     });
     setPending(false);
     if (!res.ok) {
-      const msg = res.code === 'VERIFICATION_REQUIRED' ? 'Your account must be verified first' : res.message;
-      setError(msg);
-      if (res.code === 'VERIFICATION_REQUIRED') {
-        setError('Your account must be verified first (link /verification)');
-      } else {
-        setError(msg);
-      }
+      setError(
+        res.code === 'VERIFICATION_REQUIRED'
+          ? 'Your account must be verified before booking — visit /verification.'
+          : res.message,
+      );
       return;
     }
     setSuccess(`Appointment ${res.data.status.toLowerCase()} — reference ${res.data.id.slice(0, 8)}`);
@@ -132,9 +156,6 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
             <>
               <h2 className="text-base font-bold text-ink">Choose a doctor</h2>
               <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-                {doctors.length === 0 && (
-                  <p className="text-sm text-ink-muted">No doctors are registered yet. Check back soon.</p>
-                )}
                 {doctors.map((d) => {
                   const active = doctorId === d.id;
                   return (
@@ -161,6 +182,22 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
                   );
                 })}
               </div>
+              {!doctorsLoading && !doctorsError && doctors.length === 0 && (
+                <p className="mt-3 text-sm text-ink-muted">No doctors are registered yet. Check back soon.</p>
+              )}
+              {doctorsLoading && <p className="mt-3 text-sm text-ink-muted" aria-busy="true">Loading doctors…</p>}
+              {!doctorsLoading && doctorsError && (
+                <div className="mt-3 flex items-center gap-3 rounded-xl bg-danger-soft px-4 py-3 ring-1 ring-danger/20">
+                  <p role="alert" className="text-sm font-medium text-danger">{doctorsError}</p>
+                  <button
+                    type="button"
+                    onClick={retryDoctors}
+                    className="text-xs font-semibold text-danger underline"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
               <NextButton disabled={!doctorId} onClick={() => setStage(2)}>
                 Continue
               </NextButton>
@@ -180,6 +217,7 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
             type="date"
             value={date}
             min={today}
+            aria-label="Appointment date"
             onChange={(e) => {
               setDate(e.target.value);
               setSlot('');
@@ -200,8 +238,13 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
             <IconClock size={18} className="text-brand-600" />
             Choose a time
           </h2>
-          {slotsLoading && <p className="mt-3 text-sm text-ink-muted">Loading slots...</p>}
-          {!slotsLoading && slots.length === 0 && (
+          {slotsLoading && <p className="mt-3 text-sm text-ink-muted" aria-busy="true">Loading slots…</p>}
+          {!slotsLoading && slotsError && (
+            <p role="alert" className="mt-3 rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger ring-1 ring-danger/20">
+              {slotsError}
+            </p>
+          )}
+          {!slotsLoading && !slotsError && slots.length === 0 && (
             <p className="mt-3 text-sm text-ink-muted">No available slots for this date.</p>
           )}
           {!slotsLoading && slots.length > 0 && (

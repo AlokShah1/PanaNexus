@@ -28,11 +28,11 @@ export default function OrganDonorForm() {
         <input required value={organs} onChange={(e) => setOrgans(e.target.value)} placeholder="kidney, liver" className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
       </label>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I consent to organ donation
+        <input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I consent to organ donation
       </label>
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-      {msg && <p className="text-sm text-green-700">{msg}</p>}
-      <button disabled={pending} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{pending ? 'Saving…' : 'Save'}</button>
+      {msg && <p role="status" className="text-sm text-green-700">{msg}</p>}
+      <button disabled={pending || !consent} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{pending ? 'Saving…' : 'Save'}</button>
     </form>
   );
 }

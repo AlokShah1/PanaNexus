@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiGet, apiPost } from '@/lib/api';
 import { relativeTime } from '@/lib/format';
+import { Empty, ErrorBanner, Skeleton, type ApiError } from '@/components/dashboard/ui';
+import { IconBell } from '@/components/icons';
 
 type Notification = { id: string; type: string; title: string; body: string | null; link?: string | null; read: boolean; createdAt: string };
 
@@ -11,7 +13,9 @@ export default function NotificationsPanel() {
   const router = useRouter();
   const [items, setItems] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -19,27 +23,36 @@ export default function NotificationsPanel() {
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    apiGet<Notification[]>('/notifications?limit=30')
-      .then((r) => {
-        if (active) {
-          if (!r.ok) setError(r.message);
-          else setItems(r.data);
+  const load = useCallback(() => {
+    Promise.all([
+      apiGet<Notification[]>('/notifications?limit=30'),
+      apiGet<{ count: number }>('/notifications/unread-count'),
+    ])
+      .then(([list, unread]) => {
+        if (!list.ok) {
+          setError({ status: list.status, code: list.code, message: list.message });
+          setLoading(false);
+          return;
         }
+        setItems(list.data);
+        if (unread.ok) setUnreadCount(unread.data.count);
+        setLoading(false);
       })
       .catch(() => {
-        if (active) setError('Something went wrong while loading.');
+        setError({ status: 0, message: 'Something went wrong while loading.' });
+        setLoading(false);
       });
-    apiGet<{ count: number }>('/notifications/unread-count')
-      .then((r) => {
-        if (active && r.ok) setUnreadCount(r.data.count);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function retry() {
+    setLoading(true);
+    setError(null);
+    load();
+  }
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -54,29 +67,29 @@ export default function NotificationsPanel() {
         })
         .catch(() => undefined);
     }, 30000);
-    return () => {
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   async function markRead(id: string) {
-    try {
-      await apiPost<{ id: string }>(`/notifications/${id}/read`, {});
-      setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-      setUnreadCount((c) => Math.max(0, c - 1));
-    } catch {
-      /* ignore */
+    setActionError(null);
+    const r = await apiPost<{ id: string }>(`/notifications/${id}/read`, {});
+    if (!r.ok) {
+      setActionError(r.message);
+      return;
     }
+    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setUnreadCount((c) => Math.max(0, c - 1));
   }
 
   async function markAllRead() {
-    try {
-      await apiPost<{ updated: number }>('/notifications/read-all', {});
-      setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount(0);
-    } catch {
-      /* ignore */
+    setActionError(null);
+    const r = await apiPost<{ updated: number }>('/notifications/read-all', {});
+    if (!r.ok) {
+      setActionError(r.message);
+      return;
     }
+    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
   }
 
   function handleItemClick(n: Notification) {
@@ -85,10 +98,19 @@ export default function NotificationsPanel() {
     }
   }
 
-  if (error) return <p role="alert" className="text-sm text-red-600">{error}</p>;
-  if (items.length === 0) return <p className="text-sm text-slate-600">No notifications.</p>;
+  if (loading) return <Skeleton rows={4} />;
+  if (error) return <ErrorBanner error={error} onRetry={retry} />;
+  if (items.length === 0) {
+    return <Empty icon={<IconBell />} title="No notifications yet" hint="Updates about your requests and appointments will appear here." />;
+  }
+
   return (
     <div className="flex max-w-2xl flex-col gap-4">
+      {actionError && (
+        <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-700 ring-1 ring-red-200">
+          {actionError}
+        </p>
+      )}
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-ink">Unread: {unreadCount}</span>
         {unreadCount > 0 && (
