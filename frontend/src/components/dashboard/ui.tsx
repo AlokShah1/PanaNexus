@@ -4,6 +4,7 @@ import type { PageMeta } from '@/lib/api';
 import type { SessionProfile } from '@/lib/session';
 import { isProRole } from '@/lib/session';
 import { Button } from '@/components/ui';
+import { TIME_ZONE } from '@/lib/format';
 import { IconAlert, IconRefresh, IconShield } from '@/components/icons';
 
 export type ApiError = { status: number; code?: string; message: string };
@@ -18,7 +19,7 @@ export function fmtDateTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return '—';
-  return at.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  return at.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: TIME_ZONE });
 }
 
 export function blockReason(profile: SessionProfile | null): string | null {

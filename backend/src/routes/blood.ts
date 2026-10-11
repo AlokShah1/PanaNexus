@@ -60,9 +60,12 @@ router.post('/requests', requireAuth, requireRole('FACILITY_STAFF', 'ADMIN'), re
   if (!parsed.success) {
     return fail(res, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid input.', 422);
   }
-  let facilityId = parsed.data.facilityId ?? null;
-  if (user.role === 'FACILITY_STAFF' && !facilityId) {
-    facilityId = user.facilityId;
+  let facilityId: string | null;
+  if (user.role === 'FACILITY_STAFF') {
+    // Facility staff can only raise requests for their own facility; never trust a body value.
+    facilityId = user.facilityId ?? null;
+  } else {
+    facilityId = parsed.data.facilityId ?? null;
   }
   if (facilityId) {
     const f = await db.orm.public.HealthcareFacility.where({ id: facilityId }).first();

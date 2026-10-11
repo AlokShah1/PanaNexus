@@ -6,28 +6,28 @@ import { slotTaken, isUniqueViolation } from '../lib/appointments.js';
 import { createAppointmentSchema, updateAppointmentSchema, availabilitySchema } from '../validations/healthcare.js';
 import { notify } from '../lib/notify.js';
 import { pageMeta, parsePage } from '../lib/pagination.js';
-import { istNow, istWallClockToUtc } from '../lib/hours.js';
+import { TIME_ZONE, nowZone, zoneWallClockToUtc } from '../lib/hours.js';
 
 const router = Router();
 
 function getIstDateKey(dateStr: string): number {
   const d = new Date(dateStr + 'T00:00:00Z');
   if (isNaN(d.getTime())) {
-    return istNow().day;
+    return nowZone().day;
   }
-  return istNow(d).day;
+  return nowZone(d).day;
 }
 
 /**
  * A requested start time is bookable when it aligns with one of the doctor's
- * published IST consultation ranges for that weekday. Doctors with no published
- * availability accept any time (self-service).
+ * published consultation ranges (in the product timezone) for that weekday.
+ * Doctors with no published availability accept any time (self-service).
  */
 async function isSlotWithinAvailability(doctorId: string, startsAtDate: Date): Promise<boolean> {
-  const weekday = istNow(startsAtDate).day;
+  const weekday = nowZone(startsAtDate).day;
   const availability = await db.orm.public.DoctorAvailability.where({ doctorId, weekday }).all();
   if (availability.length === 0) return true;
-  const startMin = istNow(startsAtDate).minutes;
+  const startMin = nowZone(startsAtDate).minutes;
   return availability.some((av: any) => {
     const aligned = (startMin - av.startMinute) % av.slotMinutes === 0;
     return startMin >= av.startMinute && startMin < av.endMinute && aligned;
@@ -183,8 +183,8 @@ router.get('/slots', async (req, res) => {
   const allAppts = await db.orm.public.Appointment.where({ doctorId }).all();
   const bookedMinuteStarts = allAppts
     .filter((a: any) => a.status === 'REQUESTED' || a.status === 'CONFIRMED')
-    .filter((a: any) => istNow(new Date(a.startsAt)).day === weekday)
-    .map((a: any) => istNow(new Date(a.startsAt)).minutes);
+    .filter((a: any) => nowZone(new Date(a.startsAt)).day === weekday)
+    .map((a: any) => nowZone(new Date(a.startsAt)).minutes);
 
   const [y, mo, da] = date.split('-');
   const baseYear = Number(y);
@@ -196,7 +196,7 @@ router.get('/slots', async (req, res) => {
     const slotMin = av.slotMinutes;
     while (m + slotMin <= av.endMinute) {
       if (!bookedMinuteStarts.includes(m)) {
-        const startD = istWallClockToUtc(baseYear, baseMonth, baseDay, m);
+        const startD = zoneWallClockToUtc(baseYear, baseMonth, baseDay, m);
         const endD = new Date(startD.getTime() + slotMin * 60000);
         slots.push({ startsAt: startD.toISOString(), endsAt: endD.toISOString() });
       }
@@ -204,20 +204,6 @@ router.get('/slots', async (req, res) => {
     }
   }
   return ok(res, { doctorId, date, slots });
-});
-
-router.get('/availability', async (req, res) => {
-  const doctorId = typeof req.query.doctorId === 'string' ? req.query.doctorId : undefined;
-  if (!doctorId) return fail(res, 'VALIDATION_ERROR', 'doctorId is required.', 422);
-  const doctor = await db.orm.public.Doctor.where({ id: doctorId }).first();
-  if (!doctor) return fail(res, 'NOT_FOUND', 'Doctor not found.', 404);
-  const rows = await db.orm.public.DoctorAvailability.where({ doctorId }).all();
-  rows.sort((a: any, b: any) => {
-    if (a.weekday !== b.weekday) return a.weekday - b.weekday;
-    if (a.startMinute !== b.startMinute) return a.startMinute - b.startMinute;
-    return a.endMinute - b.endMinute;
-  });
-  return ok(res, rows.map((r: any) => ({ weekday: r.weekday, startMinute: r.startMinute, endMinute: r.endMinute, slotMinutes: r.slotMinutes })));
 });
 
 router.post('/', requireAuth, requireRole('PATIENT'), async (req, res) => {
@@ -265,7 +251,7 @@ router.post('/', requireAuth, requireRole('PATIENT'), async (req, res) => {
   }
   await db.orm.public.AuditLog.create({ action: 'APPOINTMENT_BOOKED', entity: 'Appointment', entityId: appointment.id, actorId: user.id }).catch(() => undefined);
   const patientName = (patient as any).user?.name ?? 'A patient';
-  const timeStr = startsAtDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const timeStr = startsAtDate.toLocaleString('en-GB', { timeZone: TIME_ZONE });
   if ((doctor as any).userId) {
     await notify((doctor as any).userId, {
       type: 'APPOINTMENT',
@@ -424,9 +410,12 @@ router.post('/availability', requireAuth, requireRole('DOCTOR', 'ADMIN'), requir
     if (!d) return fail(res, 'DOCTOR_NOT_FOUND', 'Create a doctor profile first.', 404);
     doctorId = d.id;
   } else {
-    const d: any = await db.orm.public.Doctor.where({ userId: user.id }).first();
-    if (d) doctorId = d.id;
-    else doctorId = user.id;
+    // Admins must name the doctor they are editing; never fall back to the admin's own user id.
+    const targetId = parsed.data.doctorId;
+    if (!targetId) return fail(res, 'VALIDATION_ERROR', 'doctorId is required.', 422);
+    const d = await db.orm.public.Doctor.where({ id: targetId }).first();
+    if (!d) return fail(res, 'DOCTOR_NOT_FOUND', 'Doctor not found.', 404);
+    doctorId = d.id;
   }
   const slots = parsed.data.slots;
   for (const s of slots) {

@@ -1,5 +1,8 @@
 export type Schedule = { always: true } | { always: false; days: number[]; openMin: number; closeMin: number };
-export type NowIST = { day: number; minutes: number };
+export type NowZone = { day: number; minutes: number };
+
+/** The product operates on a single fixed-offset timezone: Nepal (UTC+5:45), no DST. */
+export const TIME_ZONE = 'Asia/Kathmandu';
 
 const DAY: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
@@ -32,11 +35,11 @@ export function parseHours(raw: string | null | undefined): Schedule | null {
   };
 }
 
-/** Current time in Asia/Kolkata (facilities are Indian). */
-export function nowIST(date: Date = new Date()): NowIST {
+/** Current wall clock in the product timezone (Asia/Kathmandu). */
+export function nowZone(date: Date = new Date()): NowZone {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Kolkata',
+      timeZone: TIME_ZONE,
       weekday: 'short',
       hour: '2-digit',
       minute: '2-digit',
@@ -51,7 +54,7 @@ export function nowIST(date: Date = new Date()): NowIST {
 }
 
 /** true/false when knowable, null when hours are missing or unparseable. */
-export function isOpenNow(raw: string | null | undefined, now: NowIST = nowIST()): boolean | null {
+export function isOpenNow(raw: string | null | undefined, now: NowZone = nowZone()): boolean | null {
   const s = parseHours(raw);
   if (!s) return null;
   if (s.always) return true;

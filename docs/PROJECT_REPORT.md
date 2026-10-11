@@ -6,7 +6,7 @@ PanaNexus is an integrated digital healthcare ecosystem connecting patients, doc
 
 | App | Stack | Port (dev) |
 | --- | --- | --- |
-| API | Node 24, Express 5, Socket.IO, Prisma 8 (`@prisma/orm-postgres`), zod, PostgreSQL (local `pn-pg` / Neon) | 4000 |
+| API | Node 24, Express 4, Socket.IO, Prisma 8 (`@prisma/orm-postgres`), zod, PostgreSQL (local `pn-pg` / Neon) | 4000 |
 | Web | Next.js App Router, React 19, TypeScript, Tailwind CSS v4, socket.io-client | 3000 |
 
 ## 2. Roles & flows

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/lib/session';
 import { apiGet, apiPost } from '@/lib/api';
+import { TIME_ZONE } from '@/lib/format';
 import { Badge, StatusDot } from '@/components/ui';
 import { IconCalendar, IconCheck, IconClock, IconStethoscope } from '@/components/icons';
 
@@ -206,7 +207,7 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
           {!slotsLoading && slots.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
               {slots.map((s) => {
-                const time = new Date(s.startsAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+                const time = new Date(s.startsAt).toLocaleTimeString('en-GB', { timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit' });
                 return (
                   <button
                     key={s.startsAt}

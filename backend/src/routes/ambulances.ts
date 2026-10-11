@@ -230,11 +230,14 @@ router.patch('/:id/status', requireAuth, requireRole('AMBULANCE_OPERATOR', 'ADMI
   const owned = await ownAmbulance(req.params.id, user);
   if ('code' in owned) return fail(res, owned.code, owned.message, owned.status);
   const nextAmb = parsed.data.status;
-  const patch: Record<string, unknown> = { status: nextAmb };
-  if (nextAmb === 'AVAILABLE' || nextAmb === 'OFFLINE') patch.status = nextAmb;
-  await db.orm.public.Ambulance.where({ id: owned.row.id }).update(patch as never);
-
   const trip = await activeTripFor(owned.row.id);
+  // Fleet status cannot be flipped to AVAILABLE/OFFLINE while a trip is in progress,
+  // otherwise an operator could free the ambulance mid-transport.
+  if (trip && (nextAmb === 'AVAILABLE' || nextAmb === 'OFFLINE')) {
+    return fail(res, 'ACTIVE_TRIP', 'Finish the current trip before changing availability.', 409);
+  }
+  await db.orm.public.Ambulance.where({ id: owned.row.id }).update({ status: nextAmb } as never);
+
   if (trip) {
     const nextTrip = TRIP_BY_AMB[nextAmb];
     if (nextTrip) {

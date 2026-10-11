@@ -1,6 +1,6 @@
 # PanaNexus Backend
 
-Express 5 + Socket.IO + Prisma 8 (`@prisma/orm-postgres`) over PostgreSQL. All routes use zod validation; middleware enforces auth/role/verification; rate limits apply globally and on auth routes.
+Express 4 + Socket.IO + Prisma 8 (`@prisma/orm-postgres`) over PostgreSQL. All routes use zod validation; middleware enforces auth/role/verification; rate limits apply globally and on auth routes. (Express 4 does not forward rejected promises from `async` handlers to the error middleware, so `src/lib/asyncErrors.ts` is imported first in `app.ts` to bridge them — otherwise an unhandled rejection would terminate the process.)
 
 ## Setup
 
@@ -137,6 +137,26 @@ When `DEMO_MODE=true`, the admin surface exposes an in-memory, demo-only ambulan
 - Movement interpolates a constant speed along a routing-provider geometry (`osrm`, or a straight-line fallback flagged `approximate`); ticks update ambulance position + `LocationUpdate` and emit `trip:location` with `etaMinutes` and `etaApproximate`.
 - All simulations are stopped on `SIGTERM`/`SIGINT` alongside the dispatch loop.
 
+## Timezone handling
+
+The platform serves a single timezone: **Asia/Kathmandu (NPT, UTC+5:45)**, which
+observes no daylight saving. This is a code-level constant (`src/lib/hours.ts`),
+not a `TZ` environment variable, so slot generation is deterministic regardless
+of the host's clock zone.
+
+- Facility operating hours are parsed as wall-clock ranges (`Mon–Sat 08:00–20:00`).
+- `zoneWallClockToUtc(...)` converts a local wall-clock date/minute to the correct
+  UTC instant (e.g. 09:00 NPT → 03:15 UTC).
+- `nowZone()` / `isOpenNow()` evaluate "is this open now" in NPT.
+- Appointments store ISO-8601 UTC instants; the weekday and minute-of-day checks
+  (`appointments.ts`) and the client display (`frontend/src/lib/format.ts`) all use
+  the same NPT zone, so booking, slot generation and display agree.
+- Notifications format times with `Asia/Kathmandu` too.
+
+Unit tests cover the offset conversions, early-morning day roll-over, and the
+round-trip (`src/lib/hours.test.ts`); the appointment integration suite asserts
+slots are generated from NPT wall-clock time rather than server local time.
+
 ## Environment variables
 
 See `.env.example`. Key variables explained:
@@ -148,8 +168,13 @@ See `.env.example`. Key variables explained:
 - `NODE_ENV`: `development` (cookies `SameSite=None; Secure` — requires HTTPS via `lvh.me`/`mkcert`), `test` (rate limits disabled), `production` (`SameSite=None`/secure cookies; requires S3; rejects `DEMO_MODE=true`).
 - `STORAGE_DRIVER`: `local` (dev/default) or `s3` (production; requires `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`; production fails safe without them).
 - `S3_ENDPOINT`: Optional custom S3 endpoint (e.g., `https://s3.filebase.com` for Filebase). If unset, uses AWS default endpoint.
-- `TZ`: `Asia/Kolkata` (fixed IST offset; no DST).
 - `PORT`, `RATE_LIMIT`, `AUTH_RATE_LIMIT`, `SESSION_*`, `MAP_*`, `OSRM_*`, etc.
+
+There is **no `TZ` environment variable**: the product timezone is a fixed constant
+(`Asia/Kathmandu`, UTC+5:45, no DST) defined in `src/lib/hours.ts`. Facility hours
+and appointment slots are authored and evaluated in that zone, not the server's
+local zone, so behaviour is identical on a UTC host (Render) and a developer
+laptop. See “Timezone handling" below.
 
 ## Filebase Configuration (S3-compatible)
 

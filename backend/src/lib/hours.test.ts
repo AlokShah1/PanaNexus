@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isOpenNow, istWallClockToUtc, nowIST, parseHours } from './hours.js';
+import { isOpenNow, nowZone, parseHours, zoneWallClockToUtc } from './hours.js';
 
 const at = (day: number, h: number, m = 0) => ({ day, minutes: h * 60 + m });
 
@@ -58,30 +58,30 @@ describe('isOpenNow', () => {
   });
 });
 
-describe('nowIST', () => {
-  it('returns IST day/minutes for a known instant', () => {
-    const n = nowIST(new Date('2026-10-07T12:00:00Z')); // 17:30 IST, Wednesday
+describe('nowZone', () => {
+  it('returns Nepal (UTC+5:45) day/minutes for a known instant', () => {
+    const n = nowZone(new Date('2026-10-07T12:00:00Z')); // 17:45 NPT, Wednesday
+    expect(n.minutes).toBe(17 * 60 + 45);
     expect(n.day).toBe(3);
-    expect(n.minutes).toBe(17 * 60 + 30);
   });
 });
 
-describe('istWallClockToUtc', () => {
-  it('converts an IST wall-clock time to the correct UTC instant', () => {
-    // 09:00 IST on 2026-10-07 is 03:30 UTC the same day.
-    const d = istWallClockToUtc(2026, 9, 7, 9 * 60);
-    expect(d.toISOString()).toBe('2026-10-07T03:30:00.000Z');
+describe('zoneWallClockToUtc', () => {
+  it('converts a Nepal wall-clock time to the correct UTC instant', () => {
+    // 09:00 NPT on 2026-10-07 is 03:15 UTC the same day (offset +5:45).
+    const d = zoneWallClockToUtc(2026, 9, 7, 9 * 60);
+    expect(d.toISOString()).toBe('2026-10-07T03:15:00.000Z');
   });
 
-  it('rolls back to the previous UTC day for early-morning IST times', () => {
-    // 00:15 IST on 2026-10-07 is 18:45 UTC on 2026-10-06.
-    const d = istWallClockToUtc(2026, 9, 7, 15);
-    expect(d.toISOString()).toBe('2026-10-06T18:45:00.000Z');
+  it('rolls back to the previous UTC day for early-morning local times', () => {
+    // 00:15 NPT on 2026-10-07 is 18:30 UTC on 2026-10-06.
+    const d = zoneWallClockToUtc(2026, 9, 7, 15);
+    expect(d.toISOString()).toBe('2026-10-06T18:30:00.000Z');
   });
 
-  it('round-trips through nowIST back to the IST wall clock', () => {
-    const d = istWallClockToUtc(2026, 9, 7, 14 * 60 + 45);
-    const n = nowIST(d);
+  it('round-trips through nowZone back to the local wall clock', () => {
+    const d = zoneWallClockToUtc(2026, 9, 7, 14 * 60 + 45);
+    const n = nowZone(d);
     expect(n.minutes).toBe(14 * 60 + 45);
     expect(n.day).toBe(3); // Wednesday
   });

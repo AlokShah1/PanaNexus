@@ -4,12 +4,20 @@ A lightweight platform connecting patients, doctors, hospitals, health posts, bl
 
 **Storage**: Structured data (PostgreSQL on Neon) + private medical PDFs (S3-compatible object storage — AWS S3 or Filebase free tier).
 
+## Timezone and language policy
+
+- **Interface language: English only.** No translations or language selector are offered.
+- **Timezone: Asia/Kathmandu (NPT, UTC+5:45), fixed — no daylight saving.** Facility
+  hours and appointment slots are authored and displayed in NPT, independent of the
+  server's clock (Render runs in UTC). Instants are stored as ISO-8601 UTC and
+  converted for display. See `backend/README.md` → “Timezone handling”.
+
 ## Stack
 
 | App | Stack |
 | --- | --- |
 | `frontend/` | Next.js (App Router) · React 19 · TypeScript · Tailwind CSS v4 · socket.io-client |
-| `backend/` | Node.js · Express 5 · Socket.IO · Prisma 8 (`@prisma/orm-postgres`) · zod · PostgreSQL |
+| `backend/` | Node.js · Express 4 · Socket.IO · Prisma 8 (`@prisma/orm-postgres`) · zod · PostgreSQL |
 
 ## Roles
 

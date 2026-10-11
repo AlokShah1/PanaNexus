@@ -60,6 +60,8 @@ export const availabilitySlotSchema = z.object({
 
 export const availabilitySchema = z.object({
   slots: z.array(availabilitySlotSchema).min(1).max(21),
+  // Admins may edit a specific doctor's availability; doctors always edit their own.
+  doctorId: z.string().min(1).optional(),
 });
 
 export const WARD_TYPES = [

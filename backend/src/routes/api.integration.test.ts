@@ -389,6 +389,19 @@ describe.skipIf(adminJar === '' || !dbOk)('API integration — admission integri
     const r = await req('POST', `/api/v1/admissions/${admissionId}/discharge`, {}, staffJar);
     expect(r.status).toBe(409);
   });
+
+  it('ignores a client-supplied facilityId when staff raise a blood request', async () => {
+    const facs = await req('GET', '/api/v1/facilities');
+    const other = facs.json.data.find((f: any) => f.id !== facilityId);
+    if (!other) return; // needs a second facility in the dataset
+    const r = await req('POST', '/api/v1/blood/requests', { facilityId: other.id, bloodGroup: 'O+', units: 1 }, staffJar);
+    expect(r.status).toBe(201);
+    const id = r.json.data.request.id;
+    const list = await req('GET', '/api/v1/blood/requests', undefined, staffJar);
+    const created = list.json.data.items.find((x: any) => x.id === id);
+    expect(created).toBeTruthy();
+    expect(created.facilityId).toBe(facilityId);
+  });
 });
 
 describeIf(dbOk, 'API integration — patient resources', () => {
@@ -851,10 +864,10 @@ describeIf(dbOk && !!adminJar, 'API integration — appointment availability & b
   let doctorFacilityId: string | null = null;
   let futureDate = '';
   let bookedStartsAt = '';
-  const istDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' });
-  const istTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
+  const localDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kathmandu', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const localTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kathmandu', hour: '2-digit', minute: '2-digit', hour12: false });
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const WEEKDAY = 3; // Wednesday, IST
+  const WEEKDAY = 3; // Wednesday, product timezone
 
   beforeAll(async () => {
     const docEmail = `it.appt.doc.${UNIQ}@example.test`;
@@ -896,12 +909,12 @@ describeIf(dbOk && !!adminJar, 'API integration — appointment availability & b
     patientJar = await makePatient('pat');
     otherJar = await makePatient('other');
 
-    // Pick a future IST calendar date that lands on the configured weekday.
+    // Pick a future calendar date (product timezone) that lands on the configured weekday.
     for (let i = 8; i < 24; i += 1) {
       const candidate = new Date(Date.now() + i * 86_400_000);
-      const wd = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short' }).format(candidate);
+      const wd = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kathmandu', weekday: 'short' }).format(candidate);
       if (wd === DAYS[WEEKDAY]) {
-        futureDate = istDate.format(candidate);
+        futureDate = localDate.format(candidate);
         break;
       }
     }
@@ -916,13 +929,13 @@ describeIf(dbOk && !!adminJar, 'API integration — appointment availability & b
     expect(r.json.data[0]).toMatchObject({ weekday: WEEKDAY, startMinute: 540, endMinute: 600, slotMinutes: 30 });
   });
 
-  it('generates slots from IST wall-clock times, not server-local time', async () => {
+  it('generates slots from local wall-clock times, not server-local time', async () => {
     const r = await req('GET', `/api/v1/appointments/slots?doctorId=${doctorId}&date=${futureDate}`, undefined, patientJar);
     expect(r.status).toBe(200);
-    expect(r.json.data.slots.length).toBe(2); // 09:00 and 09:30 IST
+    expect(r.json.data.slots.length).toBe(2); // 09:00 and 09:30 Nepal time
     const first = r.json.data.slots[0];
-    expect(istTime.format(new Date(first.startsAt))).toBe('09:00');
-    expect(istTime.format(new Date(first.endsAt))).toBe('09:30');
+    expect(localTime.format(new Date(first.startsAt))).toBe('09:00');
+    expect(localTime.format(new Date(first.endsAt))).toBe('09:30');
   });
 
   it('books an available slot and infers the doctor’s facility', async () => {
@@ -953,9 +966,24 @@ describeIf(dbOk && !!adminJar, 'API integration — appointment availability & b
   });
 
   it('rejects a booking outside the doctor’s consultation window', async () => {
-    const outside = new Date(new Date(bookedStartsAt).getTime() + 12 * 60 * 60 * 1000).toISOString(); // 21:00 IST, after close
+    const outside = new Date(new Date(bookedStartsAt).getTime() + 12 * 60 * 60 * 1000).toISOString(); // 21:00 local, after 20:00 close
     const r = await req('POST', '/api/v1/appointments', { doctorId, startsAt: outside }, otherJar);
     expect(r.status).toBe(409);
     expect(r.json.error.code).toBe('OUTSIDE_HOURS');
+  });
+
+  it('forbids a doctor from authoring a record for a patient they are not treating', async () => {
+    const me = await req('GET', '/api/v1/patients/me', undefined, otherJar);
+    const strangerId = me.json.data.id;
+    const r = await req('POST', '/api/v1/medical-records', { patientId: strangerId, recordType: 'CONSULTATION' }, doctorJar);
+    expect(r.status).toBe(403);
+  });
+
+  it('lets the doctor author a record for a patient they treat', async () => {
+    const me = await req('GET', '/api/v1/patients/me', undefined, patientJar);
+    const treatedId = me.json.data.id;
+    const r = await req('POST', '/api/v1/medical-records', { patientId: treatedId, recordType: 'CONSULTATION', diagnosis: 'Routine' }, doctorJar);
+    expect(r.status).toBe(201);
+    expect(r.json.data.id).toBeTruthy();
   });
 });

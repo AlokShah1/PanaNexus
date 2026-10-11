@@ -99,7 +99,8 @@ router.post('/', requireAuth, async (req, res) => {
     const a = byId.get(m.id);
     return { ...m, registrationNumber: a?.registrationNumber ?? null, type: a?.type ?? null };
   });
-  await db.orm.public.EmergencyRequest.where({ id: reqRow.id }).update({ status: matches.length ? 'MATCHED' : 'PENDING' });
+  // Only advance PENDING → MATCHED; never clobber a status an operator may already have set.
+  await db.orm.public.EmergencyRequest.where({ id: reqRow.id, status: 'PENDING' as never }).update({ status: matches.length ? 'MATCHED' : 'PENDING' });
   await db.orm.public.AuditLog.create({
     action: 'EMERGENCY_REQUEST_CREATED',
     entity: 'EmergencyRequest',

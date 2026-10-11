@@ -1,13 +1,15 @@
+export const TIME_ZONE = 'Asia/Kathmandu';
+
 export function roleLabel(role: string) {
   return role.replace(/_/g, ' ');
 }
 
 export function formatDateTime(iso: string, opts?: Intl.DateTimeFormatOptions) {
   try {
-    return new Intl.DateTimeFormat('en-IN', {
+    return new Intl.DateTimeFormat('en-GB', {
       dateStyle: 'medium',
       timeStyle: 'short',
-      timeZone: 'Asia/Kolkata',
+      timeZone: TIME_ZONE,
       ...opts,
     }).format(new Date(iso));
   } catch {
@@ -17,9 +19,9 @@ export function formatDateTime(iso: string, opts?: Intl.DateTimeFormatOptions) {
 
 export function formatDate(iso: string, opts?: Intl.DateTimeFormatOptions) {
   try {
-    return new Intl.DateTimeFormat('en-IN', {
+    return new Intl.DateTimeFormat('en-GB', {
       dateStyle: 'medium',
-      timeZone: 'Asia/Kolkata',
+      timeZone: TIME_ZONE,
       ...opts,
     }).format(new Date(iso));
   } catch {

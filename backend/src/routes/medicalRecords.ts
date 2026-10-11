@@ -199,6 +199,18 @@ router.post('/', requireAuth, requireRole('DOCTOR'), requireVerified, async (req
   if (!patient) {
     return fail(res, 'PATIENT_NOT_FOUND', 'Patient not found.', 404);
   }
+  // Least privilege: a doctor may only author records for patients they treat
+  // (an existing appointment) or have already treated (a prior record). This
+  // mirrors the read-path relationship check above.
+  const hasAppointment = await db.orm.public.Appointment.where({
+    doctorId: doctor.id,
+    patientId: patient.id,
+  }).first();
+  const priorRecord =
+    hasAppointment ?? (await db.orm.public.MedicalRecord.where({ doctorId: doctor.id, patientId: patient.id }).first());
+  if (!priorRecord) {
+    return fail(res, 'FORBIDDEN', 'You can only add records for patients you are treating.', 403);
+  }
   const record = await db.orm.public.MedicalRecord.create({
     patientId: patient.id,
     doctorId: doctor.id,

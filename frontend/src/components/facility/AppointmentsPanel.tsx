@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiGet, apiPatch, type Paginated } from '@/lib/api';
+import { TIME_ZONE } from '@/lib/format';
 import { Badge, Button } from '@/components/ui';
 import { IconCalendar } from '@/components/icons';
 import { Card, Empty, ErrorBanner, Pager, Skeleton, SuccessNotice, type ApiError } from '@/components/dashboard/ui';
@@ -43,7 +44,7 @@ const FILTERS = ['', 'REQUESTED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHO
 function fmtTime(iso: string): string {
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return '—';
-  return at.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  return at.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: TIME_ZONE });
 }
 
 export default function AppointmentsPanel() {

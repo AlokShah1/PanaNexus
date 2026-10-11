@@ -1,18 +1,24 @@
 export type Schedule = { always: true } | { always: false; days: number[]; openMin: number; closeMin: number };
-export type NowIST = { day: number; minutes: number };
+export type NowZone = { day: number; minutes: number };
 
 const DAY: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
-/** India has a single fixed offset (UTC+5:30) and observes no DST. */
-export const IST_OFFSET_MINUTES = 330;
+/**
+ * The product operates on a single fixed-offset timezone: Nepal (Asia/Kathmandu,
+ * UTC+5:45), which observes no daylight saving. Facility operating hours and
+ * appointment slots are authored and displayed in this zone regardless of where
+ * the server runs (Render hosts run in UTC).
+ */
+export const TIME_ZONE = 'Asia/Kathmandu';
+export const ZONE_OFFSET_MINUTES = 345;
 
 /**
- * Build the UTC instant for an IST wall-clock calendar date and minute-of-day.
- * Availability is authored in IST, so slot generation must convert from IST
- * wall-clock rather than from the server's local timezone (which is UTC on most
- * hosts). `month0` is zero-based, matching `Date.UTC`.
+ * Build the UTC instant for a wall-clock calendar date and minute-of-day in the
+ * product timezone. Availability is authored in local (Nepal) wall-clock time,
+ * so slot generation must convert from that rather than from the server's local
+ * timezone. `month0` is zero-based, matching `Date.UTC`.
  */
-export function istWallClockToUtc(
+export function zoneWallClockToUtc(
   year: number,
   month0: number,
   day: number,
@@ -20,7 +26,7 @@ export function istWallClockToUtc(
 ): Date {
   const hh = Math.floor(minutes / 60);
   const mm = minutes % 60;
-  return new Date(Date.UTC(year, month0, day, hh, mm) - IST_OFFSET_MINUTES * 60_000);
+  return new Date(Date.UTC(year, month0, day, hh, mm) - ZONE_OFFSET_MINUTES * 60_000);
 }
 
 /**
@@ -52,11 +58,11 @@ export function parseHours(raw: string | null | undefined): Schedule | null {
   };
 }
 
-/** Current time in Asia/Kolkata (facilities are Indian). */
-export function nowIST(date: Date = new Date()): NowIST {
+/** Current wall clock in the product timezone (Asia/Kathmandu). */
+export function nowZone(date: Date = new Date()): NowZone {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Kolkata',
+      timeZone: TIME_ZONE,
       weekday: 'short',
       hour: '2-digit',
       minute: '2-digit',
@@ -71,7 +77,7 @@ export function nowIST(date: Date = new Date()): NowIST {
 }
 
 /** true/false when knowable, null when hours are missing or unparseable. */
-export function isOpenNow(raw: string | null | undefined, now: NowIST = nowIST()): boolean | null {
+export function isOpenNow(raw: string | null | undefined, now: NowZone = nowZone()): boolean | null {
   const s = parseHours(raw);
   if (!s) return null;
   if (s.always) return true;
@@ -80,20 +86,16 @@ export function isOpenNow(raw: string | null | undefined, now: NowIST = nowIST()
   return now.minutes >= s.openMin && now.minutes < s.closeMin;
 }
 
-/** Get IST day/minute from date, and a helper to get local IST day key for a given YYYY-MM-DD */
-export function istNow(date: Date = new Date()): NowIST {
-  return nowIST(date);
-}
-
-export function istDateKey(dateStr: string, now: Date = new Date()): number {
+/** Wall-clock (product timezone) day-of-week for a YYYY-MM-DD calendar date. */
+export function zoneDateKey(dateStr: string, now: Date = new Date()): number {
   const d = new Date(dateStr + 'T00:00:00Z');
   if (isNaN(d.getTime())) {
-    return istNow(now).day;
+    return nowZone(now).day;
   }
-  return istNow(d).day;
+  return nowZone(d).day;
 }
 
-/** Get minutes since midnight IST for a given date */
-export function istMinutes(date: Date = new Date()): number {
-  return istNow(date).minutes;
+/** Minutes since local midnight in the product timezone for a given instant. */
+export function zoneMinutes(date: Date = new Date()): number {
+  return nowZone(date).minutes;
 }
