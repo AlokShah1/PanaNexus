@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { apiGet } from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { Badge, StatusDot } from '@/components/ui';
 import { IconDroplet, IconRefresh } from '@/components/icons';
 
@@ -10,6 +12,9 @@ const GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 type Availability = { id: string; bloodGroup: string; units: number; facility: { id: string; name: string } | null };
 
 export default function BloodSearch() {
+  const { status } = useSession();
+  const isGuest = status === 'guest';
+  const sessionLoading = status === 'loading';
   const [group, setGroup] = useState('');
   const [city, setCity] = useState('');
   const [rows, setRows] = useState<Availability[]>([]);
@@ -19,6 +24,7 @@ export default function BloodSearch() {
 
   async function search(e?: React.FormEvent) {
     e?.preventDefault();
+    if (isGuest) return;
     setError(null);
     setLoading(true);
     setSearched(true);
@@ -81,18 +87,28 @@ export default function BloodSearch() {
           />
         </div>
 
-        <button
-          onClick={search}
-          disabled={loading}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-800 disabled:opacity-60"
-        >
-          {loading ? (
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-          ) : (
+        {isGuest ? (
+          <Link
+            href="/login?next=/blood"
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-800"
+          >
             <IconDroplet size={16} />
-          )}
-          Check availability
-        </button>
+            Sign in to check availability
+          </Link>
+        ) : (
+          <button
+            onClick={search}
+            disabled={loading || sessionLoading}
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-800 disabled:opacity-60"
+          >
+            {loading ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+            ) : (
+              <IconDroplet size={16} />
+            )}
+            Check availability
+          </button>
+        )}
 
         <div className="mt-5 rounded-2xl bg-brand-50 p-4 text-[13px] leading-relaxed text-brand-900">
           PanaNexus coordinates information between facilities and donors. Transfusion eligibility is always decided
@@ -106,7 +122,7 @@ export default function BloodSearch() {
           <h2 className="text-base font-bold text-ink">
             {group ? `Availability for ${group}` : 'All reported availability'}
           </h2>
-          {searched && (
+          {searched && !isGuest && (
             <Badge tone="neutral">
               <StatusDot tone="success" />
               {rows.length} source{rows.length === 1 ? '' : 's'}
@@ -114,8 +130,27 @@ export default function BloodSearch() {
           )}
         </div>
 
+        <div role="status" aria-live="polite" aria-busy={loading}>
+        {isGuest ? (
+          <div className="mt-6 rounded-2xl bg-slate-50 p-10 text-center">
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-white text-brand-600 shadow-soft">
+              <IconDroplet size={22} />
+            </span>
+            <p className="mt-4 text-sm font-semibold text-ink">Sign in to view live availability</p>
+            <p className="mt-1 text-[13px] text-ink-muted">
+              Availability is shared between signed-in patients and facilities.
+            </p>
+            <Link
+              href="/login?next=/blood"
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+            >
+              Sign in
+            </Link>
+          </div>
+        ) : (
+          <>
         {error && (
-          <div className="mt-6 rounded-2xl bg-white p-6 text-center ring-1 ring-slate-200">
+          <div role="alert" className="mt-6 rounded-2xl bg-white p-6 text-center ring-1 ring-slate-200">
             <p className="text-sm font-medium text-ink-muted">{error}</p>
             <button
               onClick={() => search()}
@@ -149,12 +184,12 @@ export default function BloodSearch() {
                       <StatusDot tone={s.tone === 'danger' ? 'danger' : s.tone === 'warning' ? 'warning' : 'success'} />
                       {s.label}
                     </Badge>
-                    <a
+                    <Link
                       href="/organ-donation"
                       className="rounded-full bg-slate-100 px-3.5 py-1.5 text-[13px] font-semibold text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-700"
                     >
                       Register as donor
-                    </a>
+                    </Link>
                   </div>
                 </li>
               );
@@ -178,6 +213,9 @@ export default function BloodSearch() {
             <p className="mt-1 text-[13px] text-ink-muted">Results come from facilities that report their stock.</p>
           </div>
         )}
+          </>
+        )}
+        </div>
       </div>
     </div>
   );

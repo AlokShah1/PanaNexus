@@ -16,6 +16,7 @@ export default function NotificationsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function NotificationsPanel() {
         }
         setItems(list.data);
         if (unread.ok) setUnreadCount(unread.data.count);
+        setError(null);
         setLoading(false);
       })
       .catch(() => {
@@ -55,24 +57,17 @@ export default function NotificationsPanel() {
   }
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      apiGet<Notification[]>('/notifications?limit=30')
-        .then((r) => {
-          if (r.ok) setItems(r.data);
-        })
-        .catch(() => undefined);
-      apiGet<{ count: number }>('/notifications/unread-count')
-        .then((r) => {
-          if (r.ok) setUnreadCount(r.data.count);
-        })
-        .catch(() => undefined);
-    }, 30000);
+    // Reuse load() so a poll that recovers also clears a stale error state.
+    const interval = setInterval(() => load(), 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [load]);
 
   async function markRead(id: string) {
+    if (busy) return;
+    setBusy(true);
     setActionError(null);
     const r = await apiPost<{ id: string }>(`/notifications/${id}/read`, {});
+    setBusy(false);
     if (!r.ok) {
       setActionError(r.message);
       return;
@@ -83,7 +78,9 @@ export default function NotificationsPanel() {
 
   async function markAllRead() {
     setActionError(null);
+    setBusy(true);
     const r = await apiPost<{ updated: number }>('/notifications/read-all', {});
+    setBusy(false);
     if (!r.ok) {
       setActionError(r.message);
       return;
@@ -114,7 +111,7 @@ export default function NotificationsPanel() {
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-ink">Unread: {unreadCount}</span>
         {unreadCount > 0 && (
-          <button onClick={markAllRead} className="text-xs text-brand-600 underline hover:text-brand-700">
+          <button onClick={markAllRead} disabled={busy} className="text-xs text-brand-600 underline hover:text-brand-700 disabled:opacity-50">
             Mark all read
           </button>
         )}
@@ -130,7 +127,7 @@ export default function NotificationsPanel() {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">{relativeTime(n.createdAt)}</span>
                 {!n.read && (
-                  <button onClick={() => markRead(n.id)} className="text-xs text-slate-600 underline hover:text-slate-700">
+                  <button onClick={() => markRead(n.id)} disabled={busy} className="text-xs text-slate-600 underline hover:text-slate-700 disabled:opacity-50">
                     Mark read
                   </button>
                 )}

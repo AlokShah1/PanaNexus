@@ -15,12 +15,21 @@ export default function BloodDonorForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [hasProfile, setHasProfile] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (status !== 'authed') return;
+    let active = true;
     apiGet<{ id: string; bloodGroup: string; isAvailable: boolean; lastDonationDate?: string | null } | null>('/donors/blood')
       .then((r) => {
-        if (r.ok && r.data) {
+        if (!active) return;
+        if (!r.ok) {
+          setLoadError(r.message);
+          return;
+        }
+        setLoadError(null);
+        if (r.data) {
           setHasProfile(true);
           setBloodGroup(r.data.bloodGroup);
           setIsAvailable(r.data.isAvailable);
@@ -31,8 +40,13 @@ export default function BloodDonorForm() {
           }
         }
       })
-      .catch(() => undefined);
-  }, [status]);
+      .catch(() => {
+        if (active) setLoadError('Something went wrong while loading your donor profile.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [status, reloadKey]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,6 +103,21 @@ export default function BloodDonorForm() {
   return (
     <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold">Register as blood donor</h2>
+      {loadError && (
+        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {loadError}{' '}
+          <button
+            type="button"
+            onClick={() => {
+              setLoadError(null);
+              setReloadKey((k) => k + 1);
+            }}
+            className="font-semibold underline"
+          >
+            Retry
+          </button>
+        </p>
+      )}
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">Blood group</span>
         <select

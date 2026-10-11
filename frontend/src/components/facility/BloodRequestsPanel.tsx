@@ -46,10 +46,13 @@ export default function BloodRequestsPanel({ profile }: { profile: SessionProfil
   const [units, setUnits] = useState('1');
   const [createBusy, setCreateBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setError(null);
+    setLoading(true);
     const res = await apiGet<Paginated<BloodRequestRow>>(`/blood/requests?page=${page}&limit=20`);
+    setLoading(false);
     if (!res.ok) {
       setError(res);
       return;
@@ -196,7 +199,7 @@ export default function BloodRequestsPanel({ profile }: { profile: SessionProfil
           ))}
         </div>
 
-        <Pager page={page} meta={meta} onPage={setPage} busy={!rows} />
+        <Pager page={page} meta={meta} onPage={setPage} busy={loading} />
       </div>
     </Card>
   );

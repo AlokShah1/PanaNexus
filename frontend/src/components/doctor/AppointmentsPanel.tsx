@@ -55,12 +55,15 @@ export default function AppointmentsPanel() {
   const [error, setError] = useState<ApiError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setError(null);
+    setLoading(true);
     const params = new URLSearchParams({ page: String(page), limit: '20' });
     if (filter) params.set('status', filter);
     const res = await apiGet<Paginated<AppointmentItem>>(`/appointments?${params.toString()}`);
+    setLoading(false);
     if (!res.ok) {
       setError(res);
       setRows(null);
@@ -165,7 +168,7 @@ export default function AppointmentsPanel() {
             </section>
           </>
         )}
-        <Pager page={page} meta={meta} onPage={setPage} busy={!rows} />
+        <Pager page={page} meta={meta} onPage={setPage} busy={loading} />
       </div>
     </Card>
   );

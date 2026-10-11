@@ -42,6 +42,7 @@ export default function Page() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [patientId, setPatientId] = useState('');
   const [patients, setPatients] = useState<Array<{ id: string; name: string | null }>>([]);
   const [editing, setEditing] = useState<RecordItem | null>(null);
   const [editData, setEditData] = useState({ diagnosis: '', treatment: '', notes: '', prescriptions: '', attachments: '' });
@@ -50,19 +51,29 @@ export default function Page() {
 
   const canCreate = status === 'authed' && profile?.role === 'DOCTOR';
   const canEdit = status === 'authed' && (profile?.role === 'DOCTOR' || profile?.role === 'ADMIN');
-  // readOnly not needed as computed via canCreate/canEdit
 
   useEffect(() => {
-    load(page, typeFilter);
-  }, [page, typeFilter]);
+    // Doctors must pick a patient first; other roles are scoped server-side
+    // (patient → self, facility staff → their facility).
+    load(page, typeFilter, patientId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, typeFilter, patientId]);
 
-  async function load(p: number, t: string) {
+  async function load(p: number, t: string, pid: string) {
+    if (profile?.role === 'DOCTOR' && !pid) {
+      setError(null);
+      setItems([]);
+      setMeta({ page: 1, limit: 20, total: 0, totalPages: 1 });
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     const params = new URLSearchParams();
     params.set('page', String(p));
     params.set('limit', '20');
     if (t) params.set('recordType', t);
+    if (pid) params.set('patientId', pid);
     const res = await apiGet<Paginated<RecordItem>>(`/medical-records?${params.toString()}`);
     setLoading(false);
     if (!res.ok) {
@@ -134,7 +145,7 @@ export default function Page() {
       return;
     }
     setEditing(null);
-    load(page, typeFilter);
+    load(page, typeFilter, patientId);
   }
 
   return (
@@ -153,9 +164,30 @@ export default function Page() {
         </div>
       </header>
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-10 sm:px-6">
-        {canCreate && <RecordForm patients={patients} onSuccess={() => load(1, typeFilter)} />}
+        {canCreate && <RecordForm patients={patients} onSuccess={() => load(1, typeFilter, patientId)} />}
         <ReportFiles patients={patients} />
         <div className="flex flex-wrap items-center gap-3">
+          {profile?.role === 'DOCTOR' ? (
+            <label className="flex items-center gap-2 text-sm">
+              <span className="font-medium text-ink-muted">Patient</span>
+              <select
+                aria-label="Select patient to view records"
+                value={patientId}
+                onChange={(e) => {
+                  setPatientId(e.target.value);
+                  setPage(1);
+                }}
+                className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+              >
+                <option value="">Select a patient…</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name ?? p.id}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -179,7 +211,7 @@ export default function Page() {
             <option value="OTHER">Other</option>
           </select>
           <button
-            onClick={() => load(page, typeFilter)}
+            onClick={() => load(page, typeFilter, patientId)}
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2.5 text-sm font-semibold text-ink-muted"
           >
@@ -275,7 +307,9 @@ export default function Page() {
             </table>
           </div>
           {filtered.length === 0 && (
-            <div className="p-10 text-center text-sm text-ink-muted">No records found.</div>
+            <div className="p-10 text-center text-sm text-ink-muted">
+              {profile?.role === 'DOCTOR' && !patientId ? 'Select a patient to view their records.' : 'No records found.'}
+            </div>
           )}
         </div>
         {meta.totalPages > 1 && (

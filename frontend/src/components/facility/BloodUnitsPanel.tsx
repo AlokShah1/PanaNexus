@@ -34,10 +34,13 @@ export default function BloodUnitsPanel({ profile }: { profile: SessionProfile }
   const [addBusy, setAddBusy] = useState(false);
   const [editUnits, setEditUnits] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setError(null);
+    setLoading(true);
     const res = await apiGet<Paginated<Unit>>(`/blood/units?page=${page}&limit=20`);
+    setLoading(false);
     if (!res.ok) {
       setError(res);
       return;
@@ -192,7 +195,7 @@ export default function BloodUnitsPanel({ profile }: { profile: SessionProfile }
           ))}
         </div>
 
-        <Pager page={page} meta={meta} onPage={setPage} busy={!rows} />
+        <Pager page={page} meta={meta} onPage={setPage} busy={loading} />
       </div>
     </Card>
   );

@@ -122,6 +122,14 @@ export default function Inbox({ role }: { role: string }) {
     setProvidersReload((k) => k + 1);
   }
 
+  function selectConversation(id: string) {
+    if (id === activeId) return;
+    setThread(null);
+    setCounterpart(null);
+    setThreadError(null);
+    setActiveId(id);
+  }
+
   async function startConversation(e: FormEvent) {
     e.preventDefault();
     if (!newTarget) return;
@@ -138,6 +146,9 @@ export default function Inbox({ role }: { role: string }) {
     }
     setNewTarget('');
     const items = await loadConversations();
+    setThread(null);
+    setCounterpart(null);
+    setThreadError(null);
     setActiveId(res.data.id);
     if (!items) setThread(null);
   }
@@ -203,7 +214,7 @@ export default function Inbox({ role }: { role: string }) {
                 <li key={c.id}>
                   <button
                     type="button"
-                    onClick={() => setActiveId(c.id)}
+                    onClick={() => selectConversation(c.id)}
                     className={`w-full rounded-2xl px-4 py-3 text-left transition-colors ${
                       c.id === activeId ? 'bg-brand-50 ring-1 ring-brand-200' : 'bg-slate-50 hover:bg-slate-100'
                     }`}
@@ -253,6 +264,7 @@ export default function Inbox({ role }: { role: string }) {
                 <select
                   value={newTarget}
                   onChange={(e) => setNewTarget(e.target.value)}
+                  aria-label={isPatient ? 'Select a doctor to message' : 'Select a patient to message'}
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-400"
                 >
                   <option value="">Select {isPatient ? 'a doctor' : 'a patient'}</option>
@@ -323,6 +335,7 @@ export default function Inbox({ role }: { role: string }) {
                 rows={2}
                 maxLength={MAX_MESSAGE_LENGTH}
                 placeholder="Write a private message…"
+                aria-label="Message body"
                 disabled={sending}
                 className="min-h-[44px] flex-1 resize-none rounded-2xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-brand-400 disabled:bg-slate-50"
               />

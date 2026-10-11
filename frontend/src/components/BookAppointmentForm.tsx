@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useSession } from '@/lib/session';
 import { apiGet, apiPost } from '@/lib/api';
 import { TIME_ZONE } from '@/lib/format';
@@ -120,6 +121,34 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
   }
 
   const steps = ['Doctor', 'Date', 'Time', 'Confirmed'];
+
+  if (status === 'guest') {
+    return (
+      <div className="rounded-3xl bg-white p-6 text-center shadow-soft ring-1 ring-slate-200/70 sm:p-8">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-3xl bg-brand-50 text-brand-600">
+          <IconCalendar size={26} />
+        </span>
+        <h2 className="mt-4 text-lg font-bold text-ink">Sign in to book an appointment</h2>
+        <p className="mx-auto mt-1 max-w-md text-sm text-ink-muted">
+          Appointments are tied to your patient account so you and your doctor can track them.
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
+          <Link
+            href="/login?next=/appointments"
+            className="rounded-full bg-brand-600 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-700"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/register"
+            className="rounded-full bg-white px-6 py-3 text-sm font-bold text-brand-700 ring-1 ring-brand-200 transition-colors hover:bg-brand-50"
+          >
+            Create account
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-3xl bg-white p-6 shadow-soft ring-1 ring-slate-200/70 sm:p-8">
@@ -316,12 +345,12 @@ export default function BookAppointmentForm({ preselectDoctor }: { preselectDoct
               Track it from your dashboard
             </Badge>
           </div>
-          <a
+          <Link
             href="/dashboard"
             className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-800"
           >
             Go to dashboard
-          </a>
+          </Link>
         </div>
       )}
     </div>
