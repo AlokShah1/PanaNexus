@@ -1,4 +1,5 @@
 import './globals.css';
+import Link from 'next/link';
 import { Inter } from 'next/font/google';
 import SiteHeader from '@/components/SiteHeader';
 import SessionGuard from '@/components/SessionGuard';
@@ -24,12 +25,12 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
               <span className="hidden sm:inline">— Connected healthcare. Faster access. Better coordination.</span>
             </p>
             <nav className="flex flex-wrap items-center gap-4">
-              <a href="/about" className="hover:text-brand-700">About</a>
-              <a href="/services" className="hover:text-brand-700">Services</a>
-              <a href="/organ-donation" className="hover:text-brand-700">Organ donation</a>
-              <a href="/notifications" className="hover:text-brand-700">Notifications</a>
-              <a href="/privacy" className="hover:text-brand-700">Privacy</a>
-              <a href="/terms" className="hover:text-brand-700">Terms</a>
+              <Link href="/about" className="hover:text-brand-700">About</Link>
+              <Link href="/services" className="hover:text-brand-700">Services</Link>
+              <Link href="/organ-donation" className="hover:text-brand-700">Organ donation</Link>
+              <Link href="/notifications" className="hover:text-brand-700">Notifications</Link>
+              <Link href="/privacy" className="hover:text-brand-700">Privacy</Link>
+              <Link href="/terms" className="hover:text-brand-700">Terms</Link>
             </nav>
           </div>
           <div className="border-t border-slate-100 px-4 py-4 text-center text-xs text-ink-subtle sm:px-6">

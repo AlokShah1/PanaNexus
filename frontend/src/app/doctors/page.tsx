@@ -26,6 +26,10 @@ function initials(name: string | null) {
 
 export default async function DoctorsPage({ searchParams }: { searchParams: Promise<{ q?: string; specialty?: string }> }) {
   const { q, specialty } = await searchParams;
+  const retryParams = new URLSearchParams();
+  if (q) retryParams.set('q', q);
+  if (specialty) retryParams.set('specialty', specialty);
+  const retryHref = `/doctors${retryParams.size ? `?${retryParams}` : ''}`;
   const res = await apiGet<Doctor[]>('/doctors');
 
   const term = (q ?? '').trim().toLowerCase();
@@ -97,7 +101,7 @@ export default async function DoctorsPage({ searchParams }: { searchParams: Prom
           <div className="rounded-3xl bg-white p-8 text-center shadow-soft ring-1 ring-slate-200/70">
             <p className="text-sm font-medium text-ink-muted">{res.message}</p>
             <a
-              href=""
+              href={retryHref}
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
             >
               <IconRefresh size={16} /> Try again

@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiGet, apiPost } from '@/lib/api';
 import { reverseGeocode } from '@/lib/geo';
@@ -367,12 +368,12 @@ export default function EmergencyRequestForm() {
           Requests are tied to a verified account so dispatchers can reach you and keep an auditable record of the trip.
         </p>
         <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-          <a href="/login?next=/emergency" className="rounded-full bg-danger px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-[#c01039]">
+          <Link href="/login?next=/emergency" className="rounded-full bg-danger px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-[#c01039]">
             Sign in
-          </a>
-          <a href="/register" className="rounded-full bg-white px-6 py-3 text-sm font-bold text-brand-700 ring-1 ring-brand-200 transition-colors hover:bg-brand-50">
+          </Link>
+          <Link href="/register" className="rounded-full bg-white px-6 py-3 text-sm font-bold text-brand-700 ring-1 ring-brand-200 transition-colors hover:bg-brand-50">
             Create account
-          </a>
+          </Link>
         </div>
       </div>
     );

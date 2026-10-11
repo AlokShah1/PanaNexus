@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 const TERMS: { heading: string; body: string[] }[] = [
   {
     heading: 'Using PanaNexus',
@@ -71,13 +73,13 @@ export default function Page() {
       <div className="mt-12 rounded-3xl bg-white p-5 shadow-soft ring-1 ring-slate-200/70">
         <p className="text-sm text-ink-muted">
           See the{' '}
-          <a href="/privacy" className="font-semibold text-brand-700 underline">
+          <Link href="/privacy" className="font-semibold text-brand-700 underline">
             privacy policy
-          </a>{' '}
+          </Link>{' '}
           for how your information is handled, or the{' '}
-          <a href="/about" className="font-semibold text-brand-700 underline">
+          <Link href="/about" className="font-semibold text-brand-700 underline">
             about page
-          </a>{' '}
+          </Link>{' '}
           for an overview of the platform.
         </p>
       </div>

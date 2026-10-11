@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 const POLICY: { heading: string; body: string[] }[] = [
   {
     heading: 'What we collect',
@@ -76,16 +78,16 @@ export default function Page() {
       <div className="mt-12 rounded-3xl bg-white p-5 shadow-soft ring-1 ring-slate-200/70">
         <p className="text-sm text-ink-muted">
           Questions about your data? See the{' '}
-          <a href="/about" className="font-semibold text-brand-700 underline">
+          <Link href="/about" className="font-semibold text-brand-700 underline">
             about page
-          </a>{' '}
+          </Link>{' '}
           for how the platform works, or contact your facility or platform administrator.
         </p>
         <p className="mt-3 text-xs text-ink-subtle">
           See also the{' '}
-          <a href="/terms" className="underline hover:text-brand-700">
+          <Link href="/terms" className="underline hover:text-brand-700">
             terms of use
-          </a>
+          </Link>
           .
         </p>
       </div>

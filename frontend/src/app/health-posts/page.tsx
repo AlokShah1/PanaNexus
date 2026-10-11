@@ -30,7 +30,7 @@ export default async function Page() {
         {!res.ok && (
           <div className="rounded-3xl bg-white p-8 text-center shadow-soft ring-1 ring-slate-200/70">
             <p className="text-sm font-medium text-ink-muted">{res.message}</p>
-            <a href="" className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white">
+            <a href="/health-posts" className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white">
               <IconRefresh size={16} /> Try again
             </a>
           </div>
